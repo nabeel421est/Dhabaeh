@@ -6,7 +6,9 @@ import '../core/common.dart';
 import '../customer/order_details.dart';
 import 'admin_merchants.dart';
 import 'admin_money.dart';
+import 'admin_payouts.dart';
 import 'admin_people.dart';
+import 'admin_products.dart';
 
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key, required this.profile, this.switcher});
@@ -24,28 +26,34 @@ class _AdminShellState extends State<AdminShell> {
     ('الطلبات', Icons.receipt_long_outlined, null),
     ('العملاء', Icons.people_outline, null),
     ('التجار', Icons.storefront_outlined, null),
+    ('المنتجات', Icons.inventory_2_outlined, null),
     ('تقارير التجار', Icons.bar_chart_outlined, null),
     ('المندوبون', Icons.local_shipping_outlined, null),
     ('الإشعارات', Icons.campaign_outlined, null),
     ('محفظة المنصة', Icons.account_balance_outlined, 'الإدارة العامة'),
+    ('طلبات السحب', Icons.outbox_outlined, 'الإدارة العامة'),
     ('الاشتراكات', Icons.workspace_premium_outlined, 'الإدارة العامة'),
     ('العمولات', Icons.percent, 'الإدارة العامة'),
     ('التوصيل', Icons.map_outlined, 'الإدارة العامة'),
     ('مستخدمو المنصة', Icons.admin_panel_settings_outlined, 'الإدارة العامة'),
   ];
 
-  Widget page(int i) => switch (i) {
-        0 => AdminHome(onGo: (i) => setState(() => idx = i)),
-        1 => const AdminOrders(),
-        2 => const AdminUsers(group: UserGroup.customers),
-        3 => const AdminMerchants(),
-        4 => const AdminReports(),
-        5 => const AdminDrivers(),
-        6 => const AdminNotify(),
-        7 => const PlatformWallet(),
-        8 => const AdminPlans(),
-        9 => const AdminCommissions(),
-        10 => const AdminZones(),
+  Widget page(int i) => switch (sections[i].$1) {
+        'الرئيسية' => AdminHome(
+            onGo: (label) => setState(
+                () => idx = sections.indexWhere((x) => x.$1 == label))),
+        'الطلبات' => const AdminOrders(),
+        'العملاء' => const AdminUsers(group: UserGroup.customers),
+        'التجار' => const AdminMerchants(),
+        'المنتجات' => const AdminProducts(),
+        'تقارير التجار' => const AdminReports(),
+        'المندوبون' => const AdminDrivers(),
+        'الإشعارات' => const AdminNotify(),
+        'محفظة المنصة' => const PlatformWallet(),
+        'طلبات السحب' => const AdminPayouts(),
+        'الاشتراكات' => const AdminPlans(),
+        'العمولات' => const AdminCommissions(),
+        'التوصيل' => const AdminZones(),
         _ => const AdminUsers(group: UserGroup.platform),
       };
 
@@ -177,7 +185,7 @@ class StatTile extends StatelessWidget {
 
 class AdminHome extends StatelessWidget {
   const AdminHome({super.key, required this.onGo});
-  final void Function(int) onGo;
+  final void Function(String) onGo;
   @override
   Widget build(BuildContext context) {
     return Loader<Map<String, dynamic>>(
@@ -287,42 +295,42 @@ class AdminHome extends StatelessWidget {
                   '${d['open']}',
                   Icons.pending_actions_outlined,
                   const [Color(0xFF0B6FB0), Color(0xFF47BFF0)],
-                  1
+                  'الطلبات'
                 ),
                 (
                   'مبيعات مسلّمة',
                   bhd(d['delivered']),
                   Icons.payments_outlined,
                   const [Color(0xFF0D6152), Color(0xFF3CC4A0)],
-                  4
+                  'تقارير التجار'
                 ),
                 (
                   'رصيد المنصة',
                   bhd(d['platform']),
                   Icons.account_balance_outlined,
                   const [Color(0xFF8C6A12), Color(0xFFD4AF37)],
-                  7
+                  'محفظة المنصة'
                 ),
                 (
                   'التجار',
                   '${d['active']} فعال من ${d['merchants']}',
                   Icons.storefront_outlined,
                   const [Color(0xFF3A2878), Color(0xFF7A5AD4)],
-                  3
+                  'التجار'
                 ),
                 (
                   'العملاء',
                   '${d['customers']}',
                   Icons.people_outline,
                   const [Color(0xFF8E2442), Color(0xFFE07A86)],
-                  2
+                  'العملاء'
                 ),
                 (
                   'كل الطلبات',
                   '${d['total']}',
                   Icons.receipt_long_outlined,
                   const [Color(0xFF9A4A12), Color(0xFFF2A65A)],
-                  1
+                  'الطلبات'
                 ),
               ])
                 SizedBox(
@@ -347,7 +355,8 @@ class AdminHome extends StatelessWidget {
                 child: SectionCard(
                   title: 'الطلبات حسب الحالة',
                   trailing: TextButton(
-                      onPressed: () => onGo(1), child: const Text('عرض الكل')),
+                      onPressed: () => onGo('الطلبات'),
+                      child: const Text('عرض الكل')),
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -405,7 +414,8 @@ class AdminHome extends StatelessWidget {
                 child: SectionCard(
                   title: 'أعلى التجار مبيعاً',
                   trailing: TextButton(
-                      onPressed: () => onGo(4), child: const Text('التقارير')),
+                      onPressed: () => onGo('تقارير التجار'),
+                      child: const Text('التقارير')),
                   child: top.isEmpty
                       ? const Text('لا توجد مبيعات بعد')
                       : Column(children: [
@@ -425,7 +435,8 @@ class AdminHome extends StatelessWidget {
           SectionCard(
             title: 'آخر الطلبات',
             trailing: TextButton(
-                onPressed: () => onGo(1), child: const Text('كل الطلبات')),
+                onPressed: () => onGo('الطلبات'),
+                child: const Text('كل الطلبات')),
             child: Column(children: [
               if ((d['latest'] as List).isEmpty)
                 const Text('لا توجد طلبات بعد'),

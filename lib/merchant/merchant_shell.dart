@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../auth/gate.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/payouts.dart';
 import '../customer/order_details.dart';
 
 class MerchantShell extends StatefulWidget {
@@ -81,7 +82,8 @@ class _MerchantShellState extends State<MerchantShell> {
             (
               'المحفظة',
               Icons.account_balance_wallet_outlined,
-              MerchantWallet(mid: mid, frozen: m['frozen'] == true)
+              MerchantWallet(
+                  mid: mid, frozen: m['frozen'] == true, owner: widget.owner)
             ),
           if (perms['staff'] == true)
             ('الموظفون', Icons.group_outlined, MerchantStaffTab(mid: mid)),
@@ -493,28 +495,137 @@ class MerchantOffers extends StatelessWidget {
 }
 
 class MerchantWallet extends StatelessWidget {
-  const MerchantWallet({super.key, required this.mid, required this.frozen});
+  const MerchantWallet(
+      {super.key, required this.mid, required this.frozen, this.owner = false});
   final String mid;
   final bool frozen;
+  final bool owner;
+
+  Future<void> requestPayout(BuildContext context, num available,
+      Future<void> Function() reload) async {
+    final amount = TextEditingController(
+        text: available > 0 ? available.toStringAsFixed(3) : '');
+    final note = TextEditingController();
+    final b = brandOf(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        titlePadding: EdgeInsets.zero,
+        title: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+              gradient: b.gradient,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(22))),
+          child: Row(children: [
+            Icon(Icons.outbox_outlined, color: b.accent),
+            const SizedBox(width: 10),
+            const Expanded(
+                child: Text('طلب سحب الرصيد',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w700))),
+          ]),
+        ),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('المتاح للسحب: ${bhd(available)}',
+                    style:
+                        TextStyle(color: b.dark, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                const Text(
+                    'يُحوَّل المبلغ لحسابك البنكي المسجّل لدى الإدارة، وتتابع المراحل هنا في المحفظة.',
+                    style: TextStyle(fontSize: 12, color: Colors.black54)),
+                const SizedBox(height: 14),
+                Field('المبلغ (د.ب)', amount,
+                    required: true,
+                    keyboard:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    ltr: true),
+                const SizedBox(height: 10),
+                Field('ملاحظة للإدارة', note, maxLines: 2),
+              ]),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('إلغاء')),
+          FilledButton.icon(
+              onPressed: () => Navigator.pop(c, true),
+              icon: const Icon(Icons.send_outlined, size: 18),
+              label: const Text('إرسال الطلب')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    await guard(
+        context,
+        () => sb.rpc('merchant_request_payout', params: {
+              'p_merchant': mid,
+              'p_amount': num.tryParse(amount.text.trim()) ?? 0,
+              'p_note': note.text.trim()
+            }),
+        ok: 'وصل طلبك للإدارة');
+    await reload();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Loader<List<Map<String, dynamic>>>(
-      realtimeTables: const ['wallet_ledger'],
-      load: () async => List<Map<String, dynamic>>.from(await sb
-          .from('wallet_ledger')
-          .select()
-          .eq('merchant_id', mid)
-          .order('created_at', ascending: false)),
-      builder: (context, rows, _) {
+    return Loader<
+        (
+          List<Map<String, dynamic>>,
+          List<Map<String, dynamic>>,
+          List<Map<String, dynamic>>
+        )>(
+      realtimeTables: const [
+        'wallet_ledger',
+        'payout_requests',
+        'payout_events'
+      ],
+      load: () async {
+        final rows = await sb
+            .from('wallet_ledger')
+            .select()
+            .eq('merchant_id', mid)
+            .order('created_at', ascending: false);
+        final reqs = await sb
+            .from('payout_requests')
+            .select()
+            .eq('merchant_id', mid)
+            .order('created_at', ascending: false);
+        final ids = [for (final r in reqs) r['id']];
+        final evs = ids.isEmpty
+            ? []
+            : await sb
+                .from('payout_events')
+                .select()
+                .inFilter('request_id', ids)
+                .order('created_at');
+        return (
+          List<Map<String, dynamic>>.from(rows),
+          List<Map<String, dynamic>>.from(reqs),
+          List<Map<String, dynamic>>.from(evs)
+        );
+      },
+      builder: (context, data, reload) {
+        final (rows, reqs, evs) = data;
+        final b = brandOf(context);
         final bal = rows.fold<num>(0, (a, r) => a + toNum(r['amount']));
+        final pending = reqs
+            .where((r) =>
+                ['requested', 'under_review', 'approved'].contains(r['status']))
+            .fold<num>(0, (a, r) => a + toNum(r['amount']));
+        final available = bal - pending;
         return ListView(padding: const EdgeInsets.all(16), children: [
           GradientCard(
             padding: const EdgeInsets.all(22),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Icon(Icons.account_balance_wallet_outlined,
-                    color: brandOf(context).accent),
+                Icon(Icons.account_balance_wallet_outlined, color: b.accent),
                 const SizedBox(width: 8),
                 const Text('رصيد المحفظة',
                     style: TextStyle(color: Colors.white70)),
@@ -525,13 +636,34 @@ class MerchantWallet extends StatelessWidget {
                       fontSize: 34,
                       fontWeight: FontWeight.w700,
                       color: Colors.white)),
-              const SizedBox(height: 6),
-              const Text(
-                  'يُضاف صافي كل طلب بعد التسليم مخصوماً منه عمولة المنصة، والإدارة تحوّل المستحقات لحسابك البنكي.',
-                  style: TextStyle(fontSize: 12, color: Colors.white70)),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                    child:
+                        _walletStat('المتاح للسحب', bhd(available), b.accent)),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: _walletStat(
+                        'طلبات قيد التنفيذ', bhd(pending), Colors.white)),
+              ]),
+              const SizedBox(height: 14),
+              if (owner && !frozen)
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white, foregroundColor: b.dark),
+                    onPressed: available <= 0
+                        ? null
+                        : () => requestPayout(context, available, reload),
+                    icon: const Icon(Icons.outbox_outlined),
+                    label: Text(available <= 0
+                        ? 'لا يوجد رصيد متاح للسحب'
+                        : 'طلب سحب الرصيد'),
+                  ),
+                ),
               if (frozen)
                 Container(
-                  margin: const EdgeInsets.only(top: 10),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -540,27 +672,77 @@ class MerchantWallet extends StatelessWidget {
                   child: const Text('المحفظة مجمّدة من الإدارة',
                       style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
+              const SizedBox(height: 8),
+              const Text(
+                  'يُضاف صافي كل طلب بعد التسليم مخصوماً منه عمولة المنصة.',
+                  style: TextStyle(fontSize: 12, color: Colors.white70)),
             ]),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          Row(children: [
+            Icon(Icons.outbox_outlined, color: b.primary),
+            const SizedBox(width: 8),
+            const Text('طلبات السحب',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          ]),
+          const SizedBox(height: 10),
+          if (reqs.isEmpty)
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                    owner
+                        ? 'ما عندك طلبات سحب. اضغط "طلب سحب الرصيد" وتتابع مراحله هنا.'
+                        : 'لا توجد طلبات سحب',
+                    style: const TextStyle(color: Colors.black54)),
+              ),
+            ),
+          for (final r in reqs) ...[
+            PayoutCard(
+                r: r,
+                events: evs.where((e) => e['request_id'] == r['id']).toList()),
+            const SizedBox(height: 12),
+          ],
+          const SizedBox(height: 4),
           SectionCard(
             title: 'الحركات',
             child: rows.isEmpty
                 ? const Text('لا توجد حركات بعد')
                 : Column(children: [
                     for (final r in rows)
-                      ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(r['note'] ?? r['kind']),
-                        subtitle: Text(dateTimeText(r['created_at'])),
-                        trailing: Text(bhd(r['amount']),
-                            textDirection: TextDirection.ltr,
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: toNum(r['amount']) >= 0
-                                    ? const Color(0xFF2F5D50)
-                                    : const Color(0xFF8F1D13))),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(children: [
+                          GradientBadge(
+                            colors:
+                                toNum(r['amount']) >= 0 ? G.emerald : G.ruby,
+                            icon: toNum(r['amount']) >= 0
+                                ? Icons.south_west
+                                : Icons.north_east,
+                            size: 36,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(r['note'] ?? r['kind'],
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600)),
+                                  Text(dateTimeText(r['created_at']),
+                                      style: const TextStyle(
+                                          fontSize: 12, color: Colors.black54)),
+                                ]),
+                          ),
+                          Text(bhd(r['amount']),
+                              textDirection: TextDirection.ltr,
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: toNum(r['amount']) >= 0
+                                      ? G.emerald.first
+                                      : G.ruby.first)),
+                        ]),
                       ),
                   ]),
           ),
@@ -568,6 +750,20 @@ class MerchantWallet extends StatelessWidget {
       },
     );
   }
+
+  Widget _walletStat(String k, String v, Color c) => Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: .2))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(k, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+          Text(v,
+              style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w700, color: c)),
+        ]),
+      );
 }
 
 class MerchantStaffTab extends StatelessWidget {
