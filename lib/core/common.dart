@@ -74,11 +74,13 @@ const merchantPermLabels = {
 };
 
 Color statusColor(String s) => switch (s) {
-      'new' => const Color(0xFF9A5B13),
-      'accepted' || 'slaughtering' => const Color(0xFF1D4E89),
-      'ready' || 'out_for_delivery' => const Color(0xFF4B4380),
-      'delivered' => const Color(0xFF2F5D50),
-      _ => const Color(0xFF8F1D13),
+      'new' => const Color(0xFFD9822B),
+      'accepted' => const Color(0xFF1F6FD1),
+      'slaughtering' => const Color(0xFFB83250),
+      'ready' => const Color(0xFF6A4BC4),
+      'out_for_delivery' => const Color(0xFF0E8FA8),
+      'delivered' => const Color(0xFF1E8A5F),
+      _ => const Color(0xFF8A8F98),
     };
 
 class StatusChip extends StatelessWidget {

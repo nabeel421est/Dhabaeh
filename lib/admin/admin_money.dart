@@ -71,7 +71,7 @@ class AdminReports extends StatelessWidget {
               ])
                 SizedBox(
                     width: w,
-                    child: _Kpi(
+                    child: Kpi(
                         label: k.$1, value: k.$2, icon: k.$3, colors: k.$4)),
             ]);
           }),
@@ -84,7 +84,7 @@ class AdminReports extends StatelessWidget {
               title: 'حصة كل تاجر من المبيعات',
               child: Column(children: [
                 for (var i = 0; i < rows.length; i++)
-                  _ShareBar(
+                  ShareBar(
                       name: rows[i]['name'],
                       value: toNum(rows[i]['sales']),
                       total: sales,
@@ -193,8 +193,8 @@ class AdminReports extends StatelessWidget {
   }
 }
 
-class _Kpi extends StatelessWidget {
-  const _Kpi(
+class Kpi extends StatelessWidget {
+  const Kpi(
       {required this.label,
       required this.value,
       required this.icon,
@@ -251,8 +251,8 @@ class _Kpi extends StatelessWidget {
       );
 }
 
-class _ShareBar extends StatelessWidget {
-  const _ShareBar(
+class ShareBar extends StatelessWidget {
+  const ShareBar(
       {required this.name,
       required this.value,
       required this.total,

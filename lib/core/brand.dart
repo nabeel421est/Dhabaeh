@@ -78,9 +78,9 @@ const brands = <String, Brand>{
     name: 'الإدارة العامة',
     tagline: 'لوحة تحكم المنصة',
     icon: Icons.admin_panel_settings_outlined,
-    stops: [Color(0xFF0E0E10), Color(0xFF26262C), Color(0xFF4A4A54)],
-    accent: Color(0xFFD4AF37),
-    surface: Color(0xFFF7F5F0),
+    stops: [Color(0xFF06375A), Color(0xFF0B7BC0), Color(0xFF4CC3F2)],
+    accent: Color(0xFFF4C752),
+    surface: Color(0xFFF1F7FB),
   ),
 };
 
