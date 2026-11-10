@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'package:latlong2/latlong.dart';
+
+import '../core/address_map.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
 
@@ -23,7 +26,7 @@ class CustomerProfilePage extends StatelessWidget {
         load: () async {
           final p = await sb
               .from('profiles')
-              .select('full_name, phone, area, created_at')
+              .select('full_name, phone, area, cpr, email, created_at')
               .eq('id', myId!)
               .maybeSingle();
           final a = await sb
@@ -70,7 +73,13 @@ class _ProfileFormState extends State<_ProfileForm> {
   late final road = TextEditingController(text: '${addr?['road'] ?? ''}');
   late final block = TextEditingController(text: '${addr?['block'] ?? ''}');
   late final note = TextEditingController(text: '${addr?['note'] ?? ''}');
+  late final flat = TextEditingController(text: '${addr?['flat'] ?? ''}');
+  late final cpr = TextEditingController(text: '${p?['cpr'] ?? ''}');
+  late final email = TextEditingController(text: '${p?['email'] ?? ''}');
   String? area;
+  String? city;
+  LatLng? pin;
+  bool locating = false;
   bool editing = false;
   bool saving = false;
 
@@ -85,6 +94,22 @@ class _ProfileFormState extends State<_ProfileForm> {
     super.initState();
     final a = '${addr?['area'] ?? p?['area'] ?? ''}';
     area = a.isEmpty ? null : a;
+    final c = '${addr?['city'] ?? ''}';
+    city = c.isEmpty ? null : c;
+    final lat = addr?['lat'], lng = addr?['lng'];
+    if (lat is num && lng is num) pin = LatLng(lat.toDouble(), lng.toDouble());
+  }
+
+  Future<void> locate() async {
+    setState(() => locating = true);
+    final r = await geocodeBahrain(
+        block: block.text.trim(), road: road.text.trim(), area: area, city: city);
+    if (!mounted) return;
+    setState(() {
+      locating = false;
+      if (r != null) pin = r;
+    });
+    if (r == null) toast(context, 'ما قدرنا نحدد العنوان، اضغط على الخريطة', error: true);
   }
 
   Future<void> save() async {
@@ -94,6 +119,8 @@ class _ProfileFormState extends State<_ProfileForm> {
       await sb.from('profiles').update({
         'full_name': name.text.trim(),
         'area': area,
+        'cpr': cpr.text.trim().isEmpty ? null : cpr.text.trim(),
+        'email': email.text.trim().isEmpty ? null : email.text.trim(),
       }).eq('id', myId!);
       final row = {
         'house': house.text.trim(),
@@ -101,6 +128,10 @@ class _ProfileFormState extends State<_ProfileForm> {
         'block': block.text.trim(),
         'area': area,
         'note': note.text.trim(),
+        'city': city,
+        'flat': flat.text.trim(),
+        'lat': pin?.latitude,
+        'lng': pin?.longitude,
       };
       if (addr != null) {
         await sb.from('customer_addresses').update(row).eq('id', addr!['id']);
@@ -125,10 +156,12 @@ class _ProfileFormState extends State<_ProfileForm> {
     final fullName = '${p?['full_name'] ?? ''}';
     final phone = '${p?['phone'] ?? ''}';
     final addressText = [
-      if ('${addr?['house'] ?? ''}'.isNotEmpty) 'منزل ${addr!['house']}',
+      if ('${addr?['flat'] ?? ''}'.isNotEmpty) 'شقة ${addr!['flat']}',
+      if ('${addr?['house'] ?? ''}'.isNotEmpty) 'مبنى ${addr!['house']}',
       if ('${addr?['road'] ?? ''}'.isNotEmpty) 'طريق ${addr!['road']}',
       if ('${addr?['block'] ?? ''}'.isNotEmpty) 'مجمع ${addr!['block']}',
       if ((area ?? '').isNotEmpty) area!,
+      if ((city ?? '').isNotEmpty) city!,
     ].join(' · ');
 
     return Form(
@@ -235,6 +268,40 @@ class _ProfileFormState extends State<_ProfileForm> {
                                       'رقم الهاتف هو اسم الدخول، ولتغييره تواصل مع الإدارة'),
                             ),
                             const SizedBox(height: 10),
+                            TextFormField(
+                              controller: cpr,
+                              keyboardType: TextInputType.number,
+                              textDirection: TextDirection.ltr,
+                              decoration: const InputDecoration(
+                                  labelText: 'الرقم الشخصي'),
+                              validator: (v) {
+                                final d = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                                return d.isEmpty || d.length == 9
+                                    ? null
+                                    : 'الرقم الشخصي 9 أرقام';
+                              },
+                            ),
+                            const SizedBox(height: 10),
+                            TextFormField(
+                              controller: email,
+                              keyboardType: TextInputType.emailAddress,
+                              textDirection: TextDirection.ltr,
+                              decoration: const InputDecoration(
+                                  labelText: 'البريد الإلكتروني'),
+                            ),
+                            const SizedBox(height: 10),
+                            DropdownButtonFormField<String>(
+                              initialValue: bahrainCities.contains(city) ? city : null,
+                              isExpanded: true,
+                              decoration:
+                                  const InputDecoration(labelText: 'المدينة'),
+                              items: [
+                                for (final c in bahrainCities)
+                                  DropdownMenuItem(value: c, child: Text(c)),
+                              ],
+                              onChanged: (v) => setState(() => city = v),
+                            ),
+                            const SizedBox(height: 10),
                             DropdownButtonFormField<String>(
                               initialValue:
                                   zones.contains(area) ? area : null,
@@ -253,8 +320,17 @@ class _ProfileFormState extends State<_ProfileForm> {
                             _row(Icons.phone_iphone, 'رقم الهاتف', phone,
                                 G.violet,
                                 ltr: true),
-                            _row(Icons.location_city_outlined, 'المنطقة',
-                                (area ?? '').isEmpty ? '-' : area!, G.violet),
+                            _row(Icons.credit_card_outlined, 'الرقم الشخصي',
+                                cpr.text.isEmpty ? '-' : cpr.text, G.violet,
+                                ltr: true),
+                            _row(Icons.alternate_email, 'البريد الإلكتروني',
+                                email.text.isEmpty ? '-' : email.text, G.violet,
+                                ltr: true),
+                            _row(Icons.location_city_outlined, 'المدينة والمنطقة',
+                                [city, area].where((x) => (x ?? '').isNotEmpty).join(' · ').isEmpty
+                                    ? '-'
+                                    : [city, area].where((x) => (x ?? '').isNotEmpty).join(' · '),
+                                G.violet),
                           ]),
                   ),
                   const SizedBox(height: 14),
@@ -267,7 +343,11 @@ class _ProfileFormState extends State<_ProfileForm> {
                         ? Column(children: [
                             Row(children: [
                               Expanded(
-                                  child: Field('منزل/شقة', house,
+                                  child: Field('المبنى', house,
+                                      keyboard: TextInputType.number)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                  child: Field('الشقة', flat,
                                       keyboard: TextInputType.number)),
                               const SizedBox(width: 8),
                               Expanded(
@@ -280,6 +360,22 @@ class _ProfileFormState extends State<_ProfileForm> {
                             ]),
                             const SizedBox(height: 10),
                             Field('ملاحظة للمندوب', note, maxLines: 2),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: locating ? null : locate,
+                              icon: const Icon(Icons.travel_explore),
+                              label: const Text('حدّد الموقع من العنوان'),
+                            ),
+                            const SizedBox(height: 10),
+                            AddressMap(
+                                point: pin,
+                                height: 220,
+                                color: G.teal.first,
+                                onPick: (p) => setState(() => pin = p)),
+                            const SizedBox(height: 6),
+                            const Text('اضغط على الخريطة لتعديل موقع التوصيل',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.black54)),
                           ])
                         : Column(children: [
                             _row(Icons.signpost_outlined, 'العنوان',
@@ -288,6 +384,11 @@ class _ProfileFormState extends State<_ProfileForm> {
                             if ('${addr?['note'] ?? ''}'.isNotEmpty)
                               _row(Icons.sticky_note_2_outlined, 'ملاحظة',
                                   '${addr!['note']}', G.teal),
+                            if (pin != null) ...[
+                              const SizedBox(height: 8),
+                              AddressMap(
+                                  point: pin, height: 190, color: G.teal.first),
+                            ],
                           ]),
                   ),
                   if (editing) ...[

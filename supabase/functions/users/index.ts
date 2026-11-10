@@ -78,8 +78,27 @@ Deno.serve(async (req) => {
       const name = need(body.full_name, "الاسم");
       const { data: exists } = await admin.from("profiles").select("id").eq("phone", phone).maybeSingle();
       if (exists) throw new HttpError(409, "الرقم مسجّل مسبقاً، سجّل الدخول");
+      if (name.split(/\s+/).filter(Boolean).length < 3) throw new HttpError(400, "اكتب الاسم الثلاثي");
+      const a = body.address ?? {};
+      const addr = {
+        city: need(a.city, "المدينة"),
+        area: need(a.area, "المنطقة"),
+        house: need(a.building, "المبنى"),
+        road: need(a.road, "الطريق"),
+        block: need(a.block, "المجمع"),
+        flat: String(a.flat ?? "").trim() || null,
+        note: String(a.note ?? "").trim() || null,
+        lat: Number.isFinite(Number(a.lat)) && a.lat !== null && a.lat !== undefined ? Number(a.lat) : null,
+        lng: Number.isFinite(Number(a.lng)) && a.lng !== null && a.lng !== undefined ? Number(a.lng) : null,
+      };
+      const cpr = String(body.cpr ?? "").replace(/\D/g, "");
+      if (cpr && cpr.length !== 9) throw new HttpError(400, "الرقم الشخصي 9 أرقام");
+      const email = String(body.email ?? "").trim();
+      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, "البريد الإلكتروني غير صحيح");
       const u = await findOrCreateUser(phone, body.password, name);
-      if (body.area) await admin.from("profiles").update({ area: String(body.area) }).eq("id", u.id);
+      await admin.from("profiles").update({ area: addr.area, cpr: cpr || null, email: email || null }).eq("id", u.id);
+      const { error: ae } = await admin.from("customer_addresses").insert({ ...addr, user_id: u.id });
+      if (ae) throw new HttpError(400, ae.message);
       return json({ ok: true, email: emailFor(phone) });
     }
 

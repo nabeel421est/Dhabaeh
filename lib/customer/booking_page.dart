@@ -693,7 +693,7 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
     }
     final zone = zones.firstWhere((z) => z['id'] == d.zoneId);
     final address =
-        'منزل ${d.house.text.trim()}، طريق ${d.road.text.trim()}، مجمع ${d.block.text.trim()}، ${zone['name']}'
+        'مبنى ${d.house.text.trim()}، طريق ${d.road.text.trim()}، مجمع ${d.block.text.trim()}، ${zone['name']}'
         '${d.note.text.trim().isEmpty ? '' : ' · ${d.note.text.trim()}'}';
     setState(() => busy = true);
     final order = await guard(context, () async {
@@ -722,14 +722,27 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
         await sb.rpc('attach_receipt',
             params: {'p_order': o['id'], 'p_path': path});
       }
-      await sb.from('customer_addresses').upsert({
+      final row = {
         'user_id': myId,
         'house': d.house.text.trim(),
         'road': d.road.text.trim(),
         'block': d.block.text.trim(),
         'area': zone['name'],
         'note': d.note.text.trim(),
-      });
+      };
+      final saved = widget.setup.$3;
+      final same = saved.isNotEmpty &&
+          saved.first['house'] == row['house'] &&
+          saved.first['road'] == row['road'] &&
+          saved.first['block'] == row['block'] &&
+          saved.first['area'] == row['area'];
+      // Keep the saved address (with its city, flat and map pin) when unchanged.
+      if (same) {
+        await sb.from('customer_addresses')
+            .update({'note': row['note']}).eq('id', saved.first['id']);
+      } else {
+        await sb.from('customer_addresses').insert(row);
+      }
       return o;
     });
     if (!mounted) return;
@@ -814,7 +827,7 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
           const SizedBox(height: 10),
           Row(children: [
             Expanded(
-                child: Field('المنزل', d.house,
+                child: Field('المبنى', d.house,
                     required: true, keyboard: TextInputType.number)),
             const SizedBox(width: 8),
             Expanded(
