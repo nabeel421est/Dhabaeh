@@ -1,6 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../core/brand.dart';
 import '../core/common.dart';
+
+/// Gradient pairs used to tell merchants apart in the reports, in rank order.
+const reportGradients = <List<Color>>[
+  [Color(0xFF8C6A12), Color(0xFFD4AF37)], // gold
+  [Color(0xFF0D6152), Color(0xFF3CC4A0)], // emerald
+  [Color(0xFF8E2442), Color(0xFFE07A86)], // ruby
+  [Color(0xFF1C4790), Color(0xFF5FA6F2)], // sapphire
+  [Color(0xFF9A4A12), Color(0xFFF2A65A)], // amber
+  [Color(0xFF136A82), Color(0xFF5CC8DA)], // teal
+];
 
 class AdminReports extends StatelessWidget {
   const AdminReports({super.key});
@@ -10,52 +21,367 @@ class AdminReports extends StatelessWidget {
       realtimeTables: const ['orders'],
       load: () async => List<Map<String, dynamic>>.from(
           await sb.rpc('admin_merchant_summary')),
-      builder: (context, rows, _) {
+      builder: (context, raw, _) {
+        final rows = [...raw]
+          ..sort((a, b) => toNum(b['sales']).compareTo(toNum(a['sales'])));
         num sum(String k) => rows.fold<num>(0, (a, r) => a + toNum(r[k]));
+        final sales = sum('sales');
+        final platform = sum('merchant_comm') + sum('customer_comm');
+        final b = brandOf(context);
         return ListView(padding: const EdgeInsets.all(16), children: [
-          const Text('الطلبات المسلّمة فقط',
-              style: TextStyle(color: Colors.black54)),
-          const SizedBox(height: 8),
-          Card(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(columns: const [
-                DataColumn(label: Text('التاجر')),
-                DataColumn(label: Text('الطلبات'), numeric: true),
-                DataColumn(label: Text('المبيعات'), numeric: true),
-                DataColumn(label: Text('عمولة التاجر'), numeric: true),
-                DataColumn(label: Text('عمولة العميل'), numeric: true),
-                DataColumn(label: Text('التوصيل'), numeric: true),
-                DataColumn(label: Text('صافي التاجر'), numeric: true),
-                DataColumn(label: Text('الرصيد الحالي'), numeric: true),
-              ], rows: [
-                for (final r in rows)
-                  DataRow(cells: [
-                    DataCell(Text(r['name'])),
-                    DataCell(Text('${r['orders_count']}')),
-                    DataCell(Text(bhd(r['sales']))),
-                    DataCell(Text(bhd(r['merchant_comm']))),
-                    DataCell(Text(bhd(r['customer_comm']))),
-                    DataCell(Text(bhd(r['delivery_fees']))),
-                    DataCell(Text(bhd(r['net']))),
-                    DataCell(Text(bhd(r['balance']))),
-                  ]),
-                DataRow(cells: [
-                  const DataCell(Text('الإجمالي',
-                      style: TextStyle(fontWeight: FontWeight.w700))),
-                  DataCell(Text('${sum('orders_count')}')),
-                  DataCell(Text(bhd(sum('sales')))),
-                  DataCell(Text(bhd(sum('merchant_comm')))),
-                  DataCell(Text(bhd(sum('customer_comm')))),
-                  DataCell(Text(bhd(sum('delivery_fees')))),
-                  DataCell(Text(bhd(sum('net')))),
-                  DataCell(Text(bhd(sum('balance')))),
-                ]),
+          Row(children: [
+            Icon(Icons.insights_outlined, color: b.accent),
+            const SizedBox(width: 8),
+            const Text('أداء التجار',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            const Spacer(),
+            const Text('الطلبات المسلّمة فقط',
+                style: TextStyle(color: Colors.black45, fontSize: 12)),
+          ]),
+          const SizedBox(height: 14),
+          LayoutBuilder(builder: (context, c) {
+            final cols = c.maxWidth >= 900 ? 4 : 2;
+            final w = (c.maxWidth - 12 * (cols - 1)) / cols;
+            return Wrap(spacing: 12, runSpacing: 12, children: [
+              for (final k in [
+                (
+                  'إجمالي المبيعات',
+                  bhd(sales),
+                  Icons.payments_outlined,
+                  reportGradients[0]
+                ),
+                (
+                  'عمولات المنصة',
+                  bhd(platform),
+                  Icons.account_balance_outlined,
+                  reportGradients[1]
+                ),
+                (
+                  'صافي التجار',
+                  bhd(sum('net')),
+                  Icons.storefront_outlined,
+                  reportGradients[3]
+                ),
+                (
+                  'الطلبات',
+                  '${sum('orders_count')}',
+                  Icons.receipt_long_outlined,
+                  reportGradients[2]
+                ),
+              ])
+                SizedBox(
+                    width: w,
+                    child: _Kpi(
+                        label: k.$1, value: k.$2, icon: k.$3, colors: k.$4)),
+            ]);
+          }),
+          const SizedBox(height: 18),
+          if (rows.isEmpty)
+            const Empty('لا توجد مبيعات مسلّمة بعد',
+                icon: Icons.insights_outlined),
+          if (rows.isNotEmpty)
+            SectionCard(
+              title: 'حصة كل تاجر من المبيعات',
+              child: Column(children: [
+                for (var i = 0; i < rows.length; i++)
+                  _ShareBar(
+                      name: rows[i]['name'],
+                      value: toNum(rows[i]['sales']),
+                      total: sales,
+                      colors: reportGradients[i % reportGradients.length]),
               ]),
             ),
-          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(builder: (context, c) {
+            final cols = c.maxWidth >= 900 ? 2 : 1;
+            final w = (c.maxWidth - 12 * (cols - 1)) / cols;
+            return Wrap(spacing: 12, runSpacing: 12, children: [
+              for (var i = 0; i < rows.length; i++)
+                SizedBox(
+                    width: w,
+                    child: _MerchantReport(
+                        rank: i + 1,
+                        r: rows[i],
+                        total: sales,
+                        colors: reportGradients[i % reportGradients.length])),
+            ]);
+          }),
+          const SizedBox(height: 14),
+          if (rows.isNotEmpty)
+            Card(
+              clipBehavior: Clip.antiAlias,
+              child: LayoutBuilder(
+                builder: (context, c) => SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: c.maxWidth),
+                    child: DataTable(
+                      headingRowColor: WidgetStatePropertyAll(b.dark),
+                      headingTextStyle: TextStyle(
+                          color: b.accent, fontWeight: FontWeight.w700),
+                      columns: const [
+                        DataColumn(label: Text('التاجر')),
+                        DataColumn(label: Text('الطلبات'), numeric: true),
+                        DataColumn(label: Text('المبيعات'), numeric: true),
+                        DataColumn(label: Text('عمولة التاجر'), numeric: true),
+                        DataColumn(label: Text('عمولة العميل'), numeric: true),
+                        DataColumn(label: Text('التوصيل'), numeric: true),
+                        DataColumn(label: Text('صافي التاجر'), numeric: true),
+                        DataColumn(label: Text('الرصيد الحالي'), numeric: true),
+                      ],
+                      rows: [
+                        for (var i = 0; i < rows.length; i++)
+                          DataRow(
+                            color: WidgetStatePropertyAll(
+                                i.isOdd ? b.surface : Colors.white),
+                            cells: [
+                              DataCell(Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                        width: 10,
+                                        height: 10,
+                                        decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            gradient: LinearGradient(
+                                                colors: reportGradients[i %
+                                                    reportGradients.length]))),
+                                    const SizedBox(width: 8),
+                                    Text(rows[i]['name']),
+                                  ])),
+                              DataCell(Text('${rows[i]['orders_count']}')),
+                              DataCell(Text(bhd(rows[i]['sales']))),
+                              DataCell(Text(bhd(rows[i]['merchant_comm']))),
+                              DataCell(Text(bhd(rows[i]['customer_comm']))),
+                              DataCell(Text(bhd(rows[i]['delivery_fees']))),
+                              DataCell(Text(bhd(rows[i]['net']))),
+                              DataCell(Text(bhd(rows[i]['balance']))),
+                            ],
+                          ),
+                        DataRow(
+                          color: WidgetStatePropertyAll(
+                              Color.lerp(b.accent, Colors.white, .8)),
+                          cells: [
+                            const DataCell(Text('الإجمالي',
+                                style: TextStyle(fontWeight: FontWeight.w700))),
+                            for (final k in [
+                              'orders_count',
+                              'sales',
+                              'merchant_comm',
+                              'customer_comm',
+                              'delivery_fees',
+                              'net',
+                              'balance'
+                            ])
+                              DataCell(Text(
+                                  k == 'orders_count'
+                                      ? '${sum(k)}'
+                                      : bhd(sum(k)),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700))),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ]);
       },
+    );
+  }
+}
+
+class _Kpi extends StatelessWidget {
+  const _Kpi(
+      {required this.label,
+      required this.value,
+      required this.icon,
+      required this.colors});
+  final String label;
+  final String value;
+  final IconData icon;
+  final List<Color> colors;
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+              begin: AlignmentDirectional.topStart,
+              end: AlignmentDirectional.bottomEnd,
+              colors: colors),
+          boxShadow: [
+            BoxShadow(
+                color: colors.first.withValues(alpha: .3),
+                blurRadius: 16,
+                offset: const Offset(0, 8))
+          ],
+        ),
+        child: Row(children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .2),
+                borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(label,
+                  style: TextStyle(
+                      color: Colors.white.withValues(alpha: .85),
+                      fontSize: 13)),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(value,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700)),
+              ),
+            ]),
+          ),
+        ]),
+      );
+}
+
+class _ShareBar extends StatelessWidget {
+  const _ShareBar(
+      {required this.name,
+      required this.value,
+      required this.total,
+      required this.colors});
+  final String name;
+  final num value;
+  final num total;
+  final List<Color> colors;
+  @override
+  Widget build(BuildContext context) {
+    final share = total == 0 ? 0.0 : (value / total).toDouble();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Expanded(
+              child: Text(name,
+                  style: const TextStyle(fontWeight: FontWeight.w600))),
+          Text(bhd(value), style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(width: 10),
+          SizedBox(
+              width: 44,
+              child: Text('${(share * 100).round()}%',
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(color: Colors.black54))),
+        ]),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: Stack(children: [
+            Container(height: 12, color: const Color(0xFFEDEAE3)),
+            FractionallySizedBox(
+              alignment: AlignmentDirectional.centerStart,
+              widthFactor: share.clamp(0.0, 1.0),
+              child: Container(
+                  height: 12,
+                  decoration:
+                      BoxDecoration(gradient: LinearGradient(colors: colors))),
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _MerchantReport extends StatelessWidget {
+  const _MerchantReport(
+      {required this.rank,
+      required this.r,
+      required this.total,
+      required this.colors});
+  final int rank;
+  final Map<String, dynamic> r;
+  final num total;
+  final List<Color> colors;
+  @override
+  Widget build(BuildContext context) {
+    final share = total == 0 ? 0 : (toNum(r['sales']) / total * 100).round();
+    Widget item(String k, String v) => Expanded(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(k,
+                style: const TextStyle(fontSize: 12, color: Colors.black45)),
+            Text(v, style: const TextStyle(fontWeight: FontWeight.w600)),
+          ]),
+        );
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  begin: AlignmentDirectional.centerStart,
+                  end: AlignmentDirectional.centerEnd,
+                  colors: colors)),
+          child: Row(children: [
+            Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: .25),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: .7))),
+              child: Text('$rank',
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+                child: Text(r['name'],
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700))),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text(bhd(r['sales']),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700)),
+              Text('$share% من المبيعات',
+                  style: TextStyle(
+                      color: Colors.white.withValues(alpha: .85),
+                      fontSize: 12)),
+            ]),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(children: [
+            Row(children: [
+              item('الطلبات', '${r['orders_count']}'),
+              item('عمولة التاجر', bhd(r['merchant_comm'])),
+              item('عمولة العميل', bhd(r['customer_comm'])),
+            ]),
+            const SizedBox(height: 12),
+            Row(children: [
+              item('التوصيل', bhd(r['delivery_fees'])),
+              item('صافي التاجر', bhd(r['net'])),
+              item('الرصيد الحالي', bhd(r['balance'])),
+            ]),
+          ]),
+        ),
+      ]),
     );
   }
 }
