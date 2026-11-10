@@ -103,6 +103,7 @@ class _ProfileFormState extends State<_ProfileForm> {
   Future<void> locate() async {
     setState(() => locating = true);
     final r = await geocodeBahrain(
+        building: house.text.trim(),
         block: block.text.trim(), road: road.text.trim(), area: area, city: city);
     if (!mounted) return;
     setState(() {
@@ -361,11 +362,42 @@ class _ProfileFormState extends State<_ProfileForm> {
                             const SizedBox(height: 10),
                             Field('ملاحظة للمندوب', note, maxLines: 2),
                             const SizedBox(height: 12),
-                            OutlinedButton.icon(
-                              onPressed: locating ? null : locate,
-                              icon: const Icon(Icons.travel_explore),
-                              label: const Text('حدّد الموقع من العنوان'),
-                            ),
+                            Row(children: [
+                              Expanded(
+                                child: FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                      backgroundColor: G.teal.first),
+                                  onPressed: locating
+                                      ? null
+                                      : () async {
+                                          setState(() => locating = true);
+                                          try {
+                                            final p = await currentLocation();
+                                            if (mounted) setState(() => pin = p);
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              toast(context, errText(e),
+                                                  error: true);
+                                            }
+                                          }
+                                          if (mounted) {
+                                            setState(() => locating = false);
+                                          }
+                                        },
+                                  icon: const Icon(Icons.my_location, size: 18),
+                                  label: const Text('موقعي الحالي'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: locating ? null : locate,
+                                  icon: const Icon(Icons.travel_explore,
+                                      size: 18),
+                                  label: const Text('من العنوان'),
+                                ),
+                              ),
+                            ]),
                             const SizedBox(height: 10),
                             AddressMap(
                                 point: pin,

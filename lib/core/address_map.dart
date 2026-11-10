@@ -2,8 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+
+import 'common.dart';
 
 /// Bahrain cities offered on the address forms.
 const bahrainCities = [
@@ -31,15 +34,56 @@ const bahrainCities = [
 
 const bahrainCenter = LatLng(26.0667, 50.5577);
 
-/// Looks an address up on OpenStreetMap, from the most precise wording to the broadest.
+/// The device's current position (GPS on phones, browser location on the web).
+/// Throws an Arabic message when location is off or not allowed.
+Future<LatLng> currentLocation() async {
+  if (!await Geolocator.isLocationServiceEnabled()) {
+    throw Exception('خدمة الموقع مقفلة في جهازك، فعّلها وحاول مرة ثانية');
+  }
+  var perm = await Geolocator.checkPermission();
+  if (perm == LocationPermission.denied) {
+    perm = await Geolocator.requestPermission();
+  }
+  if (perm == LocationPermission.denied ||
+      perm == LocationPermission.deniedForever) {
+    throw Exception('اسمح للتطبيق باستخدام موقعك من إعدادات الجهاز');
+  }
+  final p = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.best, timeLimit: Duration(seconds: 20)));
+  return LatLng(p.latitude, p.longitude);
+}
+
+/// Locates a Bahrain address. Tries the server geocoder first (Google Maps, when a
+/// key is configured), then OpenStreetMap from the most precise wording to the broadest.
 Future<LatLng?> geocodeBahrain(
-    {String? block, String? road, String? area, String? city}) async {
+    {String? building,
+    String? block,
+    String? road,
+    String? area,
+    String? city}) async {
+  try {
+    final r = await sb.functions.invoke('geocode', body: {
+      'building': building,
+      'road': road,
+      'block': block,
+      'area': area,
+      'city': city,
+    });
+    final d = r.data;
+    if (d is Map && d['ok'] == true && d['lat'] is num && d['lng'] is num) {
+      return LatLng((d['lat'] as num).toDouble(), (d['lng'] as num).toDouble());
+    }
+  } catch (_) {}
   String j(List<String?> p) =>
-      p.where((x) => (x ?? '').trim().isNotEmpty).join('، ');
+      p.where((x) => (x ?? '').trim().isNotEmpty).join(', ');
+  final hasRoad = (road ?? '').isNotEmpty, hasBlock = (block ?? '').isNotEmpty;
   final tries = <String>{
-    if ((block ?? '').isNotEmpty) j(['مجمع $block', area, city]),
+    if (hasRoad && hasBlock) j(['Road $road', 'Block $block', area, 'Bahrain']),
+    if (hasRoad) j(['Road $road', area, 'Bahrain']),
+    if (hasBlock) j(['Block $block', 'Bahrain']),
+    if (hasBlock) j(['مجمع $block', area]),
     j([area, city]),
-    j([area]),
     j([city]),
   }..removeWhere((q) => q.isEmpty);
   for (final q in tries) {

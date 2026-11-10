@@ -58,6 +58,7 @@ class _SignupPageState extends State<SignupPage> {
       locateNote = null;
     });
     final p = await geocodeBahrain(
+        building: building.text.trim(),
         block: block.text.trim(),
         road: road.text.trim(),
         area: areaValue,
@@ -72,6 +73,21 @@ class _SignupPageState extends State<SignupPage> {
         locateNote = 'ما قدرنا نحدد العنوان، اضغط على الخريطة لتحديد موقعك';
       }
     });
+  }
+
+  Future<void> useGps() async {
+    setState(() => locating = true);
+    try {
+      final p = await currentLocation();
+      if (!mounted) return;
+      setState(() {
+        pin = p;
+        locateNote = 'تم تحديد موقعك الحالي بدقة';
+      });
+    } catch (e) {
+      if (mounted) toast(context, errText(e), error: true);
+    }
+    if (mounted) setState(() => locating = false);
   }
 
   Future<void> submit() async {
@@ -300,25 +316,42 @@ class _SignupPageState extends State<SignupPage> {
                         title: 'الموقع على الخريطة',
                         subtitle: 'نحدده من عنوانك، وتقدر تعدّله بلمسة'),
                     const SizedBox(height: 14),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(46),
-                        foregroundColor: b.stops[1],
-                        side: BorderSide(color: b.accent, width: 1.3),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                    Row(children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(46),
+                            backgroundColor: b.stops[1],
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: locating ? null : useGps,
+                          icon: const Icon(Icons.my_location, size: 18),
+                          label: const Text('موقعي الحالي'),
+                        ),
                       ),
-                      onPressed: locating ? null : locate,
-                      icon: locating
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.travel_explore),
-                      label: Text(pin == null
-                          ? 'حدّد موقعي من العنوان'
-                          : 'إعادة التحديد من العنوان'),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(46),
+                            foregroundColor: b.stops[1],
+                            side: BorderSide(color: b.accent, width: 1.3),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: locating ? null : locate,
+                          icon: locating
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.travel_explore, size: 18),
+                          label: const Text('من العنوان'),
+                        ),
+                      ),
+                    ]),
                     const SizedBox(height: 12),
                     AddressMap(
                       point: pin,
@@ -340,7 +373,7 @@ class _SignupPageState extends State<SignupPage> {
                       Expanded(
                         child: Text(
                             locateNote ??
-                                'اضغط "حدّد موقعي" أو اضغط على الخريطة مباشرة',
+                                'اختر "موقعي الحالي" إذا كنت في البيت، أو حدّد من العنوان واضغط على الخريطة للتدقيق',
                             style: const TextStyle(
                                 fontSize: 12.5, color: Colors.black54)),
                       ),
