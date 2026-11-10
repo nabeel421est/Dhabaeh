@@ -555,3 +555,81 @@ class G {
   static const violet = [Color(0xFF3A2878), Color(0xFF7A5AD4)];
   static const teal = [Color(0xFF136A82), Color(0xFF5CC8DA)];
 }
+
+/// A rounded filter pill: gradient when selected, outlined otherwise. count < 0 hides the count.
+class TonePill extends StatelessWidget {
+  const TonePill(
+      {super.key,
+      required this.label,
+      required this.colors,
+      required this.selected,
+      required this.onTap,
+      this.count = -1,
+      this.icon});
+  final String label;
+  final List<Color> colors;
+  final bool selected;
+  final VoidCallback onTap;
+  final int count;
+  final IconData? icon;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsetsDirectional.only(end: 8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              gradient: selected ? LinearGradient(colors: colors) : null,
+              color: selected ? null : Colors.white,
+              border: Border.all(
+                  color: selected
+                      ? Colors.transparent
+                      : colors.first.withValues(alpha: .3)),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                          color: colors.first.withValues(alpha: .28),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4))
+                    ]
+                  : null,
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              if (icon != null) ...[
+                Icon(icon,
+                    size: 16, color: selected ? Colors.white : colors.first),
+                const SizedBox(width: 6),
+              ],
+              Text(label,
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: selected ? Colors.white : colors.first)),
+              if (count >= 0) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+                  decoration: BoxDecoration(
+                      color: selected
+                          ? Colors.white.withValues(alpha: .25)
+                          : colors.first.withValues(alpha: .1),
+                      borderRadius: BorderRadius.circular(999)),
+                  child: Text('$count',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: selected ? Colors.white : colors.first)),
+                ),
+              ],
+            ]),
+          ),
+        ),
+      );
+}
+
+/// Two-colour gradient derived from a single tone.
+List<Color> toneOf(Color c) => [c, Color.lerp(c, Colors.white, .38)!];

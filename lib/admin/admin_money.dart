@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/brand.dart';
 import '../core/common.dart';
+import 'admin_plan_requests.dart';
 
 /// Gradient pairs used to tell merchants apart in the reports, in rank order.
 const reportGradients = <List<Color>>[
@@ -551,7 +552,12 @@ class AdminPlans extends StatelessWidget {
               ('الإيراد', bhd(revenue))
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
+          const PlanRequestsSection(),
+          const SizedBox(height: 22),
+          const Text('أسعار الباقات',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
           LayoutBuilder(builder: (context, c) {
             final cols = c.maxWidth >= 900 ? 3 : 1;
             final w = (c.maxWidth - 12 * (cols - 1)) / cols;
