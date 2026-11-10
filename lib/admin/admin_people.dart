@@ -28,6 +28,7 @@ class _AdminUsersState extends State<AdminUsers> {
         final p = await sb
             .from('profiles')
             .select('*, user_roles(role, merchant_id)')
+            .isFilter('deleted_at', null)
             .order('created_at', ascending: false);
         final m = await sb.from('merchants').select('id, name').order('name');
         return (
@@ -130,9 +131,15 @@ class _AdminUsersState extends State<AdminUsers> {
                             await reload();
                           },
                     onRoles: () async {
-                      await showAddUser(context, merchants, existing: p);
+                      await showEditUser(context, merchants, p);
                       await reload();
                     },
+                    onDelete: p['id'] == myId
+                        ? null
+                        : () async {
+                            await confirmDeleteUser(context, p);
+                            await reload();
+                          },
                   ),
                 ),
             ]);
@@ -148,11 +155,13 @@ class _PersonCard extends StatelessWidget {
       {required this.p,
       required this.mName,
       required this.onToggle,
-      required this.onRoles});
+      required this.onRoles,
+      required this.onDelete});
   final Map<String, dynamic> p;
   final Map<dynamic, dynamic> mName;
   final void Function(bool)? onToggle;
   final VoidCallback onRoles;
+  final VoidCallback? onDelete;
   @override
   Widget build(BuildContext context) {
     final roles = (p['user_roles'] as List).cast<Map>();
@@ -249,14 +258,226 @@ class _PersonCard extends StatelessWidget {
               const Spacer(),
               TextButton.icon(
                   onPressed: onRoles,
-                  icon:
-                      const Icon(Icons.admin_panel_settings_outlined, size: 18),
-                  label: const Text('الصلاحيات')),
+                  icon: const Icon(Icons.manage_accounts_outlined, size: 18),
+                  label: const Text('تعديل')),
+              if (onDelete != null)
+                IconButton(
+                  tooltip: 'حذف المستخدم',
+                  onPressed: onDelete,
+                  style: IconButton.styleFrom(
+                      backgroundColor:
+                          const Color(0xFFB83250).withValues(alpha: .08)),
+                  icon: const Icon(Icons.delete_outline,
+                      color: Color(0xFFB83250), size: 20),
+                ),
             ]),
           ]),
         ),
       ]),
     );
+  }
+}
+
+/// Edit a user's name, area and roles: each role can be granted or removed.
+/// A store owner or employee role is tied to the store picked next to it.
+Future<void> showEditUser(BuildContext context,
+    List<Map<String, dynamic>> merchants, Map<String, dynamic> p) async {
+  final form = GlobalKey<FormState>();
+  final name = TextEditingController(text: '${p['full_name'] ?? ''}');
+  final area = TextEditingController(text: '${p['area'] ?? ''}');
+  final current = (p['user_roles'] as List? ?? []).cast<Map>();
+  final on = {
+    for (final r in roleLabels.keys) r: current.any((x) => x['role'] == r)
+  };
+  String? storeOf(String role) {
+    final m = current.where((x) => x['role'] == role).firstOrNull;
+    return m?['merchant_id'] as String? ??
+        (merchants.isEmpty ? null : merchants.first['id'] as String);
+  }
+
+  final store = {
+    'merchant_owner': storeOf('merchant_owner'),
+    'merchant_staff': storeOf('merchant_staff'),
+  };
+  final self = p['id'] == myId;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => StatefulBuilder(
+      builder: (c, set) => AlertDialog(
+        titlePadding: EdgeInsets.zero,
+        title: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+              gradient: LinearGradient(colors: G.violet),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(22))),
+          child: Row(children: [
+            const Icon(Icons.manage_accounts_outlined, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('تعديل ${p['full_name'] ?? ''}',
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w700)),
+            ),
+          ]),
+        ),
+        content: SizedBox(
+          width: 460,
+          child: Form(
+            key: form,
+            child: SingleChildScrollView(
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Field('الاسم', name, required: true),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      initialValue: '${p['phone'] ?? ''}',
+                      enabled: false,
+                      textDirection: TextDirection.ltr,
+                      decoration: const InputDecoration(
+                          labelText: 'رقم الجوال (اسم الدخول)',
+                          prefixIcon: Icon(Icons.lock_outline)),
+                    ),
+                    const SizedBox(height: 10),
+                    Field('المنطقة', area),
+                    const SizedBox(height: 14),
+                    const Text('الصلاحيات',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    const Text('فعّل الصلاحية لإعطائها، أو ألغِها لإزالتها',
+                        style: TextStyle(fontSize: 12, color: Colors.black54)),
+                    const SizedBox(height: 6),
+                    for (final r in roleLabels.entries) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          gradient: on[r.key] == true
+                              ? LinearGradient(colors: [
+                                  for (final x in roleGradients[r.key] ??
+                                      G.violet)
+                                    x.withValues(alpha: .12)
+                                ])
+                              : null,
+                          border: Border.all(
+                              color: (roleGradients[r.key] ?? G.violet)
+                                  .first
+                                  .withValues(
+                                      alpha: on[r.key] == true ? .5 : .15)),
+                        ),
+                        child: SwitchListTile(
+                          dense: true,
+                          value: on[r.key] == true,
+                          activeThumbColor:
+                              (roleGradients[r.key] ?? G.violet).first,
+                          title: Text(r.value,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600)),
+                          subtitle: self && r.key == 'admin'
+                              ? const Text('لا يمكنك إزالتها عن نفسك')
+                              : null,
+                          onChanged: self && r.key == 'admin'
+                              ? null
+                              : (v) => set(() => on[r.key] = v),
+                        ),
+                      ),
+                      if ((r.key == 'merchant_owner' ||
+                              r.key == 'merchant_staff') &&
+                          on[r.key] == true)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: DropdownButtonFormField<String>(
+                            initialValue: store[r.key],
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                                labelText: r.key == 'merchant_owner'
+                                    ? 'المتجر الذي يملكه *'
+                                    : 'المتجر الذي يعمل فيه *'),
+                            items: [
+                              for (final m in merchants)
+                                DropdownMenuItem(
+                                    value: m['id'] as String,
+                                    child: Text(m['name']))
+                            ],
+                            onChanged: (v) => set(() => store[r.key] = v),
+                            validator: (v) => v == null ? 'اختر المتجر' : null,
+                          ),
+                        ),
+                    ],
+                  ]),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('إلغاء')),
+          FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: G.violet.first),
+              onPressed: () {
+                if (form.currentState!.validate()) Navigator.pop(c, true);
+              },
+              icon: const Icon(Icons.save_outlined, size: 18),
+              label: const Text('حفظ التعديلات')),
+        ],
+      ),
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  await guard(
+      context,
+      () => usersFn({
+            'action': 'admin_update_user',
+            'user_id': p['id'],
+            'full_name': name.text.trim(),
+            'area': area.text.trim(),
+            'roles': [
+              for (final e in on.entries)
+                if (e.value)
+                  {
+                    'role': e.key,
+                    if (store.containsKey(e.key)) 'merchant_id': store[e.key],
+                  }
+            ],
+          }),
+      ok: 'تم حفظ التعديلات');
+}
+
+/// Delete a user after confirmation. Accounts with orders or money records are
+/// archived by the server instead (signed out for good, roles removed), to keep the history.
+Future<void> confirmDeleteUser(
+    BuildContext context, Map<String, dynamic> p) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      icon: const Icon(Icons.warning_amber_rounded,
+          color: Color(0xFFB83250), size: 40),
+      title: Text('حذف ${p['full_name'] ?? ''}؟'),
+      content: const Text(
+          'سيُحذف الحساب ولن يتمكن صاحبه من الدخول.\nإذا كان للحساب طلبات أو سجلات مالية، يُؤرشف بدل الحذف النهائي حتى تبقى السجلات محفوظة.'),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('إلغاء')),
+        FilledButton.icon(
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFB83250)),
+            onPressed: () => Navigator.pop(c, true),
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: const Text('حذف')),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  final r = await guard(context,
+      () => usersFn({'action': 'admin_delete_user', 'user_id': p['id']}));
+  if (r != null && context.mounted) {
+    toast(
+        context,
+        r['mode'] == 'archived'
+            ? 'تم حذف المستخدم، وبقيت طلباته وسجلاته المالية محفوظة'
+            : 'تم حذف المستخدم نهائياً');
   }
 }
 

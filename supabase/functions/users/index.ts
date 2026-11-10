@@ -59,6 +59,12 @@ async function callerClient(req: Request): Promise<SupabaseClient> {
   if (!auth.startsWith("Bearer ")) throw new HttpError(401, "يجب تسجيل الدخول");
   return createClient(URL_, ANON, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
 }
+async function callerId(req: Request): Promise<string> {
+  const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/, "");
+  const { data } = await admin.auth.getUser(token);
+  if (!data.user) throw new HttpError(401, "يجب تسجيل الدخول");
+  return data.user.id;
+}
 async function requireAdmin(req: Request) {
   const c = await callerClient(req);
   const { data } = await c.rpc("is_admin");
@@ -124,6 +130,77 @@ Deno.serve(async (req) => {
         }
       }
       return json({ ok: true, user_id: u.id, existed: u.existed });
+    }
+
+    // ---- admin: edit a user's name/area and set their exact roles (adds and removes) ----
+    if (action === "admin_update_user") {
+      await requireAdmin(req);
+      const me = await callerId(req);
+      const uid = need(body.user_id, "المستخدم");
+      const wanted: { role: string; merchant_id: string | null }[] = (Array.isArray(body.roles) ? body.roles : [])
+        .filter((r: { role?: string }) => ["admin", "merchant_owner", "merchant_staff", "driver", "customer"].includes(String(r?.role)))
+        .map((r: { role: string; merchant_id?: string }) => ({
+          role: r.role,
+          merchant_id: r.role === "merchant_owner" || r.role === "merchant_staff" ? need(r.merchant_id, "المتجر") : null,
+        }));
+      if (wanted.length === 0) wanted.push({ role: "customer", merchant_id: null });
+      if (uid === me && !wanted.some((r) => r.role === "admin")) {
+        throw new HttpError(400, "لا يمكنك إزالة صلاحية الإدارة عن حسابك");
+      }
+      const key = (r: { role: string; merchant_id: string | null }) => `${r.role}|${r.merchant_id ?? ""}`;
+      const { data: current } = await admin.from("user_roles").select("id, role, merchant_id").eq("user_id", uid);
+      const want = new Set(wanted.map(key));
+      for (const r of current ?? []) {
+        if (want.has(key(r))) continue;
+        await admin.from("user_roles").delete().eq("id", r.id);
+        if (r.role === "merchant_staff" && r.merchant_id) {
+          await admin.from("merchant_staff").delete().eq("merchant_id", r.merchant_id).eq("user_id", uid);
+        }
+      }
+      const have = new Set((current ?? []).map(key));
+      for (const r of wanted) {
+        if (have.has(key(r))) continue;
+        await addRole(uid, r.role, r.merchant_id);
+        if (r.role === "merchant_staff") {
+          await admin.from("merchant_staff").upsert({ merchant_id: r.merchant_id, user_id: uid, title: "موظف", perms: { orders: true } });
+        } else if (r.role === "merchant_owner") {
+          await admin.from("merchant_details").update({ owner_id: uid }).eq("merchant_id", r.merchant_id);
+        }
+      }
+      const patch: Record<string, unknown> = {};
+      if (body.full_name !== undefined) patch.full_name = need(body.full_name, "الاسم");
+      if (body.area !== undefined) patch.area = String(body.area ?? "").trim() || null;
+      if (Object.keys(patch).length) await admin.from("profiles").update(patch).eq("id", uid);
+      return json({ ok: true });
+    }
+
+    // ---- admin: delete a user. Accounts with orders or money records are archived instead, to keep the history ----
+    if (action === "admin_delete_user") {
+      await requireAdmin(req);
+      const me = await callerId(req);
+      const uid = need(body.user_id, "المستخدم");
+      if (uid === me) throw new HttpError(400, "لا يمكنك حذف حسابك");
+      const linked: [string, string][] = [
+        ["orders", "customer_id"], ["orders", "driver_id"], ["merchant_details", "owner_id"], ["order_events", "by_user"],
+        ["wallet_ledger", "created_by"], ["payout_requests", "requested_by"], ["payout_events", "created_by"],
+        ["subscription_requests", "requested_by"], ["subscription_requests", "reviewed_by"], ["driver_ledger", "driver_id"],
+        ["driver_settlements", "driver_id"], ["driver_settlements", "created_by"], ["notifications", "created_by"],
+      ];
+      let history = false;
+      for (const [t, col] of linked) {
+        const { count } = await admin.from(t).select("*", { count: "exact", head: true }).eq(col, uid);
+        if ((count ?? 0) > 0) { history = true; break; }
+      }
+      if (!history) {
+        const { error } = await admin.auth.admin.deleteUser(uid);
+        if (error) throw new HttpError(400, error.message);
+        return json({ ok: true, mode: "deleted" });
+      }
+      await admin.from("user_roles").delete().eq("user_id", uid);
+      await admin.from("merchant_staff").delete().eq("user_id", uid);
+      await admin.from("profiles").update({ is_active: false, deleted_at: new Date().toISOString() }).eq("id", uid);
+      await admin.auth.admin.updateUserById(uid, { ban_duration: "876000h" });
+      return json({ ok: true, mode: "archived" });
     }
 
     // ---- admin: add a merchant with its owner account ----
