@@ -1,0 +1,22 @@
+name: dhabaeh
+description: ذبائح البحرين - سوق المسالخ والذبائح في البحرين
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  supabase_flutter: ^2.8.0
+  intl: any
+  file_picker: ^8.1.2
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

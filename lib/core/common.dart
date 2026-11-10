@@ -1,0 +1,262 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' show NumberFormat, DateFormat;
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+SupabaseClient get sb => Supabase.instance.client;
+String? get myId => sb.auth.currentUser?.id;
+
+final _money = NumberFormat('#,##0.000', 'en');
+String bhd(dynamic v) => '${_money.format(num.tryParse('${v ?? 0}') ?? 0)} د.ب';
+num toNum(dynamic v) => num.tryParse('${v ?? 0}') ?? 0;
+String dateText(dynamic v) {
+  if (v == null) return '';
+  final d = DateTime.tryParse('$v');
+  return d == null ? '$v' : DateFormat('d/M/yyyy').format(d.toLocal());
+}
+String dateTimeText(dynamic v) {
+  final d = DateTime.tryParse('${v ?? ''}');
+  return d == null ? '' : DateFormat('d/M/yyyy · h:mm a').format(d.toLocal());
+}
+String isoDate(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
+
+String normPhone(String raw) {
+  var d = raw.replaceAll(RegExp(r'\D'), '');
+  if (d.startsWith('00973')) d = d.substring(5);
+  if (d.startsWith('973') && d.length == 11) d = d.substring(3);
+  return d;
+}
+
+const statusLabels = {
+  'new': 'جديد',
+  'accepted': 'مقبول',
+  'slaughtering': 'قيد الذبح',
+  'ready': 'جاهز للتوصيل',
+  'out_for_delivery': 'في الطريق',
+  'delivered': 'تم التسليم',
+  'cancelled': 'ملغي',
+};
+const statusFlow = ['new', 'accepted', 'slaughtering', 'ready', 'out_for_delivery', 'delivered'];
+const paymentLabels = {'benefitpay': 'BenefitPay', 'bank_transfer': 'تحويل بنكي', 'cash': 'نقداً عند الاستلام'};
+const paymentStatusLabels = {'pending': 'بانتظار الدفع', 'awaiting_review': 'بانتظار مراجعة التحويل', 'paid': 'مدفوع', 'refunded': 'مسترجع'};
+const planLabels = {'trial': 'تجريبية', 'monthly': 'شهرية', 'yearly': 'سنوية'};
+const roleLabels = {
+  'admin': 'الإدارة العامة',
+  'merchant_owner': 'مالك متجر',
+  'merchant_staff': 'موظف متجر',
+  'driver': 'مندوب توصيل',
+  'customer': 'عميل',
+};
+const merchantPermLabels = {
+  'orders': 'استلام الطلبات وتحديث حالتها',
+  'products': 'إدارة المنتجات',
+  'pricing': 'تعديل الأسعار',
+  'offers': 'إدارة العروض',
+  'wallet': 'عرض المحفظة',
+  'staff': 'إدارة الموظفين',
+};
+
+Color statusColor(String s) => switch (s) {
+      'new' => const Color(0xFF9A5B13),
+      'accepted' || 'slaughtering' => const Color(0xFF1D4E89),
+      'ready' || 'out_for_delivery' => const Color(0xFF4B4380),
+      'delivered' => const Color(0xFF2F5D50),
+      _ => const Color(0xFF8F1D13),
+    };
+
+class StatusChip extends StatelessWidget {
+  const StatusChip(this.status, {super.key});
+  final String status;
+  @override
+  Widget build(BuildContext context) {
+    final c = statusColor(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(99)),
+      child: Text(statusLabels[status] ?? status, style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+void toast(BuildContext context, String msg, {bool error = false}) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    content: Text(msg),
+    backgroundColor: error ? const Color(0xFF8F1D13) : null,
+  ));
+}
+
+String errText(Object e) {
+  if (e is PostgrestException) return e.message;
+  if (e is AuthException) {
+    if (e.message.contains('Invalid login')) return 'رقم الجوال أو كلمة المرور غير صحيحة';
+    return e.message;
+  }
+  if (e is FunctionException) {
+    final d = e.details;
+    if (d is Map && d['error'] != null) return '${d['error']}';
+    return 'تعذّر تنفيذ الطلب';
+  }
+  return '$e';
+}
+
+/// Runs [fn], shows the error as a snackbar, returns null on failure.
+Future<T?> guard<T>(BuildContext context, Future<T> Function() fn, {String? ok}) async {
+  try {
+    final r = await fn();
+    if (ok != null && context.mounted) toast(context, ok);
+    return r;
+  } catch (e) {
+    if (context.mounted) toast(context, errText(e), error: true);
+    return null;
+  }
+}
+
+/// Calls the `users` edge function and throws its Arabic error text on failure.
+Future<Map<String, dynamic>> usersFn(Map<String, dynamic> body) async {
+  final r = await sb.functions.invoke('users', body: body);
+  final data = r.data;
+  if (data is Map && data['ok'] == true) return Map<String, dynamic>.from(data);
+  throw Exception(data is Map ? data['error'] ?? 'خطأ' : 'خطأ');
+}
+
+class Empty extends StatelessWidget {
+  const Empty(this.text, {super.key, this.icon = Icons.inbox_outlined});
+  final String text;
+  final IconData icon;
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 40, color: Colors.black26),
+            const SizedBox(height: 8),
+            Text(text, textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54)),
+          ]),
+        ),
+      );
+}
+
+class SectionCard extends StatelessWidget {
+  const SectionCard({super.key, this.title, required this.child, this.trailing});
+  final String? title;
+  final Widget child;
+  final Widget? trailing;
+  @override
+  Widget build(BuildContext context) => Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (title != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(children: [
+                  Expanded(child: Text(title!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+                  if (trailing != null) trailing!,
+                ]),
+              ),
+            child,
+          ]),
+        ),
+      );
+}
+
+class KeyVal extends StatelessWidget {
+  const KeyVal(this.k, this.v, {super.key, this.bold = false});
+  final String k;
+  final String v;
+  final bool bold;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(children: [
+          Expanded(child: Text(k, style: const TextStyle(color: Colors.black54))),
+          Text(v, style: TextStyle(fontWeight: bold ? FontWeight.w700 : FontWeight.w500)),
+        ]),
+      );
+}
+
+/// Reload-on-demand list loader with pull-to-refresh and realtime refresh.
+class Loader<T> extends StatefulWidget {
+  const Loader({super.key, required this.load, required this.builder, this.realtimeTables = const []});
+  final Future<T> Function() load;
+  final Widget Function(BuildContext context, T data, Future<void> Function() reload) builder;
+  final List<String> realtimeTables;
+  @override
+  State<Loader<T>> createState() => _LoaderState<T>();
+}
+
+class _LoaderState<T> extends State<Loader<T>> {
+  T? data;
+  Object? error;
+  RealtimeChannel? ch;
+
+  @override
+  void initState() {
+    super.initState();
+    reload();
+    if (widget.realtimeTables.isNotEmpty) {
+      var c = sb.channel('rt-${identityHashCode(this)}');
+      for (final t in widget.realtimeTables) {
+        c = c.onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: t, callback: (_) => reload());
+      }
+      ch = c..subscribe();
+    }
+  }
+
+  @override
+  void dispose() {
+    if (ch != null) sb.removeChannel(ch!);
+    super.dispose();
+  }
+
+  Future<void> reload() async {
+    try {
+      final d = await widget.load();
+      if (mounted) setState(() { data = d; error = null; });
+    } catch (e) {
+      if (mounted) setState(() => error = e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (error != null && data == null) {
+      return Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(errText(error!), textAlign: TextAlign.center),
+          TextButton(onPressed: reload, child: const Text('إعادة المحاولة')),
+        ]),
+      );
+    }
+    if (data == null) return const Center(child: CircularProgressIndicator());
+    return RefreshIndicator(onRefresh: reload, child: widget.builder(context, data as T, reload));
+  }
+}
+
+class Field extends StatelessWidget {
+  const Field(this.label, this.ctrl,
+      {super.key, this.required = false, this.hint, this.keyboard, this.obscure = false, this.maxLines = 1, this.note, this.ltr = false});
+  final String label;
+  final TextEditingController ctrl;
+  final bool required;
+  final String? hint;
+  final String? note;
+  final TextInputType? keyboard;
+  final bool obscure;
+  final int maxLines;
+  final bool ltr;
+  @override
+  Widget build(BuildContext context) => TextFormField(
+        controller: ctrl,
+        keyboardType: keyboard,
+        obscureText: obscure,
+        maxLines: maxLines,
+        textDirection: ltr ? TextDirection.ltr : null,
+        decoration: InputDecoration(
+          labelText: required ? '$label *' : label,
+          hintText: hint,
+          helperText: note,
+        ),
+        validator: required ? (v) => (v == null || v.trim().isEmpty) ? 'هذا الحقل مطلوب' : null : null,
+      );
+}
