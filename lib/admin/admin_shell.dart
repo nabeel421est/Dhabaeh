@@ -4,6 +4,7 @@ import '../auth/gate.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
 import '../customer/order_details.dart';
+import 'admin_driver_money.dart';
 import 'admin_merchants.dart';
 import 'admin_money.dart';
 import 'admin_payouts.dart';
@@ -32,6 +33,8 @@ class _AdminShellState extends State<AdminShell> {
     ('الإشعارات', Icons.campaign_outlined, null),
     ('محفظة المنصة', Icons.account_balance_outlined, 'الإدارة العامة'),
     ('طلبات السحب', Icons.outbox_outlined, 'الإدارة العامة'),
+    ('مبالغ الدفع عند الاستلام', Icons.payments_outlined, 'الإدارة العامة'),
+    ('رسوم المناديب', Icons.delivery_dining_outlined, 'الإدارة العامة'),
     ('الاشتراكات', Icons.workspace_premium_outlined, 'الإدارة العامة'),
     ('العمولات', Icons.percent, 'الإدارة العامة'),
     ('التوصيل', Icons.map_outlined, 'الإدارة العامة'),
@@ -51,6 +54,8 @@ class _AdminShellState extends State<AdminShell> {
         'الإشعارات' => const AdminNotify(),
         'محفظة المنصة' => const PlatformWallet(),
         'طلبات السحب' => const AdminPayouts(),
+        'مبالغ الدفع عند الاستلام' => const AdminDriverMoney(fees: false),
+        'رسوم المناديب' => const AdminDriverMoney(fees: true),
         'الاشتراكات' => const AdminPlans(),
         'العمولات' => const AdminCommissions(),
         'التوصيل' => const AdminZones(),
