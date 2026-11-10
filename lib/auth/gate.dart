@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../admin/admin_shell.dart';
+import '../core/brand.dart';
 import '../core/common.dart';
 import '../customer/customer_shell.dart';
 import '../driver/driver_shell.dart';
@@ -23,8 +24,21 @@ class Session {
   final List<Map<String, dynamic>> roles;
   final Map<String, dynamic> profile;
   bool has(String r) => roles.any((x) => x['role'] == r);
-  List<String> merchantIds(String role) =>
-      roles.where((x) => x['role'] == role && x['merchant_id'] != null).map((x) => '${x['merchant_id']}').toList();
+  List<String> get available {
+    final a = [
+      'admin',
+      'merchant_owner',
+      'merchant_staff',
+      'driver',
+      'customer'
+    ].where(has).toList();
+    return a.isEmpty ? ['customer'] : a;
+  }
+
+  List<String> merchantIds(String role) => roles
+      .where((x) => x['role'] == role && x['merchant_id'] != null)
+      .map((x) => '${x['merchant_id']}')
+      .toList();
 }
 
 class _AuthGateState extends State<AuthGate> {
@@ -37,8 +51,15 @@ class _AuthGateState extends State<AuthGate> {
     super.initState();
     if (sb.auth.currentSession != null) session = loadSession();
     sub = sb.auth.onAuthStateChange.listen((s) {
-      if (s.event == AuthChangeEvent.signedIn) setState(() { roleOverride = null; session = loadSession(); });
-      if (s.event == AuthChangeEvent.signedOut) setState(() => session = null);
+      if (s.event == AuthChangeEvent.signedIn)
+        setState(() {
+          roleOverride = null;
+          session = loadSession();
+        });
+      if (s.event == AuthChangeEvent.signedOut) {
+        activeBrand.value = brands['login']!;
+        setState(() => session = null);
+      }
     });
   }
 
@@ -49,18 +70,27 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<Session> loadSession() async {
-    final roles = await sb.from('user_roles').select('role, merchant_id').eq('user_id', myId!);
+    final roles = await sb
+        .from('user_roles')
+        .select('role, merchant_id')
+        .eq('user_id', myId!);
     final profile = await sb.from('profiles').select().eq('id', myId!).single();
     if (profile['is_active'] == false) {
       await sb.auth.signOut();
       throw Exception('هذا الحساب موقوف، تواصل مع الإدارة');
     }
-    return Session(List<Map<String, dynamic>>.from(roles), profile);
+    final s = Session(List<Map<String, dynamic>>.from(roles), profile);
+    // Switch the look before the app opens, so the first frame already has its identity.
+    activeBrand.value = brands[s.available.first] ?? brands['customer']!;
+    return s;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (session == null) return const LoginPage();
+    if (session == null) {
+      useBrand('login');
+      return const LoginPage();
+    }
     return FutureBuilder<Session>(
       future: session,
       builder: (context, snap) {
@@ -69,23 +99,48 @@ class _AuthGateState extends State<AuthGate> {
             body: Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(errText(snap.error!)),
-                TextButton(onPressed: () => sb.auth.signOut(), child: const Text('تسجيل الخروج')),
+                TextButton(
+                    onPressed: () => sb.auth.signOut(),
+                    child: const Text('تسجيل الخروج')),
               ]),
             ),
           );
         }
-        if (!snap.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        if (!snap.hasData)
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         final s = snap.data!;
-        final available = ['admin', 'merchant_owner', 'merchant_staff', 'driver', 'customer'].where(s.has).toList();
+        final available = [
+          'admin',
+          'merchant_owner',
+          'merchant_staff',
+          'driver',
+          'customer'
+        ].where(s.has).toList();
         if (available.isEmpty) available.add('customer');
-        final role = (roleOverride != null && available.contains(roleOverride)) ? roleOverride! : available.first;
+        final role = (roleOverride != null && available.contains(roleOverride))
+            ? roleOverride!
+            : available.first;
         final switcher = available.length > 1
-            ? RoleSwitcher(current: role, roles: available, onPick: (r) => setState(() => roleOverride = r))
+            ? RoleSwitcher(
+                current: role,
+                roles: available,
+                onPick: (r) {
+                  activeBrand.value = brands[r] ?? brands['customer']!;
+                  setState(() => roleOverride = r);
+                })
             : null;
+        useBrand(role);
         return switch (role) {
           'admin' => AdminShell(profile: s.profile, switcher: switcher),
-          'merchant_owner' => MerchantShell(merchantIds: s.merchantIds('merchant_owner'), owner: true, switcher: switcher),
-          'merchant_staff' => MerchantShell(merchantIds: s.merchantIds('merchant_staff'), owner: false, switcher: switcher),
+          'merchant_owner' => MerchantShell(
+              merchantIds: s.merchantIds('merchant_owner'),
+              owner: true,
+              switcher: switcher),
+          'merchant_staff' => MerchantShell(
+              merchantIds: s.merchantIds('merchant_staff'),
+              owner: false,
+              switcher: switcher),
           'driver' => DriverShell(profile: s.profile, switcher: switcher),
           _ => CustomerShell(profile: s.profile, switcher: switcher),
         };
@@ -94,8 +149,19 @@ class _AuthGateState extends State<AuthGate> {
   }
 }
 
+/// Switch the whole app's look to [key]'s identity after this frame.
+void useBrand(String key) {
+  final b = brands[key] ?? brands['customer']!;
+  if (activeBrand.value != b)
+    WidgetsBinding.instance.addPostFrameCallback((_) => activeBrand.value = b);
+}
+
 class RoleSwitcher extends StatelessWidget {
-  const RoleSwitcher({super.key, required this.current, required this.roles, required this.onPick});
+  const RoleSwitcher(
+      {super.key,
+      required this.current,
+      required this.roles,
+      required this.onPick});
   final String current;
   final List<String> roles;
   final void Function(String) onPick;
@@ -106,7 +172,10 @@ class RoleSwitcher extends StatelessWidget {
         onSelected: onPick,
         itemBuilder: (_) => [
           for (final r in roles)
-            CheckedPopupMenuItem(value: r, checked: r == current, child: Text(roleLabels[r] ?? r)),
+            CheckedPopupMenuItem(
+                value: r,
+                checked: r == current,
+                child: Text(roleLabels[r] ?? r)),
         ],
       );
 }
@@ -123,8 +192,12 @@ List<Widget> commonActions(BuildContext context, Widget? switcher) => [
             builder: (c) => AlertDialog(
               title: const Text('تسجيل الخروج؟'),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('إلغاء')),
-                FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('خروج')),
+                TextButton(
+                    onPressed: () => Navigator.pop(c, false),
+                    child: const Text('إلغاء')),
+                FilledButton(
+                    onPressed: () => Navigator.pop(c, true),
+                    child: const Text('خروج')),
               ],
             ),
           );
