@@ -21,7 +21,7 @@ class _AdminShellState extends State<AdminShell> {
   static const sections = <(String, IconData, String?)>[
     ('الرئيسية', Icons.dashboard_outlined, null),
     ('الطلبات', Icons.receipt_long_outlined, null),
-    ('العملاء والمستخدمون', Icons.people_outline, null),
+    ('العملاء', Icons.people_outline, null),
     ('التجار', Icons.storefront_outlined, null),
     ('تقارير التجار', Icons.bar_chart_outlined, null),
     ('المندوبون', Icons.local_shipping_outlined, null),
@@ -30,12 +30,13 @@ class _AdminShellState extends State<AdminShell> {
     ('الاشتراكات', Icons.workspace_premium_outlined, 'الإدارة العامة'),
     ('العمولات', Icons.percent, 'الإدارة العامة'),
     ('التوصيل', Icons.map_outlined, 'الإدارة العامة'),
+    ('مستخدمو المنصة', Icons.admin_panel_settings_outlined, 'الإدارة العامة'),
   ];
 
   Widget page(int i) => switch (i) {
         0 => AdminHome(onGo: (i) => setState(() => idx = i)),
         1 => const AdminOrders(),
-        2 => const AdminUsers(),
+        2 => const AdminUsers(group: UserGroup.customers),
         3 => const AdminMerchants(),
         4 => const AdminReports(),
         5 => const AdminDrivers(),
@@ -43,7 +44,8 @@ class _AdminShellState extends State<AdminShell> {
         7 => const PlatformWallet(),
         8 => const AdminPlans(),
         9 => const AdminCommissions(),
-        _ => const AdminZones(),
+        10 => const AdminZones(),
+        _ => const AdminUsers(group: UserGroup.platform),
       };
 
   @override
@@ -126,7 +128,9 @@ class AdminHome extends StatelessWidget {
       load: () async {
         final orders = await sb.from('orders').select('status, total, created_at');
         final merchants = await sb.from('merchants').select('id, suspended, frozen');
-        final customers = await sb.from('user_roles').select('id').eq('role', 'customer');
+        final roles = await sb.from('user_roles').select('user_id, role');
+        final nonCustomer = {for (final r in roles) if (r['role'] != 'customer') r['user_id']};
+        final customers = {for (final r in roles) if (r['role'] == 'customer' && !nonCustomer.contains(r['user_id'])) r['user_id']};
         final ledger = await sb.from('platform_ledger').select('amount');
         final today = DateTime.now();
         final todays = orders.where((o) {

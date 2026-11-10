@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../core/common.dart';
 
-/// Customers and every other account. New accounts can get any mix of roles.
+/// Which accounts a list shows: customers only, platform staff (admin, store owners and their employees), or one role.
+enum UserGroup { customers, platform }
+
+const platformRoles = {'admin', 'merchant_owner', 'merchant_staff'};
+
+/// A list of accounts. New accounts can get any mix of roles.
 class AdminUsers extends StatefulWidget {
-  const AdminUsers({super.key, this.onlyRole});
+  const AdminUsers({super.key, this.onlyRole, this.group});
   final String? onlyRole;
+  final UserGroup? group;
   @override
   State<AdminUsers> createState() => _AdminUsersState();
 }
@@ -28,6 +34,9 @@ class _AdminUsersState extends State<AdminUsers> {
         final list = people.where((p) {
           final roles = (p['user_roles'] as List).map((r) => r['role']).toList();
           if (widget.onlyRole != null && !roles.contains(widget.onlyRole)) return false;
+          // A customer is an account with no role beyond customer; anyone with a store or admin role is platform staff.
+          if (widget.group == UserGroup.customers && roles.any((r) => r != 'customer')) return false;
+          if (widget.group == UserGroup.platform && !roles.any(platformRoles.contains)) return false;
           final q = search.trim();
           return q.isEmpty || '${p['full_name']}'.contains(q) || '${p['phone']}'.contains(q);
         }).toList();
@@ -42,11 +51,15 @@ class _AdminUsersState extends State<AdminUsers> {
             const SizedBox(width: 12),
             FilledButton.icon(
               onPressed: () async {
-                await showAddUser(context, merchants, preset: widget.onlyRole);
+                await showAddUser(context, merchants, preset: widget.onlyRole ?? (widget.group == UserGroup.platform ? 'merchant_owner' : null));
                 await reload();
               },
               icon: const Icon(Icons.person_add_alt),
-              label: Text(widget.onlyRole == 'driver' ? 'إضافة مندوب' : 'إضافة مستخدم'),
+              label: Text(widget.onlyRole == 'driver'
+                  ? 'إضافة مندوب'
+                  : widget.group == UserGroup.customers
+                      ? 'إضافة عميل'
+                      : 'إضافة مستخدم'),
             ),
           ]),
           const SizedBox(height: 12),
