@@ -36,7 +36,7 @@ class Brand {
 const brands = <String, Brand>{
   'login': Brand(
     name: 'ذبائح البحرين',
-    tagline: 'ذبيحتك من المسلخ إلى باب بيتك',
+    tagline: 'ذبيحتك من الملحمة إلى باب بيتك',
     icon: Icons.storefront,
     stops: [Color(0xFF2A0A16), Color(0xFF6E1630), Color(0xFFB0414F)],
     accent: Color(0xFFE2B866),

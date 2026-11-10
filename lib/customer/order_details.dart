@@ -103,7 +103,8 @@ class OrderView extends StatelessWidget {
         trailing: StatusChip(o['status']),
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          KeyVal('المسلخ', o['merchants']?['name'] ?? ''),
+          KeyVal('الملحمة', o['merchants']?['name'] ?? ''),
+          KeyVal('نوع الطلب', orderKindLabels[orderKind(o)]!),
           if (viewer != 'customer')
             KeyVal('العميل',
                 '${o['customer_name'] ?? ''} · ${o['customer_phone'] ?? ''}'),
@@ -129,7 +130,7 @@ class OrderView extends StatelessWidget {
           for (final it in items) ...[
             KeyVal('${it['name']} × ${it['qty']}',
                 bhd(toNum(it['unit_price']) * toNum(it['qty']))),
-            if ((it['options'] as Map).isNotEmpty)
+            if ((it['options'] as Map).isNotEmpty && it['options']['cutting'] != null)
               Text(
                 [
                   it['options']['cutting'],

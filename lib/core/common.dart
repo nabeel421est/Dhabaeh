@@ -56,6 +56,17 @@ const paymentStatusLabels = {
   'paid': 'مدفوع',
   'refunded': 'مسترجع'
 };
+/// Buy (with cutting options) or reserve (dates only); stored in the first item's options.
+String orderKind(Map o) {
+  final items = o['order_items'];
+  if (items is List && items.isNotEmpty) {
+    final opt = items.first['options'];
+    if (opt is Map && opt['kind'] == 'reservation') return 'reservation';
+  }
+  return 'purchase';
+}
+
+const orderKindLabels = {'purchase': 'شراء', 'reservation': 'حجز'};
 const planLabels = {'trial': 'تجريبية', 'monthly': 'شهرية', 'yearly': 'سنوية'};
 const roleLabels = {
   'admin': 'الإدارة العامة',

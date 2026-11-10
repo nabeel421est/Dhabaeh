@@ -28,7 +28,7 @@ class _MerchantOrdersState extends State<MerchantOrders> {
       realtimeTables: const ['orders'],
       load: () async => List<Map<String, dynamic>>.from(await sb
           .from('orders')
-          .select('*, order_items(name, qty)')
+          .select('*, order_items(name, qty, options)')
           .eq('merchant_id', widget.mid)
           .order('slaughter_date')
           .order('created_at', ascending: false)),
@@ -160,7 +160,7 @@ class MerchantOrderTile extends StatelessWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('#${o['code']}',
+                      Text('#${o['code']} · ${orderKindLabels[orderKind(o)]}',
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 17,
