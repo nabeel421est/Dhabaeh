@@ -19,6 +19,7 @@ jobs:
         with:
           channel: stable
           cache: true
+      - uses: actions/configure-pages@v5
       - run: flutter pub get
       - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/" --no-web-resources-cdn
       - run: cp build/web/index.html build/web/404.html
@@ -33,4 +34,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
