@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/brand.dart';
 import '../core/common.dart';
 
 /// Which accounts a list shows: customers only, platform staff (admin, store owners and their employees), or one role.
@@ -52,18 +53,44 @@ class _AdminUsersState extends State<AdminUsers> {
               '${p['full_name']}'.contains(q) ||
               '${p['phone']}'.contains(q);
         }).toList();
-        return ListView(padding: const EdgeInsets.all(16), children: [
-          Row(children: [
-            Expanded(
-              child: TextField(
-                decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search),
-                    hintText: 'بحث بالاسم أو الجوال'),
-                onChanged: (v) => setState(() => search = v),
-              ),
+        final active = list.where((p) => p['is_active'] == true).length;
+        final (heroIcon, heroTitle, heroSub) =
+            switch ((widget.onlyRole, widget.group)) {
+          ('driver', _) => (
+              Icons.local_shipping_outlined,
+              'المندوبون',
+              'فريق التوصيل وحالة كل مندوب'
             ),
-            const SizedBox(width: 12),
-            FilledButton.icon(
+          (_, UserGroup.customers) => (
+              Icons.people_outline,
+              'العملاء',
+              'زبائن المنصة اللي يطلبون من المسالخ'
+            ),
+          (_, UserGroup.platform) => (
+              Icons.admin_panel_settings_outlined,
+              'مستخدمو المنصة',
+              'أصحاب المتاجر وموظفينهم والمشرفين'
+            ),
+          _ => (Icons.people_outline, 'المستخدمون', 'كل الحسابات'),
+        };
+        final addLabel = widget.onlyRole == 'driver'
+            ? 'إضافة مندوب'
+            : widget.group == UserGroup.customers
+                ? 'إضافة عميل'
+                : 'إضافة مستخدم';
+        return ListView(padding: const EdgeInsets.all(18), children: [
+          PageHero(
+            icon: heroIcon,
+            title: heroTitle,
+            subtitle: heroSub,
+            stats: [
+              ('الإجمالي', '${list.length}'),
+              ('فعّال', '$active'),
+              ('موقوف', '${list.length - active}')
+            ],
+            action: HeroButton(
+              icon: Icons.person_add_alt,
+              label: addLabel,
               onPressed: () async {
                 await showAddUser(context, merchants,
                     preset: widget.onlyRole ??
@@ -72,35 +99,28 @@ class _AdminUsersState extends State<AdminUsers> {
                             : null));
                 await reload();
               },
-              icon: const Icon(Icons.person_add_alt),
-              label: Text(widget.onlyRole == 'driver'
-                  ? 'إضافة مندوب'
-                  : widget.group == UserGroup.customers
-                      ? 'إضافة عميل'
-                      : 'إضافة مستخدم'),
             ),
-          ]),
-          const SizedBox(height: 12),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'بحث بالاسم أو الجوال'),
+            onChanged: (v) => setState(() => search = v),
+          ),
+          const SizedBox(height: 16),
           if (list.isEmpty) const Empty('لا توجد نتائج'),
-          for (final p in list)
-            Card(
-              child: ListTile(
-                leading: CircleAvatar(
-                    child: Text('${p['full_name']}'.isEmpty
-                        ? '?'
-                        : '${p['full_name']}'.characters.first)),
-                title: Text('${p['full_name']}',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text(
-                    '${p['phone'] ?? ''}${p['area'] == null ? '' : ' · ${p['area']}'}\n'
-                    '${(p['user_roles'] as List).map((r) => '${roleLabels[r['role']]}${r['merchant_id'] != null ? ' (${mName[r['merchant_id']] ?? ''})' : ''}').join('، ')}'),
-                isThreeLine: true,
-                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(p['is_active'] == true ? 'فعال' : 'موقوف',
-                      style: const TextStyle(fontSize: 12)),
-                  Switch(
-                    value: p['is_active'] == true,
-                    onChanged: p['id'] == myId
+          LayoutBuilder(builder: (context, c) {
+            final cols = (c.maxWidth / 330).floor().clamp(1, 4);
+            final w = (c.maxWidth - 14 * (cols - 1)) / cols;
+            return Wrap(spacing: 14, runSpacing: 14, children: [
+              for (final p in list)
+                SizedBox(
+                  width: w,
+                  child: _PersonCard(
+                    p: p,
+                    mName: mName,
+                    onToggle: p['id'] == myId
                         ? null
                         : (v) async {
                             await guard(
@@ -109,20 +129,133 @@ class _AdminUsersState extends State<AdminUsers> {
                                     {'is_active': v}).eq('id', p['id']));
                             await reload();
                           },
-                  ),
-                  IconButton(
-                    tooltip: 'الصلاحيات',
-                    icon: const Icon(Icons.admin_panel_settings_outlined),
-                    onPressed: () async {
+                    onRoles: () async {
                       await showAddUser(context, merchants, existing: p);
                       await reload();
                     },
                   ),
-                ]),
-              ),
-            ),
+                ),
+            ]);
+          }),
         ]);
       },
+    );
+  }
+}
+
+class _PersonCard extends StatelessWidget {
+  const _PersonCard(
+      {required this.p,
+      required this.mName,
+      required this.onToggle,
+      required this.onRoles});
+  final Map<String, dynamic> p;
+  final Map<dynamic, dynamic> mName;
+  final void Function(bool)? onToggle;
+  final VoidCallback onRoles;
+  @override
+  Widget build(BuildContext context) {
+    final roles = (p['user_roles'] as List).cast<Map>();
+    final main = [
+      'admin',
+      'merchant_owner',
+      'merchant_staff',
+      'driver',
+      'customer'
+    ].firstWhere((r) => roles.any((x) => x['role'] == r),
+        orElse: () => 'customer');
+    final colors = roleGradients[main]!;
+    final active = p['is_active'] == true;
+    final name = '${p['full_name'] ?? ''}';
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Container(
+            height: 5,
+            decoration:
+                BoxDecoration(gradient: LinearGradient(colors: colors))),
+        Padding(
+          padding: const EdgeInsets.all(14),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(children: [
+              GradientBadge(
+                  colors: colors,
+                  text: name.isEmpty ? '?' : name.characters.first),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700)),
+                      Text(
+                          '${p['phone'] ?? ''}${p['area'] == null ? '' : ' · ${p['area']}'}',
+                          style: const TextStyle(
+                              color: Colors.black54, fontSize: 13)),
+                    ]),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: (active
+                          ? const Color(0xFF1E8A5F)
+                          : const Color(0xFFB83250))
+                      .withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(active ? 'فعّال' : 'موقوف',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: active
+                            ? const Color(0xFF1E8A5F)
+                            : const Color(0xFFB83250))),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final r in roles)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    gradient: LinearGradient(colors: [
+                      for (final c in roleGradients[r['role']] ?? colors)
+                        c.withValues(alpha: .14),
+                    ]),
+                  ),
+                  child: Text(
+                    '${roleLabels[r['role']]}${r['merchant_id'] != null ? ' · ${mName[r['merchant_id']] ?? ''}' : ''}',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: (roleGradients[r['role']] ?? colors).first),
+                  ),
+                ),
+            ]),
+            const Divider(height: 22),
+            Row(children: [
+              Switch(value: active, onChanged: onToggle),
+              const SizedBox(width: 6),
+              Text(active ? 'الحساب مفعّل' : 'الحساب موقوف',
+                  style: const TextStyle(fontSize: 13, color: Colors.black54)),
+              const Spacer(),
+              TextButton.icon(
+                  onPressed: onRoles,
+                  icon:
+                      const Icon(Icons.admin_panel_settings_outlined, size: 18),
+                  label: const Text('الصلاحيات')),
+            ]),
+          ]),
+        ),
+      ]),
     );
   }
 }
@@ -258,6 +391,12 @@ class _AdminNotifyState extends State<AdminNotify> {
     'merchants': 'التجار',
     'drivers': 'المندوبون'
   };
+  static const audienceLook = <String, (IconData, List<Color>)>{
+    'all': (Icons.campaign_outlined, G.sky),
+    'customers': (Icons.people_outline, G.ruby),
+    'merchants': (Icons.storefront_outlined, G.emerald),
+    'drivers': (Icons.local_shipping_outlined, G.sapphire),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -268,60 +407,178 @@ class _AdminNotifyState extends State<AdminNotify> {
           .select()
           .order('created_at', ascending: false)
           .limit(100)),
-      builder: (context, sent, reload) =>
-          ListView(padding: const EdgeInsets.all(16), children: [
-        SectionCard(
-          title: 'إشعار جديد',
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Wrap(spacing: 8, children: [
-              for (final a in audiences.entries)
-                ChoiceChip(
-                    label: Text(a.value),
-                    selected: audience == a.key,
-                    onSelected: (_) => setState(() => audience = a.key)),
-            ]),
-            const SizedBox(height: 10),
-            Field('العنوان', title, required: true),
-            const SizedBox(height: 10),
-            Field('النص', body, maxLines: 3),
-            const SizedBox(height: 10),
-            FilledButton(
-              onPressed: () async {
-                if (title.text.trim().isEmpty)
-                  return toast(context, 'اكتب عنوان الإشعار', error: true);
-                await guard(
-                    context,
-                    () => sb.from('notifications').insert({
-                          'audience': audience,
-                          'title': title.text.trim(),
-                          'body': body.text.trim(),
-                          'created_by': myId
-                        }),
-                    ok: 'تم الإرسال');
-                title.clear();
-                body.clear();
-                await reload();
-              },
-              child: const Text('إرسال'),
-            ),
-          ]),
-        ),
-        const SizedBox(height: 12),
-        SectionCard(
-          title: 'المرسلة',
-          child: Column(children: [
-            if (sent.isEmpty) const Text('لم يُرسل شيء بعد'),
-            for (final n in sent)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(n['title']),
-                subtitle: Text(
-                    '${audiences[n['audience']] ?? n['audience']} · ${dateTimeText(n['created_at'])}'),
-              ),
-          ]),
-        ),
-      ]),
+      builder: (context, sent, reload) {
+        int count(String a) => sent.where((n) => n['audience'] == a).length;
+        final look = audienceLook[audience]!;
+        return ListView(padding: const EdgeInsets.all(18), children: [
+          PageHero(
+            icon: Icons.campaign_outlined,
+            title: 'الإشعارات',
+            subtitle: 'رسائل تصل لتطبيقات العملاء والتجار والمندوبين',
+            stats: [
+              ('المرسلة', '${sent.length}'),
+              for (final a in audiences.entries) (a.value, '${count(a.key)}')
+            ],
+          ),
+          const SizedBox(height: 16),
+          GradientHeaderCard(
+            title: 'إشعار جديد',
+            subtitle: 'إلى: ${audiences[audience]}',
+            icon: look.$1,
+            colors: look.$2,
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('لمن يُرسل؟',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 10),
+                  Wrap(spacing: 10, runSpacing: 10, children: [
+                    for (final a in audiences.entries)
+                      _AudienceTile(
+                        label: a.value,
+                        icon: audienceLook[a.key]!.$1,
+                        colors: audienceLook[a.key]!.$2,
+                        selected: audience == a.key,
+                        onTap: () => setState(() => audience = a.key),
+                      ),
+                  ]),
+                  const SizedBox(height: 16),
+                  Field('العنوان', title, required: true),
+                  const SizedBox(height: 10),
+                  Field('النص', body, maxLines: 3),
+                  const SizedBox(height: 14),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                          backgroundColor: look.$2.first),
+                      icon: const Icon(Icons.send_outlined, size: 18),
+                      onPressed: () async {
+                        if (title.text.trim().isEmpty)
+                          return toast(context, 'اكتب عنوان الإشعار',
+                              error: true);
+                        await guard(
+                            context,
+                            () => sb.from('notifications').insert({
+                                  'audience': audience,
+                                  'title': title.text.trim(),
+                                  'body': body.text.trim(),
+                                  'created_by': myId
+                                }),
+                            ok: 'تم الإرسال');
+                        title.clear();
+                        body.clear();
+                        await reload();
+                      },
+                      label: const Text('إرسال'),
+                    ),
+                  ),
+                ]),
+          ),
+          const SizedBox(height: 18),
+          const Text('المرسلة',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          if (sent.isEmpty)
+            const Empty('لم يُرسل شيء بعد', icon: Icons.campaign_outlined),
+          LayoutBuilder(builder: (context, c) {
+            final cols = (c.maxWidth / 380).floor().clamp(1, 3);
+            final w = (c.maxWidth - 12 * (cols - 1)) / cols;
+            return Wrap(spacing: 12, runSpacing: 12, children: [
+              for (final n in sent)
+                SizedBox(
+                  width: w,
+                  child: Card(
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            GradientBadge(
+                                colors: (audienceLook[n['audience']] ??
+                                        audienceLook['all']!)
+                                    .$2,
+                                icon: (audienceLook[n['audience']] ??
+                                        audienceLook['all']!)
+                                    .$1,
+                                size: 42),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(n['title'],
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700)),
+                                    if ('${n['body'] ?? ''}'.isNotEmpty)
+                                      Text(n['body'],
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              color: Colors.black54,
+                                              fontSize: 13)),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                        '${audiences[n['audience']] ?? n['audience']} · ${dateTimeText(n['created_at'])}',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color:
+                                                (audienceLook[n['audience']] ??
+                                                        audienceLook['all']!)
+                                                    .$2
+                                                    .first)),
+                                  ]),
+                            ),
+                          ]),
+                    ),
+                  ),
+                ),
+            ]);
+          }),
+        ]);
+      },
     );
   }
+}
+
+class _AudienceTile extends StatelessWidget {
+  const _AudienceTile(
+      {required this.label,
+      required this.icon,
+      required this.colors,
+      required this.selected,
+      required this.onTap});
+  final String label;
+  final IconData icon;
+  final List<Color> colors;
+  final bool selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 130,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: selected ? LinearGradient(colors: colors) : null,
+            color: selected ? null : Colors.white,
+            border: Border.all(
+                color: selected
+                    ? Colors.transparent
+                    : colors.first.withValues(alpha: .3)),
+          ),
+          child: Row(children: [
+            Icon(icon, size: 20, color: selected ? Colors.white : colors.first),
+            const SizedBox(width: 8),
+            Text(label,
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: selected ? Colors.white : colors.first)),
+          ]),
+        ),
+      );
 }

@@ -394,6 +394,12 @@ class PlatformWallet extends StatelessWidget {
     'subscription': 'الاشتراكات',
     'delivery_fee': 'رسوم التوصيل',
   };
+  static const kindLook = <String, (IconData, List<Color>)>{
+    'merchant_commission': (Icons.storefront_outlined, G.emerald),
+    'customer_commission': (Icons.people_outline, G.ruby),
+    'subscription': (Icons.workspace_premium_outlined, G.gold),
+    'delivery_fee': (Icons.local_shipping_outlined, G.sapphire),
+  };
   @override
   Widget build(BuildContext context) {
     return Loader<List<Map<String, dynamic>>>(
@@ -404,40 +410,87 @@ class PlatformWallet extends StatelessWidget {
           .order('created_at', ascending: false)),
       builder: (context, rows, _) {
         final total = rows.fold<num>(0, (a, r) => a + toNum(r['amount']));
-        return ListView(padding: const EdgeInsets.all(16), children: [
-          SectionCard(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('رصيد محفظة المنصة',
-                  style: TextStyle(color: Colors.black54)),
-              Text(bhd(total),
-                  style: const TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF4B4380))),
-              const SizedBox(height: 8),
-              for (final k in kinds.entries)
-                KeyVal(
-                    k.value,
-                    bhd(rows
-                        .where((r) => r['kind'] == k.key)
-                        .fold<num>(0, (a, r) => a + toNum(r['amount'])))),
-            ]),
+        num of(String k) => rows
+            .where((r) => r['kind'] == k)
+            .fold<num>(0, (a, r) => a + toNum(r['amount']));
+        return ListView(padding: const EdgeInsets.all(18), children: [
+          PageHero(
+            icon: Icons.account_balance_outlined,
+            title: 'محفظة المنصة',
+            subtitle: 'كل ما تحصّله المنصة من العمولات والاشتراكات والتوصيل',
+            stats: [('الرصيد', bhd(total)), ('الحركات', '${rows.length}')],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          LayoutBuilder(builder: (context, c) {
+            final cols = c.maxWidth >= 1000
+                ? 4
+                : c.maxWidth >= 560
+                    ? 2
+                    : 1;
+            final w = (c.maxWidth - 12 * (cols - 1)) / cols;
+            return Wrap(spacing: 12, runSpacing: 12, children: [
+              for (final k in kinds.entries)
+                SizedBox(
+                    width: w,
+                    child: Kpi(
+                        label: k.value,
+                        value: bhd(of(k.key)),
+                        icon: kindLook[k.key]!.$1,
+                        colors: kindLook[k.key]!.$2)),
+            ]);
+          }),
+          const SizedBox(height: 16),
+          if (total > 0)
+            SectionCard(
+              title: 'من أين يأتي الرصيد',
+              child: Column(children: [
+                for (final k in kinds.entries)
+                  ShareBar(
+                      name: k.value,
+                      value: of(k.key),
+                      total: total,
+                      colors: kindLook[k.key]!.$2),
+              ]),
+            ),
+          const SizedBox(height: 16),
           SectionCard(
             title: 'تقرير المبالغ المحصّلة',
             child: Column(children: [
               if (rows.isEmpty) const Text('لا توجد مبالغ محصّلة بعد'),
               for (final r in rows.take(200))
-                ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                      '${kinds[r['kind']]} · ${r['merchants']?['name'] ?? ''}${r['orders'] != null ? ' · طلب #${r['orders']['code']}' : ''}'),
-                  subtitle: Text(dateTimeText(r['created_at'])),
-                  trailing: Text(bhd(r['amount']),
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(children: [
+                    GradientBadge(
+                        colors:
+                            (kindLook[r['kind']] ?? kindLook['subscription']!)
+                                .$2,
+                        icon: (kindLook[r['kind']] ?? kindLook['subscription']!)
+                            .$1,
+                        size: 40),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                                '${kinds[r['kind']] ?? r['kind']} · ${r['merchants']?['name'] ?? ''}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
+                            Text(
+                                '${r['orders'] != null ? 'طلب #${r['orders']['code']} · ' : ''}${dateTimeText(r['created_at'])}',
+                                style: const TextStyle(
+                                    color: Colors.black54, fontSize: 12)),
+                          ]),
+                    ),
+                    Text('+ ${bhd(r['amount'])}',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: (kindLook[r['kind']] ??
+                                    kindLook['subscription']!)
+                                .$2
+                                .first)),
+                  ]),
                 ),
             ]),
           ),
@@ -449,6 +502,11 @@ class PlatformWallet extends StatelessWidget {
 
 class AdminPlans extends StatelessWidget {
   const AdminPlans({super.key});
+  static const planLook = <String, (IconData, List<Color>)>{
+    'trial': (Icons.hourglass_top_outlined, G.amber),
+    'monthly': (Icons.calendar_month_outlined, G.sky),
+    'yearly': (Icons.workspace_premium_outlined, G.gold),
+  };
   @override
   Widget build(BuildContext context) {
     return Loader<(Map<String, dynamic>, List<Map<String, dynamic>>)>(
@@ -467,64 +525,103 @@ class AdminPlans extends StatelessWidget {
         final trial = TextEditingController(text: '${s['trial_days']}');
         final monthly = TextEditingController(text: '${s['monthly_price']}');
         final yearly = TextEditingController(text: '${s['yearly_price']}');
-        return ListView(padding: const EdgeInsets.all(16), children: [
-          SectionCard(
-            title: 'خطط الاشتراك',
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Wrap(spacing: 12, runSpacing: 12, children: [
-                    SizedBox(
-                        width: 200,
-                        child: Field('أيام الفترة التجريبية', trial,
-                            keyboard: TextInputType.number)),
-                    SizedBox(
-                        width: 200,
-                        child: Field('سعر الشهري (د.ب)', monthly,
-                            keyboard: TextInputType.number)),
-                    SizedBox(
-                        width: 200,
-                        child: Field('سعر السنوي (د.ب)', yearly,
-                            keyboard: TextInputType.number)),
-                  ]),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: FilledButton(
-                      onPressed: () async {
-                        await guard(
-                            context,
-                            () => sb.from('platform_settings').update({
-                                  'trial_days': int.tryParse(trial.text) ?? 14,
-                                  'monthly_price':
-                                      num.tryParse(monthly.text) ?? 0,
-                                  'yearly_price':
-                                      num.tryParse(yearly.text) ?? 0,
-                                  'updated_at':
-                                      DateTime.now().toIso8601String(),
-                                }).eq('id', 1),
-                            ok: 'تم الحفظ');
-                        await reload();
-                      },
-                      child: const Text('حفظ'),
-                    ),
-                  ),
-                ]),
+        final revenue = subs.fold<num>(0, (a, r) => a + toNum(r['amount']));
+        final now = DateTime.now();
+        final active = subs
+            .where(
+                (r) => DateTime.tryParse('${r['ends']}')?.isAfter(now) ?? false)
+            .length;
+        Widget plan(String key, String title, String note,
+                TextEditingController c, String label) =>
+            GradientHeaderCard(
+              title: title,
+              subtitle: note,
+              icon: planLook[key]!.$1,
+              colors: planLook[key]!.$2,
+              child: Field(label, c, keyboard: TextInputType.number),
+            );
+        return ListView(padding: const EdgeInsets.all(18), children: [
+          PageHero(
+            icon: Icons.workspace_premium_outlined,
+            title: 'الاشتراكات',
+            subtitle: 'خطط اشتراك التجار وتقرير ما تم تحصيله',
+            stats: [
+              ('الاشتراكات', '${subs.length}'),
+              ('سارية', '$active'),
+              ('الإيراد', bhd(revenue))
+            ],
           ),
+          const SizedBox(height: 16),
+          LayoutBuilder(builder: (context, c) {
+            final cols = c.maxWidth >= 900 ? 3 : 1;
+            final w = (c.maxWidth - 12 * (cols - 1)) / cols;
+            return Wrap(spacing: 12, runSpacing: 12, children: [
+              SizedBox(
+                  width: w,
+                  child: plan('trial', 'تجريبي', 'مجاناً لفترة محددة', trial,
+                      'عدد الأيام')),
+              SizedBox(
+                  width: w,
+                  child: plan('monthly', 'شهري', 'يتجدد كل شهر', monthly,
+                      'السعر (د.ب)')),
+              SizedBox(
+                  width: w,
+                  child: plan('yearly', 'سنوي', 'الأوفر للتاجر', yearly,
+                      'السعر (د.ب)')),
+            ]);
+          }),
           const SizedBox(height: 12),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: FilledButton.icon(
+              icon: const Icon(Icons.save_outlined, size: 18),
+              onPressed: () async {
+                await guard(
+                    context,
+                    () => sb.from('platform_settings').update({
+                          'trial_days': int.tryParse(trial.text) ?? 14,
+                          'monthly_price': num.tryParse(monthly.text) ?? 0,
+                          'yearly_price': num.tryParse(yearly.text) ?? 0,
+                          'updated_at': DateTime.now().toIso8601String(),
+                        }).eq('id', 1),
+                    ok: 'تم الحفظ');
+                await reload();
+              },
+              label: const Text('حفظ الخطط'),
+            ),
+          ),
+          const SizedBox(height: 18),
           SectionCard(
             title: 'تقرير الاشتراكات',
             child: Column(children: [
               if (subs.isEmpty) const Text('لا توجد اشتراكات بعد'),
               for (final r in subs)
-                ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                      '${r['merchants']?['name'] ?? ''} · ${planLabels[r['plan']]}'),
-                  subtitle: Text(
-                      '${dateText(r['starts'])} إلى ${dateText(r['ends'])}'),
-                  trailing: Text(bhd(r['amount'])),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(children: [
+                    GradientBadge(
+                        colors:
+                            (planLook[r['plan']] ?? planLook['monthly']!).$2,
+                        icon: (planLook[r['plan']] ?? planLook['monthly']!).$1,
+                        size: 40),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                                '${r['merchants']?['name'] ?? ''} · ${planLabels[r['plan']]}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
+                            Text(
+                                '${dateText(r['starts'])} إلى ${dateText(r['ends'])}',
+                                style: const TextStyle(
+                                    color: Colors.black54, fontSize: 12)),
+                          ]),
+                    ),
+                    Text(bhd(r['amount']),
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ]),
                 ),
             ]),
           ),
@@ -541,24 +638,54 @@ class AdminCommissions extends StatelessWidget {
     return Loader<Map<String, dynamic>>(
       load: () async =>
           await sb.from('platform_settings').select().eq('id', 1).single(),
-      builder: (context, s, reload) =>
-          ListView(padding: const EdgeInsets.all(16), children: [
-        _CommCard(
-            who: 'merchant',
-            title: 'عمولة التاجر',
-            note: 'تُخصم من قيمة الطلب قبل إضافته لمحفظة التاجر',
-            s: s,
-            reload: reload),
-        const SizedBox(height: 12),
-        _CommCard(
-            who: 'customer',
-            title: 'عمولة العميل',
-            note: 'تُضاف على فاتورة العميل كرسوم خدمة',
-            s: s,
-            reload: reload),
-        const SizedBox(height: 12),
-        _IbanCard(s: s, reload: reload),
-      ]),
+      builder: (context, s, reload) {
+        String show(String who) => s['${who}_comm_enabled'] != true
+            ? 'متوقفة'
+            : s['${who}_comm_type'] == 'percent'
+                ? '${s['${who}_comm_value']}%'
+                : bhd(s['${who}_comm_value']);
+        return ListView(padding: const EdgeInsets.all(18), children: [
+          PageHero(
+            icon: Icons.percent,
+            title: 'العمولات',
+            subtitle:
+                'عمولة التاجر وعمولة العميل منفصلتين، كل وحدة نسبة أو مبلغ ثابت',
+            stats: [
+              ('عمولة التاجر', show('merchant')),
+              ('عمولة العميل', show('customer'))
+            ],
+          ),
+          const SizedBox(height: 16),
+          LayoutBuilder(builder: (context, c) {
+            final cols = c.maxWidth >= 900 ? 2 : 1;
+            final w = (c.maxWidth - 12 * (cols - 1)) / cols;
+            return Wrap(spacing: 12, runSpacing: 12, children: [
+              SizedBox(
+                  width: w,
+                  child: _CommCard(
+                      who: 'merchant',
+                      title: 'عمولة التاجر',
+                      note: 'تُخصم من قيمة الطلب قبل إضافته لمحفظة التاجر',
+                      icon: Icons.storefront_outlined,
+                      colors: G.emerald,
+                      s: s,
+                      reload: reload)),
+              SizedBox(
+                  width: w,
+                  child: _CommCard(
+                      who: 'customer',
+                      title: 'عمولة العميل',
+                      note: 'تُضاف على فاتورة العميل كرسوم خدمة',
+                      icon: Icons.people_outline,
+                      colors: G.ruby,
+                      s: s,
+                      reload: reload)),
+            ]);
+          }),
+          const SizedBox(height: 12),
+          _IbanCard(s: s, reload: reload),
+        ]);
+      },
     );
   }
 }
@@ -568,9 +695,13 @@ class _CommCard extends StatefulWidget {
       {required this.who,
       required this.title,
       required this.note,
+      required this.icon,
+      required this.colors,
       required this.s,
       required this.reload});
   final String who, title, note;
+  final IconData icon;
+  final List<Color> colors;
   final Map<String, dynamic> s;
   final Future<void> Function() reload;
   @override
@@ -583,18 +714,29 @@ class _CommCardState extends State<_CommCard> {
   late final value =
       TextEditingController(text: '${widget.s['${widget.who}_comm_value']}');
   @override
-  Widget build(BuildContext context) => SectionCard(
+  Widget build(BuildContext context) => GradientHeaderCard(
         title: widget.title,
+        subtitle: widget.note,
+        icon: widget.icon,
+        colors: widget.colors,
+        trailing: Switch(
+          value: enabled,
+          activeThumbColor: Colors.white,
+          activeTrackColor: Colors.white.withValues(alpha: .4),
+          onChanged: (v) => setState(() => enabled = v),
+        ),
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text(widget.note,
-              style: const TextStyle(color: Colors.black54, fontSize: 12)),
-          SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(enabled ? 'مفعّلة' : 'متوقفة'),
-              value: enabled,
-              onChanged: (v) => setState(() => enabled = v)),
+          Text(enabled ? 'مفعّلة' : 'متوقفة',
+              style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: enabled ? widget.colors.first : Colors.black45)),
+          const SizedBox(height: 10),
           SegmentedButton<String>(
+            style: SegmentedButton.styleFrom(
+                selectedBackgroundColor:
+                    widget.colors.first.withValues(alpha: .14),
+                selectedForegroundColor: widget.colors.first),
             segments: const [
               ButtonSegment(value: 'percent', label: Text('نسبة %')),
               ButtonSegment(value: 'fixed', label: Text('مبلغ ثابت'))
@@ -602,13 +744,15 @@ class _CommCardState extends State<_CommCard> {
             selected: {type},
             onSelectionChanged: (x) => setState(() => type = x.first),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Field(type == 'percent' ? 'النسبة %' : 'المبلغ (د.ب)', value,
               keyboard: const TextInputType.numberWithOptions(decimal: true)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: FilledButton(
+              style:
+                  FilledButton.styleFrom(backgroundColor: widget.colors.first),
               onPressed: () async {
                 await guard(
                     context,
@@ -635,14 +779,18 @@ class _IbanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iban = TextEditingController(text: s['platform_iban'] ?? '');
-    return SectionCard(
+    return GradientHeaderCard(
       title: 'حساب المنصة للتحويل البنكي',
+      subtitle: 'يظهر للعميل عند اختيار التحويل البنكي',
+      icon: Icons.account_balance_outlined,
+      colors: G.sapphire,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Field('IBAN يظهر للعميل عند اختيار التحويل البنكي', iban, ltr: true),
-        const SizedBox(height: 10),
+        Field('IBAN', iban, ltr: true),
+        const SizedBox(height: 12),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: G.sapphire.first),
             onPressed: () async {
               await guard(
                   context,
@@ -670,21 +818,40 @@ class AdminZones extends StatelessWidget {
       builder: (context, zones, reload) {
         final name = TextEditingController();
         final fee = TextEditingController();
-        return ListView(padding: const EdgeInsets.all(16), children: [
-          SectionCard(
+        final active = zones.where((z) => z['active'] == true).toList();
+        final avg = active.isEmpty
+            ? 0
+            : active.fold<num>(0, (a, z) => a + toNum(z['fee'])) /
+                active.length;
+        return ListView(padding: const EdgeInsets.all(18), children: [
+          PageHero(
+            icon: Icons.map_outlined,
+            title: 'التوصيل',
+            subtitle: 'مناطق التوصيل في البحرين ورسوم كل منطقة',
+            stats: [
+              ('المناطق', '${zones.length}'),
+              ('مفعّلة', '${active.length}'),
+              ('متوسط الرسوم', bhd(avg))
+            ],
+          ),
+          const SizedBox(height: 16),
+          GradientHeaderCard(
             title: 'إضافة منطقة',
+            icon: Icons.add_location_alt_outlined,
+            colors: G.sky,
             child: Wrap(
                 spacing: 12,
                 runSpacing: 12,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  SizedBox(width: 220, child: Field('المنطقة', name)),
+                  SizedBox(width: 240, child: Field('المنطقة', name)),
                   SizedBox(
-                      width: 160,
+                      width: 180,
                       child: Field('رسوم التوصيل (د.ب)', fee,
                           keyboard: const TextInputType.numberWithOptions(
                               decimal: true))),
-                  FilledButton(
+                  FilledButton.icon(
+                    icon: const Icon(Icons.add, size: 18),
                     onPressed: () async {
                       if (name.text.trim().isEmpty) return;
                       await guard(
@@ -696,62 +863,97 @@ class AdminZones extends StatelessWidget {
                           ok: 'تمت الإضافة');
                       await reload();
                     },
-                    child: const Text('إضافة'),
+                    label: const Text('إضافة'),
                   ),
                 ]),
           ),
-          const SizedBox(height: 12),
-          SectionCard(
-            title: 'رسوم التوصيل حسب المنطقة',
-            child: Column(children: [
-              for (final z in zones) _ZoneRow(z: z, reload: reload),
-            ]),
-          ),
+          const SizedBox(height: 18),
+          const Text('رسوم التوصيل حسب المنطقة',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const Text('عدّل الرسم واضغط Enter للحفظ',
+              style: TextStyle(color: Colors.black45, fontSize: 12)),
+          const SizedBox(height: 10),
+          LayoutBuilder(builder: (context, c) {
+            final cols = (c.maxWidth / 300).floor().clamp(1, 4);
+            final w = (c.maxWidth - 12 * (cols - 1)) / cols;
+            return Wrap(spacing: 12, runSpacing: 12, children: [
+              for (var i = 0; i < zones.length; i++)
+                SizedBox(
+                    width: w,
+                    child: _ZoneTile(
+                        z: zones[i],
+                        colors: reportGradients[i % reportGradients.length],
+                        reload: reload)),
+            ]);
+          }),
         ]);
       },
     );
   }
 }
 
-class _ZoneRow extends StatelessWidget {
-  const _ZoneRow({required this.z, required this.reload});
+class _ZoneTile extends StatelessWidget {
+  const _ZoneTile(
+      {required this.z, required this.colors, required this.reload});
   final Map<String, dynamic> z;
+  final List<Color> colors;
   final Future<void> Function() reload;
   @override
   Widget build(BuildContext context) {
     final fee = TextEditingController(text: '${z['fee']}');
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(children: [
-        Expanded(child: Text(z['name'])),
-        SizedBox(
-          width: 110,
-          child: TextField(
-            controller: fee,
-            decoration: const InputDecoration(isDense: true, suffixText: 'د.ب'),
-            onSubmitted: (v) async {
+    final on = z['active'] == true;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(children: [
+          Opacity(
+              opacity: on ? 1 : .4,
+              child: GradientBadge(
+                  colors: colors, icon: Icons.location_on_outlined, size: 40)),
+          const SizedBox(width: 10),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(z['name'],
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: on ? null : Colors.black38)),
+              Text(on ? 'مفعّلة' : 'متوقفة',
+                  style: TextStyle(
+                      fontSize: 12, color: on ? colors.first : Colors.black38)),
+            ]),
+          ),
+          SizedBox(
+            width: 92,
+            child: TextField(
+              controller: fee,
+              textAlign: TextAlign.center,
+              decoration:
+                  const InputDecoration(isDense: true, suffixText: 'د.ب'),
+              onSubmitted: (v) async {
+                await guard(
+                    context,
+                    () => sb.from('delivery_zones').update(
+                        {'fee': num.tryParse(v) ?? 0}).eq('id', z['id']),
+                    ok: 'تم التحديث');
+                await reload();
+              },
+            ),
+          ),
+          Switch(
+            value: on,
+            onChanged: (v) async {
               await guard(
                   context,
                   () => sb
                       .from('delivery_zones')
-                      .update({'fee': num.tryParse(v) ?? 0}).eq('id', z['id']),
-                  ok: 'تم التحديث');
+                      .update({'active': v}).eq('id', z['id']));
               await reload();
             },
           ),
-        ),
-        Switch(
-          value: z['active'] == true,
-          onChanged: (v) async {
-            await guard(
-                context,
-                () => sb
-                    .from('delivery_zones')
-                    .update({'active': v}).eq('id', z['id']));
-            await reload();
-          },
-        ),
-      ]),
+        ]),
+      ),
     );
   }
 }

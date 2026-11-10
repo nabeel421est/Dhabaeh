@@ -326,3 +326,232 @@ Brand brandOf(BuildContext context) {
   Theme.of(context);
   return activeBrand.value;
 }
+
+/// A page's opening banner: gradient, icon, title, one line of context, and a few headline numbers.
+class PageHero extends StatelessWidget {
+  const PageHero(
+      {super.key,
+      required this.icon,
+      required this.title,
+      required this.subtitle,
+      this.stats = const [],
+      this.action});
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final List<(String, String)> stats;
+  final Widget? action;
+  @override
+  Widget build(BuildContext context) {
+    final b = brandOf(context);
+    return GradientCard(
+      padding: const EdgeInsets.all(20),
+      child: Wrap(
+        spacing: 20,
+        runSpacing: 14,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .14),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: b.accent.withValues(alpha: .7)),
+              ),
+              child: Icon(icon, color: b.accent, size: 26),
+            ),
+            const SizedBox(width: 14),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.w700)),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 13)),
+                  ]),
+            ),
+          ]),
+          Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (final s in stats)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: .22)),
+                    ),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(s.$1,
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 12)),
+                          Text(s.$2,
+                              style: TextStyle(
+                                  color: b.accent,
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w700)),
+                        ]),
+                  ),
+                if (action != null) action!,
+              ]),
+        ],
+      ),
+    );
+  }
+}
+
+/// A light button that sits on a gradient banner.
+class HeroButton extends StatelessWidget {
+  const HeroButton(
+      {super.key,
+      required this.icon,
+      required this.label,
+      required this.onPressed});
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+  @override
+  Widget build(BuildContext context) => FilledButton.icon(
+        style: FilledButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: brandOf(context).dark),
+        onPressed: onPressed,
+        icon: Icon(icon),
+        label: Text(label),
+      );
+}
+
+/// A small rounded square filled with a gradient, holding an icon or initial.
+class GradientBadge extends StatelessWidget {
+  const GradientBadge(
+      {super.key, required this.colors, this.icon, this.text, this.size = 46});
+  final List<Color> colors;
+  final IconData? icon;
+  final String? text;
+  final double size;
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * .3),
+          gradient: LinearGradient(
+              begin: AlignmentDirectional.topStart,
+              end: AlignmentDirectional.bottomEnd,
+              colors: colors),
+          boxShadow: [
+            BoxShadow(
+                color: colors.first.withValues(alpha: .3),
+                blurRadius: 10,
+                offset: const Offset(0, 4))
+          ],
+        ),
+        child: icon != null
+            ? Icon(icon, color: Colors.white, size: size * .5)
+            : Text(text ?? '',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: size * .4)),
+      );
+}
+
+/// Gradient pairs per account role, so a role reads the same everywhere.
+const roleGradients = <String, List<Color>>{
+  'admin': [Color(0xFF06375A), Color(0xFF4CC3F2)],
+  'merchant_owner': [Color(0xFF0D6152), Color(0xFF3CC4A0)],
+  'merchant_staff': [Color(0xFF136A82), Color(0xFF5CC8DA)],
+  'driver': [Color(0xFF1C4790), Color(0xFF5FA6F2)],
+  'customer': [Color(0xFF8E2442), Color(0xFFE07A86)],
+};
+
+/// A white card whose header is a gradient band with an icon and title.
+class GradientHeaderCard extends StatelessWidget {
+  const GradientHeaderCard(
+      {super.key,
+      required this.title,
+      required this.icon,
+      required this.colors,
+      required this.child,
+      this.subtitle,
+      this.trailing});
+  final String title;
+  final String? subtitle;
+  final IconData icon;
+  final List<Color> colors;
+  final Widget child;
+  final Widget? trailing;
+  @override
+  Widget build(BuildContext context) => Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            decoration: BoxDecoration(
+                gradient: LinearGradient(
+                    begin: AlignmentDirectional.topStart,
+                    end: AlignmentDirectional.bottomEnd,
+                    colors: colors)),
+            child: Row(children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .2),
+                    borderRadius: BorderRadius.circular(11)),
+                child: Icon(icon, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700)),
+                      if (subtitle != null)
+                        Text(subtitle!,
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 12)),
+                    ]),
+              ),
+              if (trailing != null) trailing!,
+            ]),
+          ),
+          Padding(padding: const EdgeInsets.all(16), child: child),
+        ]),
+      );
+}
+
+/// Named gradient pairs for pages that colour-code their sections.
+class G {
+  static const sky = [Color(0xFF0B6FB0), Color(0xFF47BFF0)];
+  static const emerald = [Color(0xFF0D6152), Color(0xFF3CC4A0)];
+  static const ruby = [Color(0xFF8E2442), Color(0xFFE07A86)];
+  static const sapphire = [Color(0xFF1C4790), Color(0xFF5FA6F2)];
+  static const amber = [Color(0xFF9A4A12), Color(0xFFF2A65A)];
+  static const gold = [Color(0xFF8C6A12), Color(0xFFD4AF37)];
+  static const violet = [Color(0xFF3A2878), Color(0xFF7A5AD4)];
+  static const teal = [Color(0xFF136A82), Color(0xFF5CC8DA)];
+}

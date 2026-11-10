@@ -27,163 +27,251 @@ class AdminMerchants extends StatelessWidget {
       },
       builder: (context, data, reload) {
         final (list, bal) = data;
-        return ListView(padding: const EdgeInsets.all(16), children: [
-          Row(children: [
-            Expanded(
-                child: Text('${list.length} متجر مسجّل',
-                    style: const TextStyle(color: Colors.black54))),
-            FilledButton.icon(
+        final suspended = list.where((m) => m['suspended'] == true).length;
+        final frozen = list.where((m) => m['frozen'] == true).length;
+        final totalBal = bal.values.fold<num>(0, (a, v) => a + v);
+        return ListView(padding: const EdgeInsets.all(18), children: [
+          PageHero(
+            icon: Icons.storefront_outlined,
+            title: 'التجار',
+            subtitle: 'المسالخ المسجّلة، اشتراكاتها وأرصدتها',
+            stats: [
+              ('المتاجر', '${list.length}'),
+              ('فعّال', '${list.length - suspended - frozen}'),
+              ('موقوف', '$suspended'),
+              ('مجمّد', '$frozen'),
+              ('الأرصدة', bhd(totalBal)),
+            ],
+            action: HeroButton(
+              icon: Icons.add_business_outlined,
+              label: 'إضافة تاجر',
               onPressed: () async {
                 final added = await showDialog<bool>(
                     context: context,
                     builder: (_) => const AddMerchantDialog());
                 if (added == true) await reload();
               },
-              icon: const Icon(Icons.add_business_outlined),
-              label: const Text('إضافة تاجر'),
             ),
-          ]),
-          const SizedBox(height: 8),
-          const Text(
-              'إيقاف: يختفي المتجر من تطبيق العميل ولا يستقبل طلبات جديدة. تجميد: يُقفل المتجر وتُجمَّد محفظته فلا يُصرف منها.',
-              style: TextStyle(fontSize: 12, color: Colors.black54)),
+          ),
           const SizedBox(height: 12),
-          if (list.isEmpty) const Empty('لا يوجد تجار بعد'),
-          for (final m in list)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(children: [
-                        StoreLogo(m['logo_url'], size: 44),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(m['name'],
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w700)),
-                                Text(
-                                    'المالك: ${m['merchant_details']?['owner_name'] ?? ''} · ${m['merchant_details']?['owner_phone'] ?? ''}',
-                                    style: const TextStyle(
-                                        fontSize: 12, color: Colors.black54)),
-                                Text(
-                                    '${planLabels[m['plan']]} حتى ${dateText(m['plan_ends'])} · الرصيد ${bhd(bal[m['id']] ?? 0)}',
-                                    style: const TextStyle(fontSize: 12)),
-                              ]),
-                        ),
-                        _state(m),
-                      ]),
-                      const SizedBox(height: 8),
-                      Wrap(spacing: 8, runSpacing: 8, children: [
-                        FilledButton.tonal(
-                          onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) =>
-                                      MerchantAdminPage(merchantId: m['id']))),
-                          child: const Text('إدارة'),
-                        ),
-                        OutlinedButton(
-                            onPressed: () async {
-                              await rename(context, m);
-                              await reload();
-                            },
-                            child: const Text('تعديل')),
-                        OutlinedButton(
-                          onPressed: () async {
-                            await guard(
-                                context,
-                                () => sb.from('merchants').update({
-                                      'suspended': !(m['suspended'] == true)
-                                    }).eq('id', m['id']),
-                                ok: m['suspended'] == true
-                                    ? 'تم تفعيل المتجر'
-                                    : 'تم إيقاف المتجر');
-                            await reload();
-                          },
-                          child:
-                              Text(m['suspended'] == true ? 'تفعيل' : 'إيقاف'),
-                        ),
-                        OutlinedButton(
-                          onPressed: () async {
-                            await guard(
-                                context,
-                                () => sb.from('merchants').update({
-                                      'frozen': !(m['frozen'] == true)
-                                    }).eq('id', m['id']),
-                                ok: m['frozen'] == true
-                                    ? 'تم فك التجميد'
-                                    : 'تم تجميد المتجر');
-                            await reload();
-                          },
-                          child: Text(
-                              m['frozen'] == true ? 'فك التجميد' : 'تجميد'),
-                        ),
-                        OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF8F1D13)),
-                          onPressed: () async {
-                            final ok = await showDialog<bool>(
-                              context: context,
-                              builder: (c) => AlertDialog(
-                                title: Text('حذف ${m['name']} نهائياً؟'),
-                                content: const Text(
-                                    'تُحذف منتجاته وموظفوه ولا يمكن التراجع. يشترط أن يكون رصيد محفظته صفراً وألا يكون له أي طلبات.'),
-                                actions: [
-                                  TextButton(
-                                      onPressed: () => Navigator.pop(c, false),
-                                      child: const Text('إلغاء')),
-                                  FilledButton(
-                                      style: FilledButton.styleFrom(
-                                          backgroundColor:
-                                              const Color(0xFFB42318)),
-                                      onPressed: () => Navigator.pop(c, true),
-                                      child: const Text('تأكيد الحذف')),
-                                ],
-                              ),
-                            );
-                            if (ok == true && context.mounted) {
-                              await guard(
-                                  context,
-                                  () => sb
-                                      .from('merchants')
-                                      .delete()
-                                      .eq('id', m['id']),
-                                  ok: 'تم حذف المتجر');
-                              await reload();
-                            }
-                          },
-                          child: const Text('حذف'),
-                        ),
-                      ]),
-                    ]),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE1EAF1))),
+            child: const Row(children: [
+              Icon(Icons.info_outline, size: 18, color: Colors.black45),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                    'إيقاف: يختفي المتجر من تطبيق العميل ولا يستقبل طلبات جديدة. تجميد: يُقفل المتجر وتُجمَّد محفظته فلا يُصرف منها.',
+                    style: TextStyle(fontSize: 12, color: Colors.black54)),
               ),
-            ),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          if (list.isEmpty) const Empty('لا يوجد تجار بعد'),
+          LayoutBuilder(builder: (context, c) {
+            final cols = (c.maxWidth / 360).floor().clamp(1, 3);
+            final w = (c.maxWidth - 14 * (cols - 1)) / cols;
+            return Wrap(spacing: 14, runSpacing: 14, children: [
+              for (final m in list)
+                SizedBox(
+                    width: w,
+                    child:
+                        _merchantCard(context, m, bal[m['id']] ?? 0, reload)),
+            ]);
+          }),
         ]);
       },
     );
   }
 
-  Widget _state(Map<String, dynamic> m) {
-    final (t, c) = m['frozen'] == true
-        ? ('مجمّد', const Color(0xFF1D4E89))
-        : m['suspended'] == true
-            ? ('موقوف', const Color(0xFF8F1D13))
-            : m['plan'] == 'trial'
-                ? ('تجريبي', const Color(0xFF9A5B13))
-                : ('فعال', const Color(0xFF2F5D50));
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-          color: c.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(99)),
-      child: Text(t,
-          style:
-              TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w600)),
+  (String, List<Color>) _state(Map<String, dynamic> m) => m['frozen'] == true
+      ? ('مجمّد', const [Color(0xFF1C4790), Color(0xFF5FA6F2)])
+      : m['suspended'] == true
+          ? ('موقوف', const [Color(0xFF8E2442), Color(0xFFE07A86)])
+          : m['plan'] == 'trial'
+              ? ('تجريبي', const [Color(0xFF9A4A12), Color(0xFFF2A65A)])
+              : ('فعّال', const [Color(0xFF0D6152), Color(0xFF3CC4A0)]);
+
+  Widget _merchantCard(BuildContext context, Map<String, dynamic> m,
+      num balance, Future<void> Function() reload) {
+    final (label, colors) = _state(m);
+    Widget info(IconData i, String k, String v) => Expanded(
+          child: Row(children: [
+            Icon(i, size: 18, color: colors.first),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(k,
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.black45)),
+                    Text(v,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 13)),
+                  ]),
+            ),
+          ]),
+        );
+    Widget act(IconData i, String tip, VoidCallback onTap, {Color? color}) =>
+        IconButton(
+          tooltip: tip,
+          onPressed: onTap,
+          style: IconButton.styleFrom(
+              backgroundColor: (color ?? colors.first).withValues(alpha: .08)),
+          icon: Icon(i, size: 20, color: color ?? colors.first),
+        );
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  begin: AlignmentDirectional.topStart,
+                  end: AlignmentDirectional.bottomEnd,
+                  colors: colors)),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(14)),
+              child: StoreLogo(m['logo_url'], size: 44),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(m['name'],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700)),
+                    Text(m['area'] ?? '',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 12)),
+                  ]),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .22),
+                  borderRadius: BorderRadius.circular(999)),
+              child: Text(label,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+          child: Column(children: [
+            Row(children: [
+              info(Icons.person_outline, 'المالك',
+                  '${m['merchant_details']?['owner_name'] ?? ''}'),
+              info(Icons.phone_outlined, 'جوال المالك',
+                  '${m['merchant_details']?['owner_phone'] ?? ''}'),
+            ]),
+            const SizedBox(height: 12),
+            Row(children: [
+              info(Icons.workspace_premium_outlined, 'الاشتراك',
+                  '${planLabels[m['plan']]} حتى ${dateText(m['plan_ends'])}'),
+              info(Icons.account_balance_wallet_outlined, 'رصيد المحفظة',
+                  bhd(balance)),
+            ]),
+          ]),
+        ),
+        const Divider(height: 18),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+          child: Row(children: [
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                  backgroundColor: colors.first,
+                  minimumSize: const Size(0, 40)),
+              onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => MerchantAdminPage(merchantId: m['id']))),
+              icon: const Icon(Icons.tune, size: 18),
+              label: const Text('إدارة'),
+            ),
+            const Spacer(),
+            act(Icons.edit_outlined, 'تعديل', () async {
+              await rename(context, m);
+              await reload();
+            }),
+            const SizedBox(width: 4),
+            act(
+                m['suspended'] == true
+                    ? Icons.play_circle_outline
+                    : Icons.pause_circle_outline,
+                m['suspended'] == true ? 'تفعيل' : 'إيقاف', () async {
+              await guard(
+                  context,
+                  () => sb
+                      .from('merchants')
+                      .update({'suspended': !(m['suspended'] == true)}).eq(
+                          'id', m['id']),
+                  ok: m['suspended'] == true
+                      ? 'تم تفعيل المتجر'
+                      : 'تم إيقاف المتجر');
+              await reload();
+            }),
+            const SizedBox(width: 4),
+            act(m['frozen'] == true ? Icons.lock_open_outlined : Icons.ac_unit,
+                m['frozen'] == true ? 'فك التجميد' : 'تجميد', () async {
+              await guard(
+                  context,
+                  () => sb.from('merchants').update(
+                      {'frozen': !(m['frozen'] == true)}).eq('id', m['id']),
+                  ok: m['frozen'] == true
+                      ? 'تم فك التجميد'
+                      : 'تم تجميد المتجر');
+              await reload();
+            }),
+            const SizedBox(width: 4),
+            act(Icons.delete_outline, 'حذف', () async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (c) => AlertDialog(
+                  title: Text('حذف ${m['name']} نهائياً؟'),
+                  content: const Text(
+                      'تُحذف منتجاته وموظفوه ولا يمكن التراجع. يشترط أن يكون رصيد محفظته صفراً وألا يكون له أي طلبات.'),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(c, false),
+                        child: const Text('إلغاء')),
+                    FilledButton(
+                        style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFB42318)),
+                        onPressed: () => Navigator.pop(c, true),
+                        child: const Text('تأكيد الحذف')),
+                  ],
+                ),
+              );
+              if (ok == true && context.mounted) {
+                await guard(context,
+                    () => sb.from('merchants').delete().eq('id', m['id']),
+                    ok: 'تم حذف المتجر');
+                await reload();
+              }
+            }, color: const Color(0xFFB42318)),
+          ]),
+        ),
+      ]),
     );
   }
 
