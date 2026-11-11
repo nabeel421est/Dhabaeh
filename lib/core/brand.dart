@@ -1,4 +1,3 @@
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
@@ -699,20 +698,30 @@ class ProductPhoto extends StatelessWidget {
         ),
       );
 
+  /// Photos whose background was removed in the editor are saved as `…-cut.png`.
+  bool get _cutout => url.toLowerCase().endsWith('-cut.png');
+
   @override
   Widget build(BuildContext context) {
+    // The photo fills the whole picture area with no frame: a normal photo
+    // covers it edge to edge; a cut-out product sits on the store gradient.
     final photo = Image.network(
       url,
-      fit: BoxFit.contain,
+      fit: _cutout ? BoxFit.contain : BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
       loadingBuilder: (_, child, p) => p == null
           ? child
-          : SizedBox(
-              width: 34,
-              height: 34,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2.5, color: Colors.white.withValues(alpha: .9))),
-      errorBuilder: (_, __, ___) => Icon(Icons.broken_image_outlined,
-          size: 44, color: Colors.white.withValues(alpha: .85)),
+          : Center(
+              child: SizedBox(
+                  width: 34,
+                  height: 34,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white.withValues(alpha: .9)))),
+      errorBuilder: (_, __, ___) => Center(
+          child: Icon(Icons.broken_image_outlined,
+              size: 44, color: Colors.white.withValues(alpha: .85))),
     );
     final body = Stack(fit: StackFit.expand, children: [
       DecoratedBox(
@@ -721,51 +730,20 @@ class ProductPhoto extends StatelessWidget {
                   begin: AlignmentDirectional.topStart,
                   end: AlignmentDirectional.bottomEnd,
                   colors: [colors.last, colors.first]))),
-      // Blurred copy of the photo as a soft, colour-matched backdrop.
-      Opacity(
-        opacity: .55,
-        child: ImageFiltered(
-          imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: Image.network(url,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const SizedBox()),
-        ),
-      ),
-      DecoratedBox(
-          decoration: BoxDecoration(
-              gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-            colors.first.withValues(alpha: .15),
-            colors.first.withValues(alpha: .55)
-          ]))),
-      PositionedDirectional(
-          end: -30,
-          top: -30,
-          child: Container(
-              width: 110,
-              height: 110,
-              decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: .10)))),
-      Padding(
-        padding: EdgeInsets.all(padding),
-        child: Center(
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white, width: 3),
-              boxShadow: const [
-                BoxShadow(
-                    color: Colors.black38, blurRadius: 14, offset: Offset(0, 6))
-              ],
-            ),
-            child: ClipRRect(
-                borderRadius: BorderRadius.circular(13), child: photo),
-          ),
-        ),
-      ),
+      if (_cutout)
+        PositionedDirectional(
+            end: -30,
+            top: -30,
+            child: Container(
+                width: 110,
+                height: 110,
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: .10)))),
+      if (_cutout)
+        Padding(padding: const EdgeInsets.fromLTRB(6, 8, 6, 4), child: photo)
+      else
+        photo,
       if (zoom)
         PositionedDirectional(
           bottom: 10,
