@@ -1,7 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 
+import '../core/bg_remove.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
 import '../customer/customer_shell.dart' show StoreLogo;
@@ -521,6 +525,11 @@ Future<bool> showProductEditor(BuildContext context,
   bool available = p == null ? true : p['available'] == true;
   PlatformFile? image;
   String? imageUrl = p?['image_url'] as String?;
+  // Background removal: on by default for new photos; original kept for undo.
+  bool autoBg = true;
+  bool bgBusy = false;
+  String? bgNote; // status line under the photo
+  PlatformFile? original;
   const cats = ['ذبائح', 'لحوم مقطعة', 'دواجن', 'أضاحي', 'عروض'];
   final nameEn = TextEditingController(text: p?['name_en'] ?? '');
   final sku = TextEditingController(text: p?['sku'] ?? '');
@@ -569,6 +578,28 @@ Future<bool> showProductEditor(BuildContext context,
           );
       final hasPic =
           image?.bytes != null || (imageUrl != null && imageUrl!.isNotEmpty);
+      Future<void> cutBackground(Uint8List bytes, String name) async {
+        set(() {
+          bgBusy = true;
+          bgNote = 'جاري إزالة الخلفية… (أول مرة قد تأخذ دقيقة لتحميل الأداة)';
+        });
+        final out = await removeImageBackground(bytes, mimeOf(name));
+        if (!c.mounted) return;
+        set(() {
+          bgBusy = false;
+          if (out == null) {
+            bgNote = 'تعذرت إزالة الخلفية، سيتم حفظ الصورة كما هي';
+          } else {
+            final base = name.contains('.')
+                ? name.substring(0, name.lastIndexOf('.'))
+                : name;
+            image = PlatformFile(
+                name: '$base-cut.png', size: out.length, bytes: out);
+            bgNote = 'تمت إزالة الخلفية';
+          }
+        });
+      }
+
       return Dialog(
         clipBehavior: Clip.antiAlias,
         insetPadding: const EdgeInsets.all(16),
@@ -595,7 +626,13 @@ Future<bool> showProductEditor(BuildContext context,
                         type: FileType.custom,
                         allowedExtensions: ['png', 'jpg', 'jpeg', 'webp']);
                     final f = r?.files.first;
-                    if (f != null) set(() => image = f);
+                    if (f == null || f.bytes == null) return;
+                    set(() {
+                      image = f;
+                      original = f;
+                      bgNote = null;
+                    });
+                    if (autoBg) await cutBackground(f.bytes!, f.name);
                   },
                   child: Container(
                     width: 84,
@@ -615,18 +652,26 @@ Future<bool> showProductEditor(BuildContext context,
                                   fit: BoxFit.cover)
                               : null,
                     ),
-                    child: hasPic
-                        ? null
-                        : const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                                Icon(Icons.add_photo_alternate_outlined,
-                                    color: Colors.white, size: 28),
-                                SizedBox(height: 2),
-                                Text('صورة المنتج',
-                                    style: TextStyle(
-                                        color: Colors.white, fontSize: 10.5)),
-                              ]),
+                    child: bgBusy
+                        ? const Center(
+                            child: SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 3, color: Colors.white)))
+                        : hasPic
+                            ? null
+                            : const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                    Icon(Icons.add_photo_alternate_outlined,
+                                        color: Colors.white, size: 28),
+                                    SizedBox(height: 2),
+                                    Text('صورة المنتج',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10.5)),
+                                  ]),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -898,6 +943,48 @@ Future<bool> showProductEditor(BuildContext context,
                             onChanged: (v) => set(() => available = v),
                           ),
                         ),
+                        const SizedBox(height: 10),
+                        _BgCard(
+                          colors: colors,
+                          auto: autoBg,
+                          busy: bgBusy,
+                          note: bgNote,
+                          onAuto: (v) async {
+                            set(() => autoBg = v);
+                            final o = original;
+                            if (bgBusy || o?.bytes == null) return;
+                            if (v) {
+                              await cutBackground(o!.bytes!, o.name);
+                            } else {
+                              set(() {
+                                image = o;
+                                bgNote = 'تم الرجوع للصورة الأصلية';
+                              });
+                            }
+                          },
+                          onCutCurrent: (image == null &&
+                                  imageUrl != null &&
+                                  imageUrl!.isNotEmpty &&
+                                  !bgBusy)
+                              ? () async {
+                                  try {
+                                    final res =
+                                        await http.get(Uri.parse(imageUrl!));
+                                    if (res.statusCode != 200) throw 'x';
+                                    final name =
+                                        Uri.parse(imageUrl!).pathSegments.last;
+                                    original = PlatformFile(
+                                        name: name,
+                                        size: res.bodyBytes.length,
+                                        bytes: res.bodyBytes);
+                                    await cutBackground(res.bodyBytes, name);
+                                  } catch (_) {
+                                    set(() =>
+                                        bgNote = 'تعذر تحميل الصورة الحالية');
+                                  }
+                                }
+                              : null,
+                        ),
                         if (hasPic) ...[
                           const SizedBox(height: 8),
                           Align(
@@ -907,6 +994,8 @@ Future<bool> showProductEditor(BuildContext context,
                                   foregroundColor: G.ruby.first),
                               onPressed: () => set(() {
                                 image = null;
+                                original = null;
+                                bgNote = null;
                                 imageUrl = null;
                               }),
                               icon: const Icon(Icons.hide_image_outlined,
@@ -949,11 +1038,13 @@ Future<bool> showProductEditor(BuildContext context,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16)),
                       ),
-                      onPressed: () {
-                        if (form.currentState!.validate()) {
-                          Navigator.pop(c, true);
-                        }
-                      },
+                      onPressed: bgBusy
+                          ? null
+                          : () {
+                              if (form.currentState!.validate()) {
+                                Navigator.pop(c, true);
+                              }
+                            },
                       icon: const Icon(Icons.check_circle_outline),
                       label: Text(p == null ? 'إضافة المنتج' : 'حفظ التعديلات',
                           style: const TextStyle(
@@ -1257,3 +1348,85 @@ Widget _unitChip(String name, dynamic price, List<Color> colors, bool base) =>
               fontWeight: FontWeight.w700,
               color: base ? Colors.white : colors.first)),
     );
+
+/// Switch + status for removing the product photo background.
+class _BgCard extends StatelessWidget {
+  const _BgCard(
+      {required this.colors,
+      required this.auto,
+      required this.busy,
+      required this.note,
+      required this.onAuto,
+      required this.onCutCurrent});
+  final List<Color> colors;
+  final bool auto, busy;
+  final String? note;
+  final ValueChanged<bool> onAuto;
+  final VoidCallback? onCutCurrent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 8, 8, 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(colors: [
+          colors.first.withValues(alpha: .08),
+          colors.last.withValues(alpha: .04)
+        ]),
+        border: Border.all(color: colors.first.withValues(alpha: .18)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(colors: [colors.first, colors.last])),
+            child:
+                const Icon(Icons.auto_fix_high, color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('إزالة خلفية الصورة تلقائياً',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              Text('تبقى صورة المنتج فقط بخلفية شفافة',
+                  style: TextStyle(fontSize: 12, color: Colors.black54)),
+            ]),
+          ),
+          Switch(
+              value: auto,
+              activeTrackColor: colors.first,
+              onChanged: busy ? null : onAuto),
+        ]),
+        if (busy) ...[
+          const SizedBox(height: 6),
+          LinearProgressIndicator(
+              color: colors.first,
+              backgroundColor: colors.first.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(4)),
+        ],
+        if (note != null) ...[
+          const SizedBox(height: 6),
+          Text(note!,
+              style: TextStyle(
+                  fontSize: 12.5,
+                  color: colors.first,
+                  fontWeight: FontWeight.w700)),
+        ],
+        if (onCutCurrent != null)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: colors.first),
+              onPressed: onCutCurrent,
+              icon: const Icon(Icons.content_cut, size: 18),
+              label: const Text('إزالة الخلفية من الصورة الحالية'),
+            ),
+          ),
+      ]),
+    );
+  }
+}

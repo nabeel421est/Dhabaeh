@@ -31,6 +31,19 @@
 
   <title>ذبائح البحرين</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    // Product photo background removal: bgr.js (+ model in bgr/) loads only on first use.
+    window.dhRemoveBgLazy = function (b, m) {
+      return new Promise(function (res, rej) {
+        if (window.dhRemoveBg) return window.dhRemoveBg(b, m).then(res, rej);
+        var s = document.createElement('script');
+        s.src = 'bgr.js';
+        s.onload = function () { window.dhRemoveBg(b, m).then(res, rej); };
+        s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    };
+  </script>
 </head>
 <body>
   <!--
