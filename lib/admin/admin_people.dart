@@ -974,6 +974,11 @@ class _AdminNotifyState extends State<AdminNotify> {
   final title = TextEditingController();
   final body = TextEditingController();
   String audience = 'all';
+  String kind = 'message'; // message | offer
+  static const kinds = {
+    'message': ('رسالة', Icons.mark_email_unread_outlined),
+    'offer': ('عرض', Icons.local_offer_outlined),
+  };
   static const audiences = {
     'all': 'الجميع',
     'customers': 'العملاء',
@@ -1031,8 +1036,26 @@ class _AdminNotifyState extends State<AdminNotify> {
                         onTap: () => setState(() => audience = a.key),
                       ),
                   ]),
+                  const SizedBox(height: 14),
+                  const Text('نوع الإشعار',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 10),
+                  Wrap(spacing: 10, runSpacing: 10, children: [
+                    for (final k in kinds.entries)
+                      _AudienceTile(
+                        label: k.value.$1,
+                        icon: k.value.$2,
+                        colors: k.key == 'offer' ? G.gold : G.violet,
+                        selected: kind == k.key,
+                        onTap: () => setState(() => kind = k.key),
+                      ),
+                  ]),
                   const SizedBox(height: 16),
-                  Field('العنوان', title, required: true),
+                  Field(kind == 'offer' ? 'عنوان العرض' : 'العنوان', title,
+                      required: true,
+                      hint: kind == 'offer'
+                          ? 'مثال: خصم 10% على النعيمي هذا الأسبوع'
+                          : null),
                   const SizedBox(height: 10),
                   Field('النص', body, maxLines: 3),
                   const SizedBox(height: 14),
@@ -1050,6 +1073,7 @@ class _AdminNotifyState extends State<AdminNotify> {
                             context,
                             () => sb.from('notifications').insert({
                                   'audience': audience,
+                                  'kind': kind,
                                   'title': title.text.trim(),
                                   'body': body.text.trim(),
                                   'created_by': myId
@@ -1109,7 +1133,7 @@ class _AdminNotifyState extends State<AdminNotify> {
                                               fontSize: 13)),
                                     const SizedBox(height: 6),
                                     Text(
-                                        '${audiences[n['audience']] ?? n['audience']} · ${dateTimeText(n['created_at'])}',
+                                        '${n['kind'] == 'offer' ? 'عرض' : 'رسالة'} · ${audiences[n['audience']] ?? n['audience']} · ${dateTimeText(n['created_at'])}',
                                         style: TextStyle(
                                             fontSize: 12,
                                             color:

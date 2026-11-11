@@ -31,13 +31,16 @@ class _CustomerShellState extends State<CustomerShell> {
             padding: const EdgeInsetsDirectional.only(end: 4),
             child: IconButton(
               tooltip: 'معلوماتي',
-              onPressed: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const CustomerProfilePage())),
+              onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const CustomerProfilePage())),
               icon: Container(
                 padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: brandOf(context).accent, width: 1.4),
+                    border:
+                        Border.all(color: brandOf(context).accent, width: 1.4),
                     color: Colors.white.withValues(alpha: .14)),
                 child: Icon(Icons.person_outline,
                     size: 20, color: brandOf(context).accent),
@@ -77,8 +80,16 @@ class StoreLogo extends StatelessWidget {
           width: size,
           height: size,
           child: (url is String && url.isNotEmpty)
-              ? Image.network(url,
-                  fit: BoxFit.cover, errorBuilder: (_, __, ___) => _ph())
+              ? (url.toLowerCase().endsWith('-cut.png')
+                  // Logo without background: fitted whole on a clean tile.
+                  ? Container(
+                      color: Colors.white,
+                      padding: EdgeInsets.all(size * .07),
+                      child: Image.network(url,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => _ph()))
+                  : Image.network(url,
+                      fit: BoxFit.cover, errorBuilder: (_, __, ___) => _ph()))
               : _ph(),
         ),
       );
@@ -107,7 +118,8 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
       realtimeTables: const ['orders'],
       load: () async => List<Map<String, dynamic>>.from(await sb
           .from('orders')
-          .select('*, merchants(name, logo_url), order_items(name, qty, options)')
+          .select(
+              '*, merchants(name, logo_url), order_items(name, qty, options)')
           .eq('customer_id', myId!)
           .order('created_at', ascending: false)),
       builder: (context, orders, _) {
@@ -160,8 +172,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
           ),
           const SizedBox(height: 14),
           if (shown.isEmpty)
-            Empty(
-                orders.isEmpty ? 'ما عندك طلبات بعد' : 'لا توجد طلبات هنا',
+            Empty(orders.isEmpty ? 'ما عندك طلبات بعد' : 'لا توجد طلبات هنا',
                 icon: Icons.receipt_long_outlined),
           LayoutBuilder(builder: (context, c) {
             final cols = _cols(c.maxWidth, 340);
@@ -231,7 +242,8 @@ class CustomerOrderCard extends StatelessWidget {
             MaterialPageRoute(
                 builder: (_) =>
                     OrderDetailsPage(orderId: o['id'], viewer: 'customer'))),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Container(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
             decoration: BoxDecoration(
@@ -260,8 +272,7 @@ class CustomerOrderCard extends StatelessWidget {
                                 color: Colors.white,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700)),
-                        Text(
-                            '#${o['code']} · ${dateText(o['created_at'])}',
+                        Text('#${o['code']} · ${dateText(o['created_at'])}',
                             style: const TextStyle(
                                 color: Colors.white70, fontSize: 12)),
                       ]),
@@ -307,38 +318,37 @@ class CustomerOrderCard extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  line(Icons.set_meal_outlined, items.isEmpty ? '-' : items),
-                  line(Icons.content_cut,
-                      'الذبح ${dateText(o['slaughter_date'])} · ${o['slaughter_time'] ?? ''}'),
-                  line(Icons.local_shipping_outlined,
-                      'التوصيل ${dateText(o['delivery_date'])} · ${o['delivery_slot'] ?? ''}'),
-                  const Divider(height: 14),
-                  Row(children: [
-                    Icon(Icons.account_balance_wallet_outlined,
-                        size: 16, color: Colors.black45),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                          '${paymentLabels[o['payment_method']] ?? ''} · ${paymentStatusLabels[o['payment_status']] ?? ''}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.black54)),
-                    ),
-                    ShaderMask(
-                      shaderCallback: (r) =>
-                          LinearGradient(colors: tone).createShader(r),
-                      child: Text(bhd(o['total']),
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800)),
-                    ),
-                  ]),
-                ]),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              line(Icons.set_meal_outlined, items.isEmpty ? '-' : items),
+              line(Icons.content_cut,
+                  'الذبح ${dateText(o['slaughter_date'])} · ${o['slaughter_time'] ?? ''}'),
+              line(Icons.local_shipping_outlined,
+                  'التوصيل ${dateText(o['delivery_date'])} · ${o['delivery_slot'] ?? ''}'),
+              const Divider(height: 14),
+              Row(children: [
+                Icon(Icons.account_balance_wallet_outlined,
+                    size: 16, color: Colors.black45),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                      '${paymentLabels[o['payment_method']] ?? ''} · ${paymentStatusLabels[o['payment_status']] ?? ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          const TextStyle(fontSize: 12, color: Colors.black54)),
+                ),
+                ShaderMask(
+                  shaderCallback: (r) =>
+                      LinearGradient(colors: tone).createShader(r),
+                  child: Text(bhd(o['total']),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800)),
+                ),
+              ]),
+            ]),
           ),
         ]),
       ),
@@ -352,12 +362,20 @@ class CustomerOrderCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(999)),
         child: Text(t,
             style: const TextStyle(
-                color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                color: Colors.white,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700)),
       );
 }
 
 /// Picks an icon and gradient for a notification from its wording.
+/// Sent by the platform admin to everyone or to all customers.
+bool isBroadcast(Map n) =>
+    n['audience'] == 'all' || n['audience'] == 'customers';
+
 (IconData, List<Color>) notifLook(Map n) {
+  if (n['kind'] == 'offer') return (Icons.local_offer_outlined, G.gold);
+  if (isBroadcast(n)) return (Icons.campaign_outlined, G.sapphire);
   final t = '${n['title']} ${n['body']}';
   bool has(List<String> w) => w.any(t.contains);
   if (has(['تسليم', 'توصيل', 'الطريق', 'مندوب'])) {
@@ -374,18 +392,36 @@ class CustomerOrderCard extends StatelessWidget {
   return (Icons.notifications_active_outlined, G.teal);
 }
 
-class NotificationsPage extends StatelessWidget {
+class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
+  @override
+  State<NotificationsPage> createState() => _NotificationsPageState();
+}
+
+class _NotificationsPageState extends State<NotificationsPage> {
+  String filter = 'all'; // all | offer | admin | order
+
+  static bool _match(String f, Map n) => switch (f) {
+        'offer' => n['kind'] == 'offer',
+        'admin' => isBroadcast(n) && n['kind'] != 'offer',
+        'order' => !isBroadcast(n),
+        _ => true,
+      };
+
   @override
   Widget build(BuildContext context) {
     return Loader<List<Map<String, dynamic>>>(
       realtimeTables: const ['notifications'],
+      // Only what is meant for this customer: platform messages and offers to
+      // everyone/customers, plus updates on their own orders.
       load: () async => List<Map<String, dynamic>>.from(await sb
           .from('notifications')
           .select()
+          .inFilter('audience', ['all', 'customers', 'user'])
           .order('created_at', ascending: false)
-          .limit(50)),
-      builder: (context, list, _) {
+          .limit(80)),
+      builder: (context, all, _) {
+        final list = all.where((n) => _match(filter, n)).toList();
         final now = DateTime.now();
         final today = DateTime(now.year, now.month, now.day);
         String group(Map n) {
@@ -409,10 +445,29 @@ class NotificationsPage extends StatelessWidget {
             subtitle: 'آخر تحديثات طلباتك وعروض الملاحم',
             stats: [
               ('اليوم', '${groups['اليوم']?.length ?? 0}'),
-              ('الكل', '${list.length}'),
+              ('العروض', '${all.where((n) => _match('offer', n)).length}'),
+              ('الكل', '${all.length}'),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 44,
+            child: ListView(scrollDirection: Axis.horizontal, children: [
+              for (final f in const [
+                ('all', 'الكل', G.violet),
+                ('offer', 'العروض', G.gold),
+                ('admin', 'رسائل الإدارة', G.sapphire),
+                ('order', 'طلباتي', G.teal),
+              ])
+                TonePill(
+                    label: f.$2,
+                    count: all.where((n) => _match(f.$1, n)).length,
+                    colors: f.$3,
+                    selected: filter == f.$1,
+                    onTap: () => setState(() => filter = f.$1)),
+            ]),
+          ),
+          const SizedBox(height: 14),
           if (list.isEmpty)
             const Empty('لا توجد إشعارات', icon: Icons.notifications_none),
           for (final g in groups.entries) ...[
@@ -469,34 +524,50 @@ class _NotifCard extends StatelessWidget {
               begin: AlignmentDirectional.centerStart,
               end: AlignmentDirectional.centerEnd,
               colors: [tone.last.withValues(alpha: .13), Colors.white]),
-          border: BorderDirectional(
-              start: BorderSide(color: tone.first, width: 4)),
+          border:
+              BorderDirectional(start: BorderSide(color: tone.first, width: 4)),
         ),
         padding: const EdgeInsets.all(14),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           GradientBadge(colors: tone, icon: icon, size: 44),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${n['title'] ?? ''}',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          color: tone.first)),
-                  const SizedBox(height: 3),
-                  Text('${n['body'] ?? ''}',
-                      style: const TextStyle(fontSize: 13.5, height: 1.45)),
-                  const SizedBox(height: 6),
-                  Row(children: [
-                    const Icon(Icons.schedule, size: 13, color: Colors.black38),
-                    const SizedBox(width: 4),
-                    Text(dateTimeText(n['created_at']),
-                        style: const TextStyle(
-                            fontSize: 11.5, color: Colors.black45)),
-                  ]),
-                ]),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (isBroadcast(n))
+                Container(
+                  margin: const EdgeInsets.only(bottom: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: tone),
+                      borderRadius: BorderRadius.circular(999)),
+                  child: Text(
+                      n['kind'] == 'offer'
+                          ? 'عرض من ذبائح البحرين'
+                          : 'رسالة من إدارة التطبيق',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800)),
+                ),
+              Text('${n['title'] ?? ''}',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: tone.first)),
+              const SizedBox(height: 3),
+              Text('${n['body'] ?? ''}',
+                  style: const TextStyle(fontSize: 13.5, height: 1.45)),
+              const SizedBox(height: 6),
+              Row(children: [
+                const Icon(Icons.schedule, size: 13, color: Colors.black38),
+                const SizedBox(width: 4),
+                Text(dateTimeText(n['created_at']),
+                    style:
+                        const TextStyle(fontSize: 11.5, color: Colors.black45)),
+              ]),
+            ]),
           ),
         ]),
       ),

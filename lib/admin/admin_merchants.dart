@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 
+import '../core/bg_remove.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
 import '../customer/customer_shell.dart' show StoreLogo;
@@ -281,36 +282,131 @@ class AdminMerchants extends StatelessWidget {
     final name = TextEditingController(text: m['name']);
     final phone = TextEditingController(text: m['store_phone']);
     final area = TextEditingController(text: m['area']);
+    PlatformFile? logo, original;
+    bool cut = true, busy = false;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('تعديل المتجر'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Field('اسم المتجر', name, required: true),
-          const SizedBox(height: 10),
-          Field('هاتف المتجر', phone, required: true, ltr: true),
-          const SizedBox(height: 10),
-          Field('المنطقة', area, required: true),
-        ]),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(c, false),
-              child: const Text('إلغاء')),
-          FilledButton(
-              onPressed: () => Navigator.pop(c, true),
-              child: const Text('حفظ')),
-        ],
-      ),
+      builder: (c) => StatefulBuilder(builder: (c, set) {
+        Future<void> apply() async {
+          if (original == null) return;
+          if (!cut) return set(() => logo = original);
+          set(() => busy = true);
+          final r = await cutoutFile(original!);
+          if (!c.mounted) return;
+          set(() {
+            busy = false;
+            logo = r ?? original;
+            if (r == null) cut = false;
+          });
+        }
+
+        final isCut = logo?.name.endsWith('-cut.png') == true;
+        return AlertDialog(
+          title: const Text('تعديل المتجر'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: busy
+                    ? null
+                    : () async {
+                        final r = await FilePicker.platform.pickFiles(
+                            withData: true,
+                            type: FileType.custom,
+                            allowedExtensions: ['png', 'jpg', 'jpeg', 'webp']);
+                        final f = r?.files.first;
+                        if (f?.bytes == null) return;
+                        set(() {
+                          original = f;
+                          logo = f;
+                        });
+                        await apply();
+                      },
+                child: Container(
+                  width: 84,
+                  height: 84,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border:
+                          Border.all(color: const Color(0xFFE2B866), width: 2)),
+                  child: busy
+                      ? const Center(
+                          child: SizedBox(
+                              width: 26,
+                              height: 26,
+                              child: CircularProgressIndicator(strokeWidth: 3)))
+                      : logo?.bytes != null
+                          ? Padding(
+                              padding: EdgeInsets.all(isCut ? 6 : 0),
+                              child: Image.memory(logo!.bytes!,
+                                  fit: isCut ? BoxFit.contain : BoxFit.cover,
+                                  width: 84,
+                                  height: 84))
+                          : StoreLogo(m['logo_url'], size: 84),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('شعار المتجر',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      const Text('اضغط على الشعار لتغييره',
+                          style:
+                              TextStyle(fontSize: 12, color: Colors.black54)),
+                      Row(children: [
+                        Switch(
+                            value: cut,
+                            onChanged: busy
+                                ? null
+                                : (v) async {
+                                    set(() => cut = v);
+                                    await apply();
+                                  }),
+                        const Flexible(
+                            child: Text('إزالة الخلفية تلقائياً',
+                                style: TextStyle(fontSize: 12.5))),
+                      ]),
+                    ]),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            Field('اسم المتجر', name, required: true),
+            const SizedBox(height: 10),
+            Field('هاتف المتجر', phone, required: true, ltr: true),
+            const SizedBox(height: 10),
+            Field('المنطقة', area, required: true),
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(c, false),
+                child: const Text('إلغاء')),
+            FilledButton(
+                onPressed: busy ? null : () => Navigator.pop(c, true),
+                child: const Text('حفظ')),
+          ],
+        );
+      }),
     );
     if (ok == true && context.mounted) {
-      await guard(
-          context,
-          () => sb.from('merchants').update({
-                'name': name.text.trim(),
-                'store_phone': normPhone(phone.text),
-                'area': area.text.trim()
-              }).eq('id', m['id']),
-          ok: 'تم الحفظ');
+      await guard(context, () async {
+        String? url;
+        if (logo?.bytes != null) {
+          final path = 'logos/${safeFileName(logo!.name)}';
+          await sb.storage.from('media').uploadBinary(path, logo!.bytes!,
+              fileOptions: FileOptions(contentType: mimeOf(logo!.name)));
+          url = sb.storage.from('media').getPublicUrl(path);
+        }
+        await sb.from('merchants').update({
+          'name': name.text.trim(),
+          'store_phone': normPhone(phone.text),
+          'area': area.text.trim(),
+          if (url != null) 'logo_url': url,
+        }).eq('id', m['id']);
+      }, ok: 'تم الحفظ');
     }
   }
 }
@@ -349,6 +445,9 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
       k: TextEditingController()
   };
   PlatformFile? logo;
+  PlatformFile? logoOriginal;
+  bool logoCut = true; // remove the logo background automatically
+  bool logoBusy = false;
   final docs = <String, PlatformFile?>{
     'doc_id_path': null,
     'doc_cr_path': null,
@@ -372,7 +471,22 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
     return r?.files.first;
   }
 
+  Future<void> applyLogo() async {
+    final o = logoOriginal;
+    if (o == null) return;
+    if (!logoCut) return setState(() => logo = o);
+    setState(() => logoBusy = true);
+    final cut = await cutoutFile(o);
+    if (!mounted) return;
+    setState(() {
+      logoBusy = false;
+      logo = cut ?? o;
+      if (cut == null) logoCut = false;
+    });
+  }
+
   Future<void> save() async {
+    if (logoBusy) return;
     setState(() => tried = true);
     final okForm = form.currentState!.validate();
     final missingDocs = docRequired.any((k) => docs[k] == null);
@@ -531,13 +645,20 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
                 borderRadius: BorderRadius.circular(22),
                 onTap: () async {
                   final p = await pick(['png', 'jpg', 'jpeg', 'webp']);
-                  if (p != null) setState(() => logo = p);
+                  if (p == null) return;
+                  setState(() {
+                    logo = p;
+                    logoOriginal = p;
+                  });
+                  await applyLogo();
                 },
                 child: Container(
                   width: 78,
                   height: 78,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .16),
+                    color: logo != null && logo!.name.endsWith('-cut.png')
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: .16),
                     borderRadius: BorderRadius.circular(22),
                     border: Border.all(
                         color: tried && logo == null
@@ -548,20 +669,29 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
                         ? null
                         : DecorationImage(
                             image: MemoryImage(logo!.bytes!),
-                            fit: BoxFit.cover),
+                            fit: logo!.name.endsWith('-cut.png')
+                                ? BoxFit.contain
+                                : BoxFit.cover),
                   ),
-                  child: logo == null
-                      ? const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                              Icon(Icons.add_photo_alternate_outlined,
-                                  color: Colors.white, size: 28),
-                              SizedBox(height: 2),
-                              Text('الشعار *',
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 11)),
-                            ])
-                      : null,
+                  child: logoBusy
+                      ? const Center(
+                          child: SizedBox(
+                              width: 26,
+                              height: 26,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 3, color: Color(0xFF0F5C4D))))
+                      : logo == null
+                          ? const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                  Icon(Icons.add_photo_alternate_outlined,
+                                      color: Colors.white, size: 28),
+                                  SizedBox(height: 2),
+                                  Text('الشعار *',
+                                      style: TextStyle(
+                                          color: Colors.white, fontSize: 11)),
+                                ])
+                          : null,
                 ),
               ),
               const SizedBox(width: 16),
@@ -586,6 +716,22 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
                               fontSize: 13)),
                       const SizedBox(height: 10),
                       Wrap(spacing: 6, runSpacing: 6, children: [
+                        InkWell(
+                          borderRadius: BorderRadius.circular(999),
+                          onTap: logoBusy
+                              ? null
+                              : () async {
+                                  setState(() => logoCut = !logoCut);
+                                  await applyLogo();
+                                },
+                          child: _hp(
+                              logoCut
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              logoBusy
+                                  ? 'جاري إزالة خلفية الشعار…'
+                                  : 'إزالة خلفية الشعار'),
+                        ),
                         _hp(Icons.storefront_outlined, 'المتجر'),
                         _hp(Icons.place_outlined, 'العنوان'),
                         _hp(Icons.account_balance_outlined, 'البنك'),
