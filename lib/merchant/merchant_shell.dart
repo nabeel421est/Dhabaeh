@@ -9,6 +9,8 @@ import 'merchant_pages.dart';
 import 'merchant_store.dart';
 import '../core/ttext.dart';
 import '../core/i18n.dart';
+import '../core/order_alerts.dart';
+import '../customer/order_details.dart';
 
 class MerchantShell extends StatefulWidget {
   const MerchantShell(
@@ -107,54 +109,67 @@ class _MerchantShellState extends State<MerchantShell> {
               body: const Empty('لا توجد صلاحيات ممنوحة لهذا الحساب'));
         }
         if (tab >= tabs.length) tab = 0;
-        return Scaffold(
-          appBar: GradientAppBar(
-            title:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(m['name']),
-              Text(widget.owner ? 'مالك المتجر' : 'موظف',
-                  style: const TextStyle(fontSize: 12, color: Colors.white70)),
-            ]),
-            actions: [
-              if (widget.merchantIds.length > 1)
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.store),
-                  onSelected: (v) => setState(() {
-                    mid = v;
-                    ctx = load();
-                  }),
-                  itemBuilder: (_) => [
-                    for (final id in widget.merchantIds)
-                      PopupMenuItem(value: id, child: Text(id.substring(0, 8)))
-                  ],
-                ),
-              ...commonActions(context, widget.switcher),
-            ],
-          ),
-          body: Column(children: [
-            if (m['suspended'] == true || m['frozen'] == true)
-              MaterialBanner(
-                content: Text(m['frozen'] == true
-                    ? 'المتجر مجمّد من الإدارة: الحساب مقفل والمحفظة مجمّدة'
-                    : 'المتجر موقوف من الإدارة: لا يظهر للعملاء ولا يستقبل طلبات جديدة'),
-                backgroundColor: const Color(0xFFFBE9E7),
-                actions: const [SizedBox.shrink()],
+        return OrderAlertWatcher(
+            enabled: perms['orders'] == true,
+            title: 'طلب جديد',
+            fetch: () => newOrderAlerts(merchantId: mid),
+            onOpen: (c, id) => Navigator.push(
+                c,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        OrderDetailsPage(orderId: id, viewer: 'merchant'))),
+            child: Scaffold(
+              appBar: GradientAppBar(
+                title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(m['name']),
+                      Text(widget.owner ? 'مالك المتجر' : 'موظف',
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.white70)),
+                    ]),
+                actions: [
+                  if (widget.merchantIds.length > 1)
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.store),
+                      onSelected: (v) => setState(() {
+                        mid = v;
+                        ctx = load();
+                      }),
+                      itemBuilder: (_) => [
+                        for (final id in widget.merchantIds)
+                          PopupMenuItem(
+                              value: id, child: Text(id.substring(0, 8)))
+                      ],
+                    ),
+                  ...commonActions(context, widget.switcher),
+                ],
               ),
-            Expanded(
-                child: IndexedStack(
-                    index: tab, children: [for (final t in tabs) t.$3])),
-          ]),
-          bottomNavigationBar: tabs.length < 2
-              ? null
-              : NavigationBar(
-                  selectedIndex: tab,
-                  onDestinationSelected: (i) => setState(() => tab = i),
-                  destinations: [
-                    for (final t in tabs)
-                      NavigationDestination(icon: Icon(t.$2), label: tr(t.$1))
-                  ],
-                ),
-        );
+              body: Column(children: [
+                if (m['suspended'] == true || m['frozen'] == true)
+                  MaterialBanner(
+                    content: Text(m['frozen'] == true
+                        ? 'المتجر مجمّد من الإدارة: الحساب مقفل والمحفظة مجمّدة'
+                        : 'المتجر موقوف من الإدارة: لا يظهر للعملاء ولا يستقبل طلبات جديدة'),
+                    backgroundColor: const Color(0xFFFBE9E7),
+                    actions: const [SizedBox.shrink()],
+                  ),
+                Expanded(
+                    child: IndexedStack(
+                        index: tab, children: [for (final t in tabs) t.$3])),
+              ]),
+              bottomNavigationBar: tabs.length < 2
+                  ? null
+                  : NavigationBar(
+                      selectedIndex: tab,
+                      onDestinationSelected: (i) => setState(() => tab = i),
+                      destinations: [
+                        for (final t in tabs)
+                          NavigationDestination(
+                              icon: Icon(t.$2), label: tr(t.$1))
+                      ],
+                    ),
+            ));
       },
     );
   }
@@ -592,4 +607,3 @@ class MerchantStaffTab extends StatelessWidget {
     );
   }
 }
-

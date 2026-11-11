@@ -76,6 +76,10 @@ class OrderDraft {
   String slot = deliverySlots.first;
   String? zoneId;
   String payment = 'benefitpay';
+
+  /// 'delivery' (a driver brings it) or 'pickup' (collected from the store).
+  String fulfillment = 'delivery';
+  bool get pickup => fulfillment == 'pickup';
   final house = TextEditingController();
   final road = TextEditingController();
   final block = TextEditingController();
@@ -748,6 +752,7 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
   }
 
   Future<void> submit(List<Map<String, dynamic>> zones) async {
+    if (d.pickup) return submitPickup();
     if (d.zoneId == null) {
       return toast(context, 'اختر منطقة التوصيل', error: true);
     }
@@ -784,6 +789,7 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
         'p_address': address,
         'p_payment': d.payment,
         'p_notes': null,
+        'p_fulfillment': 'delivery',
       });
       if (d.receipt != null && d.receipt!.bytes != null) {
         final safe =
@@ -829,6 +835,55 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
     }
   }
 
+  /// Collect from the store: no zone, address or delivery fee.
+  Future<void> submitPickup() async {
+    if (d.payment == 'bank_transfer' && d.receipt == null) {
+      return toast(context, 'أرفق إيصال التحويل', error: true);
+    }
+    setState(() => busy = true);
+    final order = await guard(context, () async {
+      final o = await sb.rpc('place_order', params: {
+        'p_merchant': widget.store['id'],
+        'p_items': [
+          {
+            'product_id': widget.product['id'],
+            'qty': d.qty,
+            if (d.unit != null) 'unit_id': d.unit!['id'],
+            'options': d.options,
+          }
+        ],
+        'p_slaughter_date': isoDate(d.slaughterDay),
+        'p_slaughter_time': d.slaughterTime,
+        'p_delivery_date': isoDate(d.deliveryDay),
+        'p_delivery_slot': d.slot,
+        'p_zone': null,
+        'p_address': null,
+        'p_payment': d.payment,
+        'p_notes': d.note.text.trim().isEmpty ? null : d.note.text.trim(),
+        'p_fulfillment': 'pickup',
+      });
+      if (d.receipt != null && d.receipt!.bytes != null) {
+        final safe =
+            d.receipt!.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+        final path = '$myId/receipt-${o['id']}-$safe';
+        await sb.storage.from('docs').uploadBinary(path, d.receipt!.bytes!);
+        await sb.rpc('attach_receipt',
+            params: {'p_order': o['id'], 'p_path': path});
+      }
+      return o;
+    });
+    if (!mounted) return;
+    setState(() => busy = false);
+    if (order != null) {
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => OrderDetailsPage(
+                  orderId: order['id'], viewer: 'customer', justPlaced: true)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final (settings, zones, addresses, profile) = widget.setup;
@@ -856,7 +911,7 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
         toNum(settings['customer_comm_value']),
         settings['customer_comm_enabled'] == true);
     final zone = zones.where((z) => z['id'] == d.zoneId).firstOrNull;
-    final fee = zone == null ? 0 : toNum(zone['fee']);
+    final fee = d.pickup || zone == null ? 0 : toNum(zone['fee']);
     final total = sub - disc + custComm + fee;
 
     Widget line(String k, String v, {bool bold = false, Color? color}) =>
@@ -878,43 +933,108 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       _Section(
-        icon: Icons.place_outlined,
-        title: 'عنوان التوصيل',
+        icon: Icons.local_shipping_outlined,
+        title: 'طريقة الاستلام',
         colors: cs,
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          DropdownButtonFormField<String>(
-            initialValue: d.zoneId,
-            decoration: InputDecoration(labelText: tr('المنطقة *')),
-            items: [
-              for (final z in zones)
-                DropdownMenuItem(
-                    value: z['id'] as String,
-                    child: Text('${z['name']} · توصيل ${bhd(z['fee'])}'))
-            ],
-            onChanged: (v) {
-              d.zoneId = v;
-              changed();
-            },
-          ),
-          const SizedBox(height: 10),
-          Row(children: [
-            Expanded(
-                child: Field('المبنى', d.house,
-                    required: true, keyboard: TextInputType.number)),
-            const SizedBox(width: 8),
-            Expanded(
-                child: Field('الطريق', d.road,
-                    required: true, keyboard: TextInputType.number)),
-            const SizedBox(width: 8),
-            Expanded(
-                child: Field('المجمع', d.block,
-                    required: true, keyboard: TextInputType.number)),
-          ]),
-          const SizedBox(height: 10),
-          Field('وصف إضافي', d.note, hint: 'اختياري، مثل: بجانب المسجد'),
-        ]),
+        child: LayoutBuilder(builder: (context, c) {
+          final cols = c.maxWidth >= 480 ? 2 : 1;
+          final w = (c.maxWidth - 8 * (cols - 1)) / cols;
+          return Wrap(spacing: 8, runSpacing: 8, children: [
+            SizedBox(
+              width: w,
+              child: _PayTile(
+                title: 'توصيل للعنوان',
+                sub: 'يوصله مندوب إلى بيتك',
+                icon: Icons.delivery_dining_outlined,
+                colors: cs,
+                selected: !d.pickup,
+                onTap: () {
+                  d.fulfillment = 'delivery';
+                  changed();
+                },
+              ),
+            ),
+            SizedBox(
+              width: w,
+              child: _PayTile(
+                title: 'استلام من المحل',
+                sub: 'تستلمه بنفسك من ${widget.store['name']} بدون رسوم توصيل',
+                icon: Icons.storefront_outlined,
+                colors: cs,
+                selected: d.pickup,
+                onTap: () {
+                  d.fulfillment = 'pickup';
+                  changed();
+                },
+              ),
+            ),
+          ]);
+        }),
       ),
+      const SizedBox(height: 12),
+      if (d.pickup)
+        _Section(
+          icon: Icons.storefront_outlined,
+          title: 'مكان الاستلام',
+          colors: cs,
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text('${widget.store['name']}',
+                style:
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            if ('${widget.store['area'] ?? ''}'.isNotEmpty)
+              Text('${widget.store['area']}',
+                  style: const TextStyle(color: Colors.black54)),
+            if ('${widget.store['store_phone'] ?? ''}'.isNotEmpty)
+              Text('هاتف المحل: ${widget.store['store_phone']}',
+                  style: const TextStyle(color: Colors.black54)),
+            const SizedBox(height: 8),
+            const Text(
+                'تستلم طلبك من المحل في الموعد الذي اخترته، والمحل يؤكد التسليم.',
+                style: TextStyle(fontSize: 12, color: Colors.black45)),
+            const SizedBox(height: 10),
+            Field('ملاحظة للمحل', d.note, hint: 'اختياري'),
+          ]),
+        )
+      else
+        _Section(
+          icon: Icons.place_outlined,
+          title: 'عنوان التوصيل',
+          colors: cs,
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            DropdownButtonFormField<String>(
+              initialValue: d.zoneId,
+              decoration: InputDecoration(labelText: tr('المنطقة *')),
+              items: [
+                for (final z in zones)
+                  DropdownMenuItem(
+                      value: z['id'] as String,
+                      child: Text('${z['name']} · توصيل ${bhd(z['fee'])}'))
+              ],
+              onChanged: (v) {
+                d.zoneId = v;
+                changed();
+              },
+            ),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                  child: Field('المبنى', d.house,
+                      required: true, keyboard: TextInputType.number)),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: Field('الطريق', d.road,
+                      required: true, keyboard: TextInputType.number)),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: Field('المجمع', d.block,
+                      required: true, keyboard: TextInputType.number)),
+            ]),
+            const SizedBox(height: 10),
+            Field('وصف إضافي', d.note, hint: 'اختياري، مثل: بجانب المسجد'),
+          ]),
+        ),
       const SizedBox(height: 12),
       _Section(
         icon: Icons.account_balance_wallet_outlined,
@@ -942,8 +1062,12 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
                 SizedBox(
                   width: w,
                   child: _PayTile(
-                    title: m.value,
-                    sub: paymentLook[m.key]?.$2 ?? '',
+                    title: d.pickup && m.key == 'cash'
+                        ? 'الدفع عند الاستلام من المحل'
+                        : m.value,
+                    sub: d.pickup && m.key == 'cash'
+                        ? 'تدفع للمحل نقداً عند الاستلام'
+                        : paymentLook[m.key]?.$2 ?? '',
                     icon: paymentLook[m.key]?.$1 ?? Icons.payments_outlined,
                     colors: cs,
                     selected: d.payment == m.key,
@@ -1047,8 +1171,11 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
                   if (disc > 0)
                     line('الخصم', '- ${bhd(disc)}', color: G.emerald.first),
                   if (custComm > 0) line('رسوم الخدمة', bhd(custComm)),
-                  line('التوصيل${zone == null ? '' : ' (${zone['name']})'}',
-                      zone == null ? 'اختر المنطقة' : bhd(fee)),
+                  if (d.pickup)
+                    line('الاستلام', 'من المحل · بدون رسوم توصيل')
+                  else
+                    line('التوصيل${zone == null ? '' : ' (${zone['name']})'}',
+                        zone == null ? 'اختر المنطقة' : bhd(fee)),
                   const Divider(height: 20),
                   line('الإجمالي', bhd(total), bold: true, color: cs.first),
                   const SizedBox(height: 4),

@@ -8,6 +8,8 @@ import '../core/brand.dart';
 import '../core/common.dart';
 import '../core/ttext.dart';
 import '../core/i18n.dart';
+import '../core/order_alerts.dart';
+import 'driver_presence.dart';
 
 const driverKindLabels = {
   'cash_collected': 'تحصيل نقدي',
@@ -28,30 +30,49 @@ class _DriverShellState extends State<DriverShell> {
   int tab = 0;
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: GradientAppBar(
-        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(tab == 0 ? 'الطلبات المتاحة' : 'طلباتي'),
-          Text(widget.profile['full_name'] ?? '',
-              style: const TextStyle(fontSize: 12, color: Colors.white70)),
-        ]),
-        actions: commonActions(context, widget.switcher),
-      ),
-      body: IndexedStack(index: tab, children: [
-        DriverList(available: true, onClaimed: () => setState(() => tab = 1)),
-        const DriverList(available: false)
-      ]),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: tab,
-        onDestinationSelected: (i) => setState(() => tab = i),
-        destinations: [
-          NavigationDestination(
-              icon: Icon(Icons.inbox_outlined), label: tr('المتاحة')),
-          NavigationDestination(
-              icon: Icon(Icons.local_shipping_outlined), label: tr('طلباتي')),
-        ],
-      ),
-    );
+    return OrderAlertWatcher(
+        title: 'طلب توصيل جديد',
+        fetch: driverAlerts,
+        onOpen: (c, id) async {
+          final row = await sb
+              .from('orders')
+              .select('driver_id')
+              .eq('id', id)
+              .maybeSingle();
+          if (!c.mounted) return;
+          Navigator.push(
+              c,
+              MaterialPageRoute(
+                  builder: (_) => DriverOrderPage(
+                      orderId: id, available: row?['driver_id'] == null)));
+        },
+        child: Scaffold(
+          appBar: GradientAppBar(
+            title:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tab == 0 ? 'الطلبات المتاحة' : 'طلباتي'),
+              Text(widget.profile['full_name'] ?? '',
+                  style: const TextStyle(fontSize: 12, color: Colors.white70)),
+            ]),
+            actions: commonActions(context, widget.switcher),
+          ),
+          body: IndexedStack(index: tab, children: [
+            DriverList(
+                available: true, onClaimed: () => setState(() => tab = 1)),
+            const DriverList(available: false)
+          ]),
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: tab,
+            onDestinationSelected: (i) => setState(() => tab = i),
+            destinations: [
+              NavigationDestination(
+                  icon: Icon(Icons.inbox_outlined), label: tr('المتاحة')),
+              NavigationDestination(
+                  icon: Icon(Icons.local_shipping_outlined),
+                  label: tr('طلباتي')),
+            ],
+          ),
+        ));
   }
 }
 
@@ -247,8 +268,11 @@ class _DriverWalletState extends State<DriverWallet> {
                     box('مبالغ محصّلة نقداً', bhd(bal['cash_held']),
                         Icons.payments_outlined, b.accent, 'تُسلَّم للإدارة'),
                     const SizedBox(width: 10),
-                    box('رسوم توصيل مستحقة', bhd(bal['fees_due']),
-                        Icons.local_shipping_outlined, const Color(0xFF7FE3C4),
+                    box(
+                        'رسوم توصيل مستحقة',
+                        bhd(bal['fees_due']),
+                        Icons.local_shipping_outlined,
+                        const Color(0xFF7FE3C4),
                         toNum(bal['pending_payout']) > 0
                             ? 'بانتظار تأكيدك ${bhd(bal['pending_payout'])}'
                             : 'تستلمها من الإدارة'),
@@ -358,6 +382,8 @@ class DriverList extends StatelessWidget {
   final bool available;
   final VoidCallback? onClaimed;
 
+  static int secs = 180;
+
   static Future<bool> claim(BuildContext context, String id) async {
     final r = await guard(
         context, () => sb.rpc('driver_claim', params: {'p_order': id}),
@@ -369,12 +395,16 @@ class DriverList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Loader<List<Map<String, dynamic>>>(
       realtimeTables: const ['orders'],
+      // Turns move to the next driver with time, so look again regularly.
+      refreshEvery: available ? const Duration(seconds: 15) : null,
       load: () async {
+        if (available) secs = await dispatchSeconds();
         var q = sb.from('orders').select(
-            'id, code, status, address, delivery_date, delivery_slot, slaughter_date, payment_method, total, driver_id, merchants(name, area), order_items(name, qty), delivery_zones(name)');
+            'id, code, status, address, delivery_date, delivery_slot, slaughter_date, payment_method, total, driver_id, dispatch_at, dispatch_queue, driver_assigned_at, merchants(name, area), order_items(name, qty), delivery_zones(name)');
         q = available
             ? q
                 .isFilter('driver_id', null)
+                .eq('fulfillment', 'delivery')
                 .inFilter('status', ['accepted', 'slaughtering', 'ready'])
             : q
                 .eq('driver_id', myId!)
@@ -385,6 +415,10 @@ class DriverList extends StatelessWidget {
         final b = brandOf(context);
         final cash = orders.where((o) => o['payment_method'] == 'cash');
         return ListView(padding: const EdgeInsets.all(16), children: [
+          if (available) ...[
+            const DriverPresence(),
+            const SizedBox(height: 14),
+          ],
           const DriverWallet(),
           const SizedBox(height: 14),
           Row(children: [
@@ -422,6 +456,15 @@ class DriverList extends StatelessWidget {
                   child: _DriverOrderCard(
                     o: o,
                     available: available,
+                    secs: secs,
+                    onPass: () async {
+                      await guard(
+                          context,
+                          () => sb
+                              .rpc('driver_pass', params: {'p_order': o['id']}),
+                          ok: 'تم تمرير الطلب للمندوب التالي');
+                      await reload();
+                    },
                     onDetails: () async {
                       final claimed = await Navigator.push<bool>(
                           context,
@@ -451,9 +494,13 @@ class _DriverOrderCard extends StatelessWidget {
       {required this.o,
       required this.available,
       required this.onDetails,
-      required this.onClaim});
+      required this.onClaim,
+      this.secs = 180,
+      this.onPass});
   final Map<String, dynamic> o;
   final bool available;
+  final int secs;
+  final VoidCallback? onPass;
   final VoidCallback onDetails;
   final VoidCallback onClaim;
   @override
@@ -463,32 +510,30 @@ class _DriverOrderCard extends StatelessWidget {
     final items = (o['order_items'] as List? ?? [])
         .map((x) => '${x['name']} × ${x['qty']}')
         .join('، ');
-    Widget stop(IconData i, Color col, String k, String v) => Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                    color: col.withValues(alpha: .12), shape: BoxShape.circle),
-                child: Icon(i, size: 16, color: col),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(k,
-                          style: const TextStyle(
-                              fontSize: 11.5, color: Colors.black45)),
-                      Text(v,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 13.5, fontWeight: FontWeight.w600)),
-                    ]),
-              ),
-            ]);
+    Widget stop(IconData i, Color col, String k, String v) =>
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+                color: col.withValues(alpha: .12), shape: BoxShape.circle),
+            child: Icon(i, size: 16, color: col),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(k,
+                  style:
+                      const TextStyle(fontSize: 11.5, color: Colors.black45)),
+              Text(v,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 13.5, fontWeight: FontWeight.w600)),
+            ]),
+          ),
+        ]);
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
@@ -521,7 +566,7 @@ class _DriverOrderCard extends StatelessWidget {
               decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: .22),
                   borderRadius: BorderRadius.circular(999)),
-              child: Text(statusLabels[o['status']] ?? '',
+              child: Text(statusOf(o),
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -531,7 +576,8 @@ class _DriverOrderCard extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             stop(Icons.storefront_outlined, G.sapphire.first, 'الاستلام من',
                 '${o['merchants']?['name'] ?? ''} · ${o['merchants']?['area'] ?? ''}'),
             Align(
@@ -582,6 +628,25 @@ class _DriverOrderCard extends StatelessWidget {
               ]),
             ),
             const SizedBox(height: 10),
+            if (available && onPass != null) ...[
+              TurnBar(o: o, secs: secs, onPass: onPass!),
+              const SizedBox(height: 10),
+            ],
+            if (!available && o['driver_assigned_at'] != null) ...[
+              Row(children: [
+                Icon(Icons.timer_outlined, size: 18, color: G.sapphire.first),
+                const SizedBox(width: 6),
+                const Expanded(
+                    child: Text('منذ قبولك للطلب',
+                        style: TextStyle(fontSize: 13, color: Colors.black54))),
+                ElapsedTimer(o['driver_assigned_at'],
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        color: G.sapphire.first)),
+              ]),
+              const SizedBox(height: 10),
+            ],
             Row(children: [
               Expanded(
                 child: OutlinedButton.icon(
@@ -718,7 +783,8 @@ class DriverOrderPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _kv('الاستلام من', '${o['merchants']?['name'] ?? ''}'),
-                        _kv('منطقة الملحمة', '${o['merchants']?['area'] ?? ''}'),
+                        _kv('منطقة الملحمة',
+                            '${o['merchants']?['area'] ?? ''}'),
                         if (mine)
                           _kv('هاتف الملحمة',
                               '${o['merchants']?['store_phone'] ?? ''}'),
@@ -831,7 +897,9 @@ class DriverOrderPage extends StatelessWidget {
                   ),
                   child: Row(children: [
                     Icon(
-                        cash ? Icons.payments_outlined : Icons.verified_outlined,
+                        cash
+                            ? Icons.payments_outlined
+                            : Icons.verified_outlined,
                         size: 32,
                         color: cash ? Colors.white : G.emerald.first),
                     const SizedBox(width: 12),
@@ -846,9 +914,8 @@ class DriverOrderPage extends StatelessWidget {
                                 style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 16,
-                                    color: cash
-                                        ? Colors.white
-                                        : G.emerald.first)),
+                                    color:
+                                        cash ? Colors.white : G.emerald.first)),
                             Text(
                                 cash
                                     ? 'حصّل هذا المبلغ من العميل عند التسليم'
@@ -907,7 +974,8 @@ class DriverOrderPage extends StatelessWidget {
                         : 'تم التسليم للعميل'),
                   ),
                 if (mine && ['accepted', 'slaughtering'].contains(s))
-                  const Text('الطلب يتجهز في الملحمة، تقدر تستلمه لما يصير جاهز.',
+                  const Text(
+                      'الطلب يتجهز في الملحمة، تقدر تستلمه لما يصير جاهز.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.black54)),
                 const SizedBox(height: 24),
@@ -932,4 +1000,34 @@ class DriverOrderPage extends StatelessWidget {
                       fontWeight: FontWeight.w600, fontSize: 13.5))),
         ]),
       );
+}
+
+/// Orders that should ring on the driver's phone: offers that are now theirs
+/// (or open to all), and orders the admin assigned to them in the last 30 minutes.
+Future<List<AlertItem>> driverAlerts() async {
+  final offers = await sb
+      .from('orders')
+      .select('id, code, merchants(name, area)')
+      .isFilter('driver_id', null)
+      .eq('fulfillment', 'delivery')
+      .inFilter('status', ['accepted', 'slaughtering', 'ready']);
+  final since = DateTime.now()
+      .toUtc()
+      .subtract(const Duration(minutes: 30))
+      .toIso8601String();
+  final assigned = await sb
+      .from('orders')
+      .select('id, code, merchants(name, area)')
+      .eq('driver_id', myId!)
+      .inFilter('status', ['accepted', 'slaughtering', 'ready']).gte(
+          'driver_assigned_at', since);
+  return [
+    for (final o in [...offers, ...assigned])
+      (
+        id: '${o['id']}',
+        code: '${o['code']}',
+        line:
+            '${tr('الاستلام من')} ${o['merchants']?['name'] ?? ''} · ${o['merchants']?['area'] ?? ''}'
+      )
+  ];
 }

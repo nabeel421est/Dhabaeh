@@ -2,6 +2,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart' hide Text;
 import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 
+import 'package:latlong2/latlong.dart';
+
+import '../core/address_map.dart';
 import '../core/bg_remove.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
@@ -285,7 +288,10 @@ class AdminMerchants extends StatelessWidget {
     final phone = TextEditingController(text: m['store_phone']);
     final area = TextEditingController(text: m['area']);
     PlatformFile? logo, original;
-    bool cut = true, busy = false;
+    bool cut = true, busy = false, locating = false;
+    LatLng? pin = m['lat'] == null
+        ? null
+        : LatLng(toNum(m['lat']).toDouble(), toNum(m['lng']).toDouble());
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => StatefulBuilder(builder: (c, set) {
@@ -305,83 +311,129 @@ class AdminMerchants extends StatelessWidget {
         final isCut = logo?.name.endsWith('-cut.png') == true;
         return AlertDialog(
           title: const Text('تعديل المتجر'),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            Row(children: [
-              InkWell(
-                borderRadius: BorderRadius.circular(18),
-                onTap: busy
-                    ? null
-                    : () async {
-                        final r = await FilePicker.platform.pickFiles(
-                            withData: true,
-                            type: FileType.custom,
-                            allowedExtensions: ['png', 'jpg', 'jpeg', 'webp']);
-                        final f = r?.files.first;
-                        if (f?.bytes == null) return;
-                        set(() {
-                          original = f;
-                          logo = f;
-                        });
-                        await apply();
-                      },
-                child: Container(
-                  width: 84,
-                  height: 84,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border:
-                          Border.all(color: const Color(0xFFE2B866), width: 2)),
-                  child: busy
-                      ? const Center(
-                          child: SizedBox(
-                              width: 26,
-                              height: 26,
-                              child: CircularProgressIndicator(strokeWidth: 3)))
-                      : logo?.bytes != null
-                          ? Padding(
-                              padding: EdgeInsets.all(isCut ? 6 : 0),
-                              child: Image.memory(logo!.bytes!,
-                                  fit: isCut ? BoxFit.contain : BoxFit.cover,
-                                  width: 84,
-                                  height: 84))
-                          : StoreLogo(m['logo_url'], size: 84),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('شعار المتجر',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
-                      const Text('اضغط على الشعار لتغييره',
-                          style:
-                              TextStyle(fontSize: 12, color: Colors.black54)),
-                      Row(children: [
-                        Switch(
-                            value: cut,
-                            onChanged: busy
-                                ? null
-                                : (v) async {
-                                    set(() => cut = v);
-                                    await apply();
-                                  }),
-                        const Flexible(
-                            child: Text('إزالة الخلفية تلقائياً',
-                                style: TextStyle(fontSize: 12.5))),
-                      ]),
-                    ]),
-              ),
-            ]),
-            const SizedBox(height: 12),
-            Field('اسم المتجر', name, required: true),
-            const SizedBox(height: 10),
-            Field('هاتف المتجر', phone, required: true, ltr: true),
-            const SizedBox(height: 10),
-            Field('المنطقة', area, required: true),
-          ]),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Row(children: [
+                  InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: busy
+                        ? null
+                        : () async {
+                            final r = await FilePicker.platform.pickFiles(
+                                withData: true,
+                                type: FileType.custom,
+                                allowedExtensions: [
+                                  'png',
+                                  'jpg',
+                                  'jpeg',
+                                  'webp'
+                                ]);
+                            final f = r?.files.first;
+                            if (f?.bytes == null) return;
+                            set(() {
+                              original = f;
+                              logo = f;
+                            });
+                            await apply();
+                          },
+                    child: Container(
+                      width: 84,
+                      height: 84,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                              color: const Color(0xFFE2B866), width: 2)),
+                      child: busy
+                          ? const Center(
+                              child: SizedBox(
+                                  width: 26,
+                                  height: 26,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 3)))
+                          : logo?.bytes != null
+                              ? Padding(
+                                  padding: EdgeInsets.all(isCut ? 6 : 0),
+                                  child: Image.memory(logo!.bytes!,
+                                      fit:
+                                          isCut ? BoxFit.contain : BoxFit.cover,
+                                      width: 84,
+                                      height: 84))
+                              : StoreLogo(m['logo_url'], size: 84),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('شعار المتجر',
+                              style: TextStyle(fontWeight: FontWeight.w700)),
+                          const Text('اضغط على الشعار لتغييره',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.black54)),
+                          Row(children: [
+                            Switch(
+                                value: cut,
+                                onChanged: busy
+                                    ? null
+                                    : (v) async {
+                                        set(() => cut = v);
+                                        await apply();
+                                      }),
+                            const Flexible(
+                                child: Text('إزالة الخلفية تلقائياً',
+                                    style: TextStyle(fontSize: 12.5))),
+                          ]),
+                        ]),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                Field('اسم المتجر', name, required: true),
+                const SizedBox(height: 10),
+                Field('هاتف المتجر', phone, required: true, ltr: true),
+                const SizedBox(height: 10),
+                Field('المنطقة', area, required: true),
+                const SizedBox(height: 12),
+                Row(children: [
+                  const Icon(Icons.storefront, size: 18, color: Colors.black54),
+                  const SizedBox(width: 6),
+                  const Expanded(
+                    child: Text(
+                        'موقع المتجر: اضغط على الخريطة لتحديده. يُستخدم لعرض الطلب على أقرب مندوب.',
+                        style:
+                            TextStyle(fontSize: 12.5, color: Colors.black54)),
+                  ),
+                  TextButton.icon(
+                    onPressed: locating
+                        ? null
+                        : () async {
+                            set(() => locating = true);
+                            final p = await guard(c, () => currentLocation());
+                            if (!c.mounted) return;
+                            set(() {
+                              locating = false;
+                              if (p != null) pin = p;
+                            });
+                          },
+                    icon: locating
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.my_location, size: 18),
+                    label: const Text('موقعي الحالي'),
+                  ),
+                ]),
+                const SizedBox(height: 6),
+                AddressMap(
+                    point: pin, height: 220, onPick: (p) => set(() => pin = p)),
+              ]),
+            ),
+          ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(c, false),
@@ -407,6 +459,8 @@ class AdminMerchants extends StatelessWidget {
           'store_phone': normPhone(phone.text),
           'area': area.text.trim(),
           if (url != null) 'logo_url': url,
+          if (pin != null) 'lat': pin!.latitude,
+          if (pin != null) 'lng': pin!.longitude,
         }).eq('id', m['id']);
       }, ok: 'تم الحفظ');
     }

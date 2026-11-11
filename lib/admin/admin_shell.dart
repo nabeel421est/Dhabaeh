@@ -5,6 +5,7 @@ import '../core/brand.dart';
 import '../core/common.dart';
 import '../customer/order_details.dart';
 import 'admin_driver_money.dart';
+import 'admin_drivers.dart';
 import 'admin_merchants.dart';
 import 'admin_money.dart';
 import 'admin_payouts.dart';
@@ -12,6 +13,7 @@ import 'admin_people.dart';
 import 'admin_products.dart';
 import '../core/ttext.dart';
 import 'admin_settings.dart';
+import '../core/order_alerts.dart';
 
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key, required this.profile, this.switcher});
@@ -53,7 +55,7 @@ class _AdminShellState extends State<AdminShell> {
         'التجار' => const AdminMerchants(),
         'المنتجات' => const AdminProducts(),
         'تقارير التجار' => const AdminReports(),
-        'المندوبون' => const AdminDrivers(),
+        'المندوبون' => const AdminDriversHub(),
         'الإشعارات' => const AdminNotify(),
         'محفظة المنصة' => const PlatformWallet(),
         'طلبات السحب' => const AdminPayouts(),
@@ -126,40 +128,48 @@ class _AdminShellState extends State<AdminShell> {
         ),
       ],
     ]);
-    return Scaffold(
-      appBar: GradientAppBar(
-        title: Text(sections[idx].$1),
-        actions: [
-          Center(
-              child: Text(widget.profile['full_name'] ?? '',
-                  style: const TextStyle(color: Colors.white70))),
-          ...commonActions(context, widget.switcher),
-        ],
-      ),
-      drawer: wide
-          ? null
-          : Drawer(
-              child: DecoratedBox(
-                  decoration: BoxDecoration(gradient: sideGradient(b)),
-                  child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: nav))),
-      body: Row(children: [
-        if (wide)
-          SizedBox(
-            width: 260,
-            child: DecoratedBox(
-              decoration: BoxDecoration(gradient: sideGradient(b)),
-              child: Material(
-                  type: MaterialType.transparency,
-                  child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: nav)),
-            ),
+    return OrderAlertWatcher(
+        title: 'طلب جديد',
+        fetch: () => newOrderAlerts(),
+        onOpen: (c, id) => Navigator.push(
+            c,
+            MaterialPageRoute(
+                builder: (_) =>
+                    OrderDetailsPage(orderId: id, viewer: 'admin'))),
+        child: Scaffold(
+          appBar: GradientAppBar(
+            title: Text(sections[idx].$1),
+            actions: [
+              Center(
+                  child: Text(widget.profile['full_name'] ?? '',
+                      style: const TextStyle(color: Colors.white70))),
+              ...commonActions(context, widget.switcher),
+            ],
           ),
-        Expanded(child: page(idx)),
-      ]),
-    );
+          drawer: wide
+              ? null
+              : Drawer(
+                  child: DecoratedBox(
+                      decoration: BoxDecoration(gradient: sideGradient(b)),
+                      child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: nav))),
+          body: Row(children: [
+            if (wide)
+              SizedBox(
+                width: 260,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(gradient: sideGradient(b)),
+                  child: Material(
+                      type: MaterialType.transparency,
+                      child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: nav)),
+                ),
+              ),
+            Expanded(child: page(idx)),
+          ]),
+        ));
   }
 }
 
@@ -667,7 +677,7 @@ class OrderTile extends StatelessWidget {
                 decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .22),
                     borderRadius: BorderRadius.circular(999)),
-                child: Text(statusLabels[o['status']] ?? '${o['status']}',
+                child: Text(statusOf(o),
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -684,12 +694,16 @@ class OrderTile extends StatelessWidget {
                     line(Icons.person_outline, o['customer_name'] ?? ''),
                     line(Icons.event_outlined,
                         'الذبح ${dateText(o['slaughter_date'])}'),
-                    line(Icons.local_shipping_outlined,
-                        'التوصيل ${dateText(o['delivery_date'])} ${o['delivery_slot'] ?? ''}'),
+                    line(
+                        o['fulfillment'] == 'pickup'
+                            ? Icons.storefront_outlined
+                            : Icons.local_shipping_outlined,
+                        '${o['fulfillment'] == 'pickup' ? 'استلام من المحل' : 'التوصيل'} ${dateText(o['delivery_date'])} ${o['delivery_slot'] ?? ''}'),
                     line(Icons.payments_outlined,
                         '${paymentLabels[o['payment_method']]} · ${paymentStatusLabels[o['payment_status']]}'),
-                    line(Icons.two_wheeler_outlined,
-                        'المندوب: ${o['driver_name'] ?? 'غير معيّن'}'),
+                    if (o['fulfillment'] != 'pickup')
+                      line(Icons.two_wheeler_outlined,
+                          'المندوب: ${o['driver_name'] ?? 'غير معيّن'}'),
                   ]),
             ),
           ),

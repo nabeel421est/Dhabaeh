@@ -104,7 +104,8 @@ class _StoreSettingsState extends State<StoreSettings> {
             merchant: m,
             settings: s,
             pending: pending,
-            onRenew: plan == 'trial' || pending != null ? null : () => start(false),
+            onRenew:
+                plan == 'trial' || pending != null ? null : () => start(false),
             onUpgrade:
                 plan == 'yearly' || pending != null ? null : () => start(true),
           ),
@@ -388,21 +389,19 @@ class PlanRequestRow extends StatelessWidget {
           GradientBadge(colors: look.$2, icon: look.$1, size: 42),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                      '#${r['code']} · ${r['kind'] == 'upgrade' ? 'ترقية' : 'تجديد'} ${planLabels[r['from_plan']]} ← ${planLabels[r['plan']]}',
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  Text(
-                      '${dateTimeText(r['created_at'])} · ${bhd(r['amount'])}'
-                      '${r['new_ends'] != null ? ' · ساري حتى ${dateText(r['new_ends'])}' : ''}',
-                      style:
-                          const TextStyle(fontSize: 12, color: Colors.black54)),
-                  if (st == 'rejected' && r['admin_note'] != null)
-                    Text('السبب: ${r['admin_note']}',
-                        style: TextStyle(fontSize: 12, color: c.first)),
-                ]),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                  '#${r['code']} · ${r['kind'] == 'upgrade' ? 'ترقية' : 'تجديد'} ${planLabels[r['from_plan']]} ← ${planLabels[r['plan']]}',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text(
+                  '${dateTimeText(r['created_at'])} · ${bhd(r['amount'])}'
+                  '${r['new_ends'] != null ? ' · ساري حتى ${dateText(r['new_ends'])}' : ''}',
+                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              if (st == 'rejected' && r['admin_note'] != null)
+                Text('السبب: ${r['admin_note']}',
+                    style: TextStyle(fontSize: 12, color: c.first)),
+            ]),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -488,7 +487,8 @@ class _PlanPickerPageState extends State<PlanPickerPage> {
         const SizedBox(height: 20),
         FilledButton.icon(
           style: FilledButton.styleFrom(
-              backgroundColor: (planLook[pick] ?? planLook['monthly']!).$2.first,
+              backgroundColor:
+                  (planLook[pick] ?? planLook['monthly']!).$2.first,
               padding: const EdgeInsets.symmetric(vertical: 16)),
           onPressed: () async {
             final done = await Navigator.push<bool>(
@@ -546,7 +546,9 @@ class _PlanOption extends StatelessWidget {
               : null,
           color: selected ? null : Colors.white,
           border: Border.all(
-              color: selected ? Colors.transparent : cs.first.withValues(alpha: .3),
+              color: selected
+                  ? Colors.transparent
+                  : cs.first.withValues(alpha: .3),
               width: 1.5),
           boxShadow: selected
               ? [
@@ -705,7 +707,8 @@ class _PlanPaymentPageState extends State<PlanPaymentPage> {
                                 color: Colors.white,
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700)),
-                        Text('ساري تقريباً حتى ${dateText(isoDate(ends))} بعد التفعيل',
+                        Text(
+                            'ساري تقريباً حتى ${dateText(isoDate(ends))} بعد التفعيل',
                             style: const TextStyle(
                                 color: Colors.white70, fontSize: 12.5)),
                       ]),
@@ -779,7 +782,8 @@ class _PlanPaymentPageState extends State<PlanPaymentPage> {
                               withData: true,
                               type: FileType.custom,
                               allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf']);
-                          if (r != null) setState(() => receipt = r.files.first);
+                          if (r != null)
+                            setState(() => receipt = r.files.first);
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -828,7 +832,8 @@ class _PlanPaymentPageState extends State<PlanPaymentPage> {
                       const SizedBox(height: 6),
                       const Text(
                           'تراجع الإدارة الإيصال وتفعّل الباقة، وتوصلك رسالة بالنتيجة.',
-                          style: TextStyle(fontSize: 12.5, color: Colors.black54)),
+                          style:
+                              TextStyle(fontSize: 12.5, color: Colors.black54)),
                       const SizedBox(height: 12),
                       FilledButton.icon(
                         style: FilledButton.styleFrom(

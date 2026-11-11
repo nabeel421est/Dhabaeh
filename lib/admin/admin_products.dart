@@ -98,7 +98,8 @@ class _AdminProductsState extends State<AdminProducts> {
               child: TextField(
                 decoration: InputDecoration(
                     prefixIcon: Icon(Icons.search),
-                    hintText: tr('ابحث عن صنف أو متجر، مثل: نعيمي أو مسلخ الواحة')),
+                    hintText:
+                        tr('ابحث عن صنف أو متجر، مثل: نعيمي أو مسلخ الواحة')),
                 onChanged: (v) => setState(() => search = v),
               ),
             ),
@@ -800,7 +801,8 @@ Future<bool> showProductEditor(BuildContext context,
                           ],
                           onChanged:
                               p == null ? (v) => set(() => mid = v) : null,
-                          validator: (v) => v == null ? tr('اختر المتجر') : null,
+                          validator: (v) =>
+                              v == null ? tr('اختر المتجر') : null,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -870,7 +872,8 @@ Future<bool> showProductEditor(BuildContext context,
                                   textDirection: TextDirection.ltr,
                                   decoration: deco('رقم الصنف (تلقائي)',
                                           Icons.qr_code_2_outlined)
-                                      .copyWith(hintText: tr('يُولّد عند الحفظ')),
+                                      .copyWith(
+                                          hintText: tr('يُولّد عند الحفظ')),
                                 ),
                               ),
                             ]);
@@ -939,8 +942,9 @@ Future<bool> showProductEditor(BuildContext context,
                           onChanged: (_) => set(() {}),
                           decoration:
                               deco('التصنيف *', Icons.category_outlined),
-                          validator: (v) =>
-                              (v ?? '').trim().isEmpty ? tr('اكتب التصنيف') : null,
+                          validator: (v) => (v ?? '').trim().isEmpty
+                              ? tr('اكتب التصنيف')
+                              : null,
                         ),
                         const SizedBox(height: 8),
                         Wrap(spacing: 6, runSpacing: 6, children: [

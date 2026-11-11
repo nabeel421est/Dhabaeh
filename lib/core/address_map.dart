@@ -245,3 +245,94 @@ const bahrainGovernorates = <String, Map<String, LatLng>>{
   }
   return null;
 }
+
+/// One pin on a [PinsMap].
+typedef MapPin = ({LatLng at, Color color, IconData icon, String label});
+
+/// A map with many labelled pins (drivers, stores). Fits all pins on first show.
+class PinsMap extends StatelessWidget {
+  const PinsMap({super.key, required this.pins, this.height = 320});
+  final List<MapPin> pins;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final pts = [for (final p in pins) p.at];
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox(
+        height: height,
+        child: Stack(children: [
+          FlutterMap(
+            options: MapOptions(
+              initialCenter: pts.length == 1 ? pts.first : bahrainCenter,
+              initialZoom: pts.length == 1 ? 14 : 10.5,
+              initialCameraFit: pts.length > 1
+                  ? CameraFit.coordinates(
+                      coordinates: pts,
+                      padding: const EdgeInsets.fromLTRB(48, 80, 48, 40),
+                      maxZoom: 15)
+                  : null,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'app.dhabaeh.bahrain',
+              ),
+              MarkerLayer(markers: [
+                for (final p in pins)
+                  Marker(
+                    point: p.at,
+                    width: 130,
+                    height: 64,
+                    alignment: Alignment.topCenter,
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: p.color,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 4)
+                            ]),
+                        child: Text(p.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: p.color, width: 3)),
+                        child: Icon(p.icon, size: 18, color: p.color),
+                      ),
+                    ]),
+                  ),
+              ]),
+            ],
+          ),
+          PositionedDirectional(
+            bottom: 6,
+            end: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .8),
+                  borderRadius: BorderRadius.circular(6)),
+              child: const Text('© OpenStreetMap',
+                  textDirection: TextDirection.ltr,
+                  style: TextStyle(fontSize: 10, color: Colors.black54)),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}

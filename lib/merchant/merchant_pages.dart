@@ -183,7 +183,7 @@ class MerchantOrderTile extends StatelessWidget {
                 decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .22),
                     borderRadius: BorderRadius.circular(999)),
-                child: Text(statusLabels[o['status']] ?? '${o['status']}',
+                child: Text(statusOf(o),
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -204,8 +204,11 @@ class MerchantOrderTile extends StatelessWidget {
               line(Icons.set_meal_outlined, items.isEmpty ? '-' : items),
               line(Icons.content_cut,
                   'الذبح ${dateText(o['slaughter_date'])} · ${o['slaughter_time']}'),
-              line(Icons.local_shipping_outlined,
-                  'التوصيل ${dateText(o['delivery_date'])} · ${o['delivery_slot']}'),
+              line(
+                  o['fulfillment'] == 'pickup'
+                      ? Icons.storefront_outlined
+                      : Icons.local_shipping_outlined,
+                  '${o['fulfillment'] == 'pickup' ? 'استلام من المحل' : 'التوصيل'} ${dateText(o['delivery_date'])} · ${o['delivery_slot']}'),
               const SizedBox(height: 4),
               Row(children: [
                 Text(paymentLabels[o['payment_method']] ?? '',

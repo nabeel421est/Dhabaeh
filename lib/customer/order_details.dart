@@ -59,12 +59,16 @@ class OrderView extends StatelessWidget {
 
   List<(String, String)> actions() {
     final s = order['status'];
+    final pickup = order['fulfillment'] == 'pickup';
     if (s == 'delivered' || s == 'cancelled') return [];
     return switch (viewer) {
       'merchant' => [
           if (s == 'new') ('accepted', 'قبول الطلب'),
           if (s == 'accepted') ('slaughtering', 'بدء الذبح'),
-          if (s == 'slaughtering') ('ready', 'جاهز للتوصيل'),
+          if (s == 'slaughtering')
+            ('ready', pickup ? 'جاهز للاستلام' : 'جاهز للتوصيل'),
+          // Pickup orders are handed over by the store, not a driver.
+          if (pickup && s == 'ready') ('delivered', 'تم تسليم الطلب للعميل'),
           if (s == 'new' || s == 'accepted') ('cancelled', 'إلغاء الطلب'),
         ],
       'driver' => [
@@ -96,8 +100,17 @@ class OrderView extends StatelessWidget {
             ? G.emerald
             : toneOf(statusColor(status));
     final items = List<Map<String, dynamic>>.from(o['order_items']);
-    final step = statusFlow.indexOf(status);
+    final pickupFlow = o['fulfillment'] == 'pickup';
+    // Pickup orders skip "on the way": the store hands them over directly.
+    final flow = [
+      for (final f in statusFlow)
+        if (!(pickupFlow && f == 'out_for_delivery')) f
+    ];
+    final flowIcons = pickupFlow ? _pickupIcons : _flowIcons;
+    String flowLabel(String f) => statusOf({...o, 'status': f});
+    final step = flow.indexOf(status);
     final staff = viewer == 'merchant' || viewer == 'admin';
+    final pickup = o['fulfillment'] == 'pickup';
 
     Widget info(IconData icon, String k, String v, List<Color> c) => Padding(
           padding: const EdgeInsets.only(bottom: 10),
@@ -168,7 +181,8 @@ class OrderView extends StatelessWidget {
                 color: Colors.white.withValues(alpha: .18),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.white.withValues(alpha: .4))),
-            child: const Icon(Icons.receipt_long, color: Colors.white, size: 28),
+            child:
+                const Icon(Icons.receipt_long, color: Colors.white, size: 28),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -187,7 +201,7 @@ class OrderView extends StatelessWidget {
             ]),
           ),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            _pill(statusLabels[status] ?? status, .28),
+            _pill(statusOf(o), .28),
             const SizedBox(height: 5),
             _pill(orderKindLabels[orderKind(o)] ?? '', .15),
           ]),
@@ -195,7 +209,7 @@ class OrderView extends StatelessWidget {
         if (step >= 0) ...[
           const SizedBox(height: 16),
           Row(children: [
-            for (var i = 0; i < statusFlow.length; i++) ...[
+            for (var i = 0; i < flow.length; i++) ...[
               Container(
                 width: 30,
                 height: 30,
@@ -205,10 +219,10 @@ class OrderView extends StatelessWidget {
                       ? Colors.white
                       : Colors.white.withValues(alpha: .18),
                 ),
-                child: Icon(_flowIcons[i],
-                    size: 16, color: i <= step ? tone.first : Colors.white70),
+                child: Icon(flowIcons[i],
+                    size: 16, color: i <= step ? tone.first : Colors.white),
               ),
-              if (i < statusFlow.length - 1)
+              if (i < flow.length - 1)
                 Expanded(
                   child: Container(
                       height: 3,
@@ -223,9 +237,9 @@ class OrderView extends StatelessWidget {
           ]),
           const SizedBox(height: 6),
           Text(
-              step == statusFlow.length - 1
+              step == flow.length - 1
                   ? 'تم تسليم الطلب'
-                  : 'المرحلة التالية: ${statusLabels[statusFlow[step + 1]]}',
+                  : 'المرحلة التالية: ${flowLabel(flow[step + 1])}',
               style: const TextStyle(color: Colors.white, fontSize: 12.5)),
         ],
         const SizedBox(height: 14),
@@ -263,16 +277,46 @@ class OrderView extends StatelessWidget {
         info(Icons.storefront_outlined, 'الملحمة',
             '${o['merchants']?['name'] ?? ''}', G.sapphire),
         if (viewer != 'customer')
-          info(Icons.person_outline, 'العميل',
+          info(
+              Icons.person_outline,
+              'العميل',
               '${o['customer_name'] ?? ''} · ${o['customer_phone'] ?? ''}',
               G.sapphire),
-        info(
-            Icons.delivery_dining_outlined,
-            'المندوب',
-            o['driver_name'] == null
-                ? 'لم يُعيّن بعد'
-                : '${o['driver_name']} · ${o['driver_phone'] ?? ''}',
-            G.sapphire),
+        if (pickup)
+          info(Icons.storefront_outlined, 'طريقة الاستلام',
+              'استلام من المحل، يسلّمه المحل للعميل', G.sapphire)
+        else
+          info(
+              Icons.delivery_dining_outlined,
+              'المندوب',
+              o['driver_name'] == null
+                  ? 'لم يُعيّن بعد'
+                  : '${o['driver_name']} · ${o['driver_phone'] ?? ''}',
+              G.sapphire),
+        if (!pickup && o['driver_assigned_at'] != null && viewer != 'customer')
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(children: [
+              Icon(Icons.timer_outlined, size: 18, color: G.sapphire.first),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                    status == 'delivered'
+                        ? 'مدة التوصيل من قبول المندوب'
+                        : 'الوقت منذ قبول المندوب للطلب',
+                    style:
+                        const TextStyle(fontSize: 13, color: Colors.black54)),
+              ),
+              ElapsedTimer(o['driver_assigned_at'],
+                  end: status == 'delivered'
+                      ? (o['delivered_at'] ?? o['updated_at'])
+                      : null,
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: G.sapphire.first)),
+            ]),
+          ),
       ]),
     );
     final timing = GradientHeaderCard(
@@ -280,10 +324,14 @@ class OrderView extends StatelessWidget {
       icon: Icons.event_available_outlined,
       colors: G.amber,
       child: Column(children: [
-        info(Icons.content_cut, 'موعد الذبح',
+        info(
+            Icons.content_cut,
+            'موعد الذبح',
             '${dateText(o['slaughter_date'])} · ${o['slaughter_time'] ?? ''}',
             G.amber),
-        info(Icons.local_shipping_outlined, 'موعد التوصيل',
+        info(
+            pickup ? Icons.storefront_outlined : Icons.local_shipping_outlined,
+            pickup ? 'موعد الاستلام من المحل' : 'موعد التوصيل',
             '${dateText(o['delivery_date'])} · ${o['delivery_slot'] ?? ''}',
             G.amber),
         info(
@@ -310,8 +358,7 @@ class OrderView extends StatelessWidget {
                   G.emerald.last.withValues(alpha: .12)
                 ])),
             child: Row(children: [
-              GradientBadge(
-                  colors: G.emerald, text: '${it['qty']}×', size: 38),
+              GradientBadge(colors: G.emerald, text: '${it['qty']}×', size: 38),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -353,8 +400,7 @@ class OrderView extends StatelessWidget {
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 color: G.gold.first.withValues(alpha: .08),
-                border:
-                    Border.all(color: G.gold.first.withValues(alpha: .25))),
+                border: Border.all(color: G.gold.first.withValues(alpha: .25))),
             child: Column(children: [
               money('عمولة المنصة على التاجر',
                   '- ${bhd(o['merchant_commission'])}'),
@@ -370,19 +416,20 @@ class OrderView extends StatelessWidget {
       icon: Icons.timeline,
       colors: G.violet,
       child: Column(children: [
-        for (final (i, s) in [...statusFlow, if (cancelled) 'cancelled'].indexed)
+        for (final (i, s) in [...flow, if (cancelled) 'cancelled'].indexed)
           _TimelineRow(
-            label: statusLabels[s] ?? s,
+            label: flowLabel(s),
             time: events.containsKey(s) ? dateTimeText(events[s]) : '',
             done: events.containsKey(s),
             color: s == 'cancelled' ? G.ruby.first : statusColor(s),
-            last: i == statusFlow.length - (cancelled ? 0 : 1),
+            last: i == flow.length - (cancelled ? 0 : 1),
           ),
       ]),
     );
 
     final acts = actions();
-    final buttons = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    final buttons =
+        Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       for (final (s, label) in acts)
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -391,7 +438,8 @@ class OrderView extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(48),
                       foregroundColor: G.ruby.first,
-                      side: BorderSide(color: G.ruby.first.withValues(alpha: .5))),
+                      side: BorderSide(
+                          color: G.ruby.first.withValues(alpha: .5))),
                   onPressed: () => setStatus(context, s),
                   icon: const Icon(Icons.block, size: 18),
                   label: Text(label))
@@ -426,7 +474,10 @@ class OrderView extends StatelessWidget {
       ];
       final right = <Widget>[
         bill,
-        if (viewer == 'admin') ...[gap, AdminOrderTools(order: o, reload: reload)],
+        if (viewer == 'admin') ...[
+          gap,
+          AdminOrderTools(order: o, reload: reload)
+        ],
         if (acts.isNotEmpty) ...[
           gap,
           GradientHeaderCard(
@@ -443,7 +494,8 @@ class OrderView extends StatelessWidget {
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
                 color: G.emerald.first.withValues(alpha: .1),
-                border: Border.all(color: G.emerald.first.withValues(alpha: .3))),
+                border:
+                    Border.all(color: G.emerald.first.withValues(alpha: .3))),
             child: Row(children: [
               Icon(Icons.check_circle, color: G.emerald.first),
               const SizedBox(width: 10),
@@ -487,6 +539,13 @@ class OrderView extends StatelessWidget {
       );
 }
 
+const _pickupIcons = [
+  Icons.receipt_outlined,
+  Icons.thumb_up_alt_outlined,
+  Icons.content_cut,
+  Icons.inventory_2_outlined,
+  Icons.storefront_outlined,
+];
 const _flowIcons = [
   Icons.receipt_outlined,
   Icons.thumb_up_alt_outlined,
@@ -586,30 +645,34 @@ class AdminOrderTools extends StatelessWidget {
           return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                DropdownButtonFormField<String?>(
-                  initialValue: order['driver_id'],
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                      labelText: tr('تعيين مندوب'),
-                      prefixIcon: Icon(Icons.delivery_dining_outlined)),
-                  items: [
-                    const DropdownMenuItem<String?>(
-                        value: null, child: Text('بدون مندوب')),
-                    for (final d in drivers)
-                      DropdownMenuItem<String?>(
-                          value: d['user_id'],
-                          child: Text(
-                              '${d['profiles']?['full_name'] ?? ''} · ${d['profiles']?['phone'] ?? ''}')),
-                  ],
-                  onChanged: (v) async {
-                    await guard(
-                        context,
-                        () => sb.rpc('admin_assign_driver',
-                            params: {'p_order': order['id'], 'p_driver': v}),
-                        ok: 'تم تعيين المندوب');
-                    await reload();
-                  },
-                ),
+                if (order['fulfillment'] == 'pickup')
+                  const Text('استلام من المحل: لا يحتاج مندوباً',
+                      style: TextStyle(color: Colors.black54))
+                else
+                  DropdownButtonFormField<String?>(
+                    initialValue: order['driver_id'],
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                        labelText: tr('تعيين أو تحويل المندوب'),
+                        prefixIcon: Icon(Icons.delivery_dining_outlined)),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                          value: null, child: Text('بدون مندوب')),
+                      for (final d in drivers)
+                        DropdownMenuItem<String?>(
+                            value: d['user_id'],
+                            child: Text(
+                                '${d['profiles']?['full_name'] ?? ''} · ${d['profiles']?['phone'] ?? ''}')),
+                    ],
+                    onChanged: (v) async {
+                      await guard(
+                          context,
+                          () => sb.rpc('admin_assign_driver',
+                              params: {'p_order': order['id'], 'p_driver': v}),
+                          ok: 'تم تعيين المندوب');
+                      await reload();
+                    },
+                  ),
                 const SizedBox(height: 14),
                 const Text('حالة الدفع',
                     style: TextStyle(fontWeight: FontWeight.w700)),

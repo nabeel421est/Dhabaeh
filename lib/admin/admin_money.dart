@@ -549,7 +549,7 @@ class _MerchantDetail extends StatelessWidget {
                                       style: const TextStyle(
                                           fontWeight: FontWeight.w800)),
                                   Text(
-                                      '${dateTimeText(o['created_at'])} · ${statusLabels[o['status']] ?? o['status']}',
+                                      '${dateTimeText(o['created_at'])} · ${statusOf(o)}',
                                       style: const TextStyle(
                                           fontSize: 12, color: Colors.black54)),
                                 ]),
@@ -1679,8 +1679,9 @@ Future<bool> showZoneEditor(
                             controller: country,
                             onChanged: (_) => set(() {}),
                             decoration: deco('الدولة *', Icons.public_outlined),
-                            validator: (v) =>
-                                (v ?? '').trim().isEmpty ? tr('اكتب الدولة') : null,
+                            validator: (v) => (v ?? '').trim().isEmpty
+                                ? tr('اكتب الدولة')
+                                : null,
                           ),
                           bh
                               ? DropdownButtonFormField<String>(

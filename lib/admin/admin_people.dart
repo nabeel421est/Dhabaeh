@@ -405,7 +405,8 @@ Future<void> showEditUser(BuildContext context,
                                     child: Text(m['name']))
                             ],
                             onChanged: (v) => set(() => store[r.key] = v),
-                            validator: (v) => v == null ? tr('اختر المتجر') : null,
+                            validator: (v) =>
+                                v == null ? tr('اختر المتجر') : null,
                           ),
                         ),
                     ],
@@ -636,8 +637,9 @@ Future<void> showAddUser(
                             controller: name,
                             decoration:
                                 deco('الاسم الكامل *', Icons.person_outline),
-                            validator: (v) =>
-                                (v ?? '').trim().isEmpty ? tr('اكتب الاسم') : null,
+                            validator: (v) => (v ?? '').trim().isEmpty
+                                ? tr('اكتب الاسم')
+                                : null,
                           ),
                           const SizedBox(height: 12),
                           TextFormField(

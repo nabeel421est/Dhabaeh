@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart' hide Text;
 import 'package:intl/intl.dart' show NumberFormat, DateFormat;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -232,8 +233,12 @@ class Loader<T> extends StatefulWidget {
       {super.key,
       required this.load,
       required this.builder,
-      this.realtimeTables = const []});
+      this.realtimeTables = const [],
+      this.refreshEvery});
   final Future<T> Function() load;
+
+  /// Reload on a timer too (for data that changes with time, like driver turns).
+  final Duration? refreshEvery;
   final Widget Function(
       BuildContext context, T data, Future<void> Function() reload) builder;
   final List<String> realtimeTables;
@@ -245,11 +250,15 @@ class _LoaderState<T> extends State<Loader<T>> {
   T? data;
   Object? error;
   RealtimeChannel? ch;
+  Timer? tick;
 
   @override
   void initState() {
     super.initState();
     reload();
+    if (widget.refreshEvery != null) {
+      tick = Timer.periodic(widget.refreshEvery!, (_) => reload());
+    }
     if (widget.realtimeTables.isNotEmpty) {
       var c = sb.channel('rt-${identityHashCode(this)}');
       for (final t in widget.realtimeTables) {
@@ -265,6 +274,7 @@ class _LoaderState<T> extends State<Loader<T>> {
 
   @override
   void dispose() {
+    tick?.cancel();
     if (ch != null) sb.removeChannel(ch!);
     super.dispose();
   }
@@ -369,3 +379,58 @@ String mimeOf(String name) {
     _ => 'application/octet-stream',
   };
 }
+
+/// "12:05" or "1:02:05".
+String durationText(Duration d) {
+  if (d.isNegative) d = Duration.zero;
+  String two(int n) => n.toString().padLeft(2, '0');
+  final h = d.inHours, m = d.inMinutes % 60, sec = d.inSeconds % 60;
+  return h > 0 ? '$h:${two(m)}:${two(sec)}' : '${two(m)}:${two(sec)}';
+}
+
+/// A live stopwatch from [start] (stops at [end] when given).
+class ElapsedTimer extends StatefulWidget {
+  const ElapsedTimer(this.start, {super.key, this.end, this.style});
+  final dynamic start;
+  final dynamic end;
+  final TextStyle? style;
+  @override
+  State<ElapsedTimer> createState() => _ElapsedTimerState();
+}
+
+class _ElapsedTimerState extends State<ElapsedTimer> {
+  Timer? t;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.end == null) {
+      t = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    t?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = DateTime.tryParse('${widget.start}')?.toLocal();
+    if (s == null) return const SizedBox.shrink();
+    final e = DateTime.tryParse('${widget.end}')?.toLocal() ?? DateTime.now();
+    return Text(durationText(e.difference(s)),
+        textDirection: TextDirection.ltr,
+        style: widget.style ??
+            const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontFeatures: [FontFeature.tabularFigures()]));
+  }
+}
+
+/// Status label for an order; pickup orders read "ready for pickup".
+String statusOf(Map o) => o['fulfillment'] == 'pickup' && o['status'] == 'ready'
+    ? 'جاهز للاستلام'
+    : statusLabels[o['status']] ?? '${o['status']}';

@@ -13,8 +13,8 @@ class AdminDriverMoney extends StatelessWidget {
 
   List<Color> get tone => fees ? G.emerald : G.amber;
 
-  Future<void> settle(BuildContext context, Map<String, dynamic> d,
-      num max, Future<void> Function() reload) async {
+  Future<void> settle(BuildContext context, Map<String, dynamic> d, num max,
+      Future<void> Function() reload) async {
     final amount = TextEditingController(text: max.toStringAsFixed(3));
     final note = TextEditingController();
     final ok = await showDialog<bool>(
@@ -86,11 +86,11 @@ class AdminDriverMoney extends StatelessWidget {
     await guard(
         context,
         () => sb.rpc(fees ? 'admin_pay_driver_fees' : 'admin_receive_cash',
-            params: {
-              'p_driver': d['driver_id'],
-              'p_amount': num.tryParse(amount.text.trim()) ?? 0,
-              'p_note': note.text.trim(),
-            }),
+                params: {
+                  'p_driver': d['driver_id'],
+                  'p_amount': num.tryParse(amount.text.trim()) ?? 0,
+                  'p_note': note.text.trim(),
+                }),
         ok: fees
             ? 'تم التسليم، وبانتظار تأكيد المندوب'
             : 'تم تسجيل استلام المبلغ');
@@ -123,10 +123,13 @@ class AdminDriverMoney extends StatelessWidget {
         final total = drivers.fold<num>(0, (a, d) => a + avail(d));
         final pending = sets.where((s) => s['status'] == 'pending');
         final done = sets.fold<num>(
-            0, (a, s) => a + (s['status'] == 'confirmed' ? toNum(s['amount']) : 0));
+            0,
+            (a, s) =>
+                a + (s['status'] == 'confirmed' ? toNum(s['amount']) : 0));
         return ListView(padding: const EdgeInsets.all(18), children: [
           PageHero(
-            icon: fees ? Icons.delivery_dining_outlined : Icons.payments_outlined,
+            icon:
+                fees ? Icons.delivery_dining_outlined : Icons.payments_outlined,
             title: fees ? 'رسوم المناديب' : 'مبالغ الدفع عند الاستلام',
             subtitle: fees
                 ? 'سلّم كل مندوب رسوم التوصيل المستحقة له، ويؤكد الاستلام من تطبيقه'
@@ -271,7 +274,8 @@ class _DriverCard extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.all(14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Row(children: [
               _stat(fees ? 'طلبات موصّلة' : 'طلبات نقدية',
                   '${fees ? d['delivered'] : d['cash_orders']}'),
@@ -282,8 +286,8 @@ class _DriverCard extends StatelessWidget {
             FilledButton.icon(
               style: FilledButton.styleFrom(backgroundColor: colors.first),
               onPressed: onSettle,
-              icon: Icon(fees ? Icons.south_west : Icons.call_received,
-                  size: 18),
+              icon:
+                  Icon(fees ? Icons.south_west : Icons.call_received, size: 18),
               label: Text(onSettle == null
                   ? (fees ? 'لا توجد رسوم مستحقة' : 'لا يوجد مبلغ للاستلام')
                   : (fees ? 'تسليم الرسوم' : 'استلام المبلغ')),
