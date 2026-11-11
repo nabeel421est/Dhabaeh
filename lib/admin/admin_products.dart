@@ -581,7 +581,7 @@ Future<bool> showProductEditor(BuildContext context,
       Future<void> cutBackground(Uint8List bytes, String name) async {
         set(() {
           bgBusy = true;
-          bgNote = 'جاري إزالة الخلفية… (أول مرة قد تأخذ دقيقة لتحميل الأداة)';
+          bgNote = 'جاري إزالة الخلفية… (أول مرة قد تأخذ دقيقة أو دقيقتين لتحميل الأداة)';
         });
         final out = await removeImageBackground(bytes, mimeOf(name));
         if (!c.mounted) return;
