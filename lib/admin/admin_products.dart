@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 
 import '../core/brand.dart';
 import '../core/common.dart';
@@ -988,9 +989,9 @@ Future<bool> showProductEditor(BuildContext context,
   final r = await guard(context, () async {
     var url = imageUrl;
     if (image?.bytes != null) {
-      final path =
-          'products/${DateTime.now().millisecondsSinceEpoch}-${image!.name}';
-      await sb.storage.from('media').uploadBinary(path, image!.bytes!);
+      final path = 'products/${safeFileName(image!.name)}';
+      await sb.storage.from('media').uploadBinary(path, image!.bytes!,
+          fileOptions: FileOptions(contentType: mimeOf(image!.name)));
       url = sb.storage.from('media').getPublicUrl(path);
     }
     final row = {

@@ -56,6 +56,7 @@ const paymentStatusLabels = {
   'paid': 'مدفوع',
   'refunded': 'مسترجع'
 };
+
 /// Buy (with cutting options) or reserve (dates only); stored in the first item's options.
 String orderKind(Map o) {
   final items = o['order_items'];
@@ -329,4 +330,38 @@ class Field extends StatelessWidget {
             ? (v) => (v == null || v.trim().isEmpty) ? 'هذا الحقل مطلوب' : null
             : null,
       );
+}
+
+/// A storage-safe file name. Supabase Storage rejects keys with Arabic letters or
+/// spaces, so keep only ASCII letters, digits, dot, dash and underscore, and
+/// always keep a unique stamp plus the original extension.
+String safeFileName(String name) {
+  final dot = name.lastIndexOf('.');
+  final ext = dot < 0
+      ? ''
+      : name
+          .substring(dot + 1)
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]'), '');
+  final base = (dot < 0 ? name : name.substring(0, dot))
+      .replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_')
+      .replaceAll(RegExp(r'_+'), '_')
+      .replaceAll(RegExp(r'^_|_$'), '');
+  final stamp = DateTime.now().microsecondsSinceEpoch;
+  final b =
+      base.isEmpty ? 'file' : (base.length > 40 ? base.substring(0, 40) : base);
+  return ext.isEmpty ? '$stamp-$b' : '$stamp-$b.$ext';
+}
+
+/// Content type for an uploaded file, from its extension.
+String mimeOf(String name) {
+  final e = name.split('.').last.toLowerCase();
+  return switch (e) {
+    'png' => 'image/png',
+    'jpg' || 'jpeg' => 'image/jpeg',
+    'webp' => 'image/webp',
+    'gif' => 'image/gif',
+    'pdf' => 'application/pdf',
+    _ => 'application/octet-stream',
+  };
 }

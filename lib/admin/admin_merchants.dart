@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 
 import '../core/brand.dart';
 import '../core/common.dart';
@@ -382,8 +383,9 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
     setState(() => busy = true);
     final r = await guard(context, () async {
       final stamp = DateTime.now().millisecondsSinceEpoch;
-      final logoPath = 'logos/$stamp-${logo!.name}';
-      await sb.storage.from('media').uploadBinary(logoPath, logo!.bytes!);
+      final logoPath = 'logos/${safeFileName(logo!.name)}';
+      await sb.storage.from('media').uploadBinary(logoPath, logo!.bytes!,
+          fileOptions: FileOptions(contentType: mimeOf(logo!.name)));
       final payload = <String, dynamic>{
         for (final e in c.entries) e.key: e.value.text.trim(),
         'logo_url': sb.storage.from('media').getPublicUrl(logoPath),
@@ -391,8 +393,9 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
       };
       for (final e in docs.entries) {
         if (e.value == null) continue;
-        final path = 'merchants/$stamp/${e.key}-${e.value!.name}';
-        await sb.storage.from('docs').uploadBinary(path, e.value!.bytes!);
+        final path = 'merchants/$stamp/${e.key}-${safeFileName(e.value!.name)}';
+        await sb.storage.from('docs').uploadBinary(path, e.value!.bytes!,
+            fileOptions: FileOptions(contentType: mimeOf(e.value!.name)));
         payload[e.key] = path;
       }
       payload.remove('owner_password');
