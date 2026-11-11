@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' hide Text;
 import '../auth/gate.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/push.dart';
 import 'stores.dart';
 import 'order_details.dart';
 import 'customer_profile.dart';
@@ -52,9 +53,15 @@ class _CustomerShellState extends State<CustomerShell> {
           ...commonActions(context, widget.switcher),
         ],
       ),
-      body: IndexedStack(
-          index: tab,
-          children: const [StoresPage(), MyOrdersPage(), NotificationsPage()]),
+      body: Column(children: [
+        const PushBanner(),
+        Expanded(
+            child: IndexedStack(index: tab, children: const [
+          StoresPage(),
+          MyOrdersPage(),
+          NotificationsPage()
+        ])),
+      ]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
         onDestinationSelected: (i) => setState(() => tab = i),

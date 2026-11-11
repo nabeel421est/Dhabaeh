@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'alert_bridge_stub.dart'
     if (dart.library.js_interop) 'alert_bridge_web.dart';
 import 'common.dart';
+import 'push.dart';
 import 'i18n.dart';
 import 'ttext.dart';
 
@@ -40,7 +41,6 @@ class _OrderAlertWatcherState extends State<OrderAlertWatcher> {
   RealtimeChannel? ch;
   bool showing = false;
   bool checking = false;
-  String perm = alertPermission();
 
   @override
   void initState() {
@@ -87,7 +87,7 @@ class _OrderAlertWatcherState extends State<OrderAlertWatcher> {
         ? '${tr(widget.title)} #${first.code}'
         : '${tr(widget.title)} (${fresh.length})';
     alertPlay();
-    alertNotify(title, tr(first.line));
+    if (!pushOn.value) alertNotify(title, tr(first.line));
     final open = await showGeneralDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -105,35 +105,7 @@ class _OrderAlertWatcherState extends State<OrderAlertWatcher> {
   Widget build(BuildContext context) {
     if (!widget.enabled) return widget.child;
     return Column(children: [
-      if (perm == 'default')
-        Material(
-          color: const Color(0xFFFFF4D6),
-          child: InkWell(
-            onTap: () {
-              alertAsk();
-              Future.delayed(const Duration(seconds: 3), () {
-                if (mounted) setState(() => perm = alertPermission());
-              });
-            },
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              child: Row(children: [
-                Icon(Icons.notifications_active_outlined,
-                    color: Color(0xFF9A6A00)),
-                SizedBox(width: 8),
-                Expanded(
-                    child: Text(
-                        'فعّل تنبيهات الطلبات لتظهر على شاشة الهاتف مع الصوت',
-                        style: TextStyle(
-                            color: Color(0xFF6B4A00),
-                            fontWeight: FontWeight.w600))),
-                Text('تفعيل',
-                    style: TextStyle(
-                        color: Color(0xFF9A6A00), fontWeight: FontWeight.w800)),
-              ]),
-            ),
-          ),
-        ),
+      const PushBanner(),
       Expanded(child: widget.child),
     ]);
   }

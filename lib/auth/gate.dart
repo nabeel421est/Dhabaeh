@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../admin/admin_shell.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/push.dart';
 import '../customer/customer_shell.dart';
 import '../driver/driver_shell.dart';
 import '../merchant/merchant_shell.dart';
@@ -339,7 +340,10 @@ List<Widget> commonActions(BuildContext context, Widget? switcher) => [
               ],
             ),
           );
-          if (ok == true) await sb.auth.signOut();
+          if (ok == true) {
+            await pushSignOut();
+            await sb.auth.signOut();
+          }
         },
       ),
     ];

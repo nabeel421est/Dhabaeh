@@ -1,11 +1,11 @@
 {
-    "name": "dhabaeh",
-    "short_name": "dhabaeh",
+    "name": "ذبائح البحرين",
+    "short_name": "ذبائح البحرين",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#7A1631",
+    "theme_color": "#7A1631",
+    "description": "ذبائح البحرين: اطلب ذبيحتك من الملاحم وتوصلك لباب بيتك",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
@@ -31,5 +31,8 @@
             "type": "image/png",
             "purpose": "maskable"
         }
-    ]
+    ],
+    "lang": "ar",
+    "dir": "rtl",
+    "id": "./"
 }
