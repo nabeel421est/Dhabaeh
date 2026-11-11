@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/ttext.dart';
 
 /// Shared page for the two driver settlements:
 /// cash: the admin receives cash-on-delivery money a driver collected (effective at once);

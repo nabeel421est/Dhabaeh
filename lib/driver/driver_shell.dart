@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import 'package:latlong2/latlong.dart';
 
@@ -6,6 +6,8 @@ import '../auth/gate.dart';
 import '../core/address_map.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 const driverKindLabels = {
   'cash_collected': 'تحصيل نقدي',
@@ -42,11 +44,11 @@ class _DriverShellState extends State<DriverShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
         onDestinationSelected: (i) => setState(() => tab = i),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-              icon: Icon(Icons.inbox_outlined), label: 'المتاحة'),
+              icon: Icon(Icons.inbox_outlined), label: tr('المتاحة')),
           NavigationDestination(
-              icon: Icon(Icons.local_shipping_outlined), label: 'طلباتي'),
+              icon: Icon(Icons.local_shipping_outlined), label: tr('طلباتي')),
         ],
       ),
     );

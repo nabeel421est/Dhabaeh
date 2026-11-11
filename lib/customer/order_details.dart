@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 /// Order details shared by every role. [viewer] decides which actions show:
 /// customer, merchant, driver or admin.
@@ -587,8 +589,8 @@ class AdminOrderTools extends StatelessWidget {
                 DropdownButtonFormField<String?>(
                   initialValue: order['driver_id'],
                   isExpanded: true,
-                  decoration: const InputDecoration(
-                      labelText: 'تعيين مندوب',
+                  decoration: InputDecoration(
+                      labelText: tr('تعيين مندوب'),
                       prefixIcon: Icon(Icons.delivery_dining_outlined)),
                   items: [
                     const DropdownMenuItem<String?>(

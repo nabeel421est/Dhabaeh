@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 
@@ -10,6 +10,8 @@ import '../core/brand.dart';
 import '../core/common.dart';
 import '../customer/customer_shell.dart' show StoreLogo;
 import 'admin_money.dart' show reportGradients;
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 /// Every merchant's products in one grid. Each store has its own colour, a filter pill,
 /// and the search matches product name, category or store name.
@@ -94,9 +96,9 @@ class _AdminProductsState extends State<AdminProducts> {
           Row(children: [
             Expanded(
               child: TextField(
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                     prefixIcon: Icon(Icons.search),
-                    hintText: 'ابحث عن صنف أو متجر، مثل: نعيمي أو مسلخ الواحة'),
+                    hintText: tr('ابحث عن صنف أو متجر، مثل: نعيمي أو مسلخ الواحة')),
                 onChanged: (v) => setState(() => search = v),
               ),
             ),
@@ -535,7 +537,7 @@ class ProductManageTile extends StatelessWidget {
             if (onDelete != null) ...[
               const SizedBox(width: 8),
               Tooltip(
-                message: 'حذف',
+                message: tr('حذف'),
                 child: InkWell(
                   onTap: onDelete,
                   borderRadius: BorderRadius.circular(12),
@@ -611,10 +613,10 @@ Future<bool> showProductEditor(BuildContext context,
       InputDecoration deco(String label, IconData icon,
               {String? suffix, String? hint}) =>
           InputDecoration(
-            labelText: label,
-            hintText: hint,
+            labelText: tr(label),
+            hintText: tr(hint),
             prefixIcon: Icon(icon, color: colors.first),
-            suffixText: suffix,
+            suffixText: tr(suffix),
             filled: true,
             fillColor: colors.first.withValues(alpha: .04),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -798,7 +800,7 @@ Future<bool> showProductEditor(BuildContext context,
                           ],
                           onChanged:
                               p == null ? (v) => set(() => mid = v) : null,
-                          validator: (v) => v == null ? 'اختر المتجر' : null,
+                          validator: (v) => v == null ? tr('اختر المتجر') : null,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -808,7 +810,7 @@ Future<bool> showProductEditor(BuildContext context,
                               'اسم المنتج *', Icons.set_meal_outlined,
                               hint: 'مثال: خروف نعيمي'),
                           validator: (v) => (v ?? '').trim().isEmpty
-                              ? 'اكتب اسم المنتج'
+                              ? tr('اكتب اسم المنتج')
                               : null,
                         ),
                         const SizedBox(height: 12),
@@ -868,7 +870,7 @@ Future<bool> showProductEditor(BuildContext context,
                                   textDirection: TextDirection.ltr,
                                   decoration: deco('رقم الصنف (تلقائي)',
                                           Icons.qr_code_2_outlined)
-                                      .copyWith(hintText: 'يُولّد عند الحفظ'),
+                                      .copyWith(hintText: tr('يُولّد عند الحفظ')),
                                 ),
                               ),
                             ]);
@@ -938,7 +940,7 @@ Future<bool> showProductEditor(BuildContext context,
                           decoration:
                               deco('التصنيف *', Icons.category_outlined),
                           validator: (v) =>
-                              (v ?? '').trim().isEmpty ? 'اكتب التصنيف' : null,
+                              (v ?? '').trim().isEmpty ? tr('اكتب التصنيف') : null,
                         ),
                         const SizedBox(height: 8),
                         Wrap(spacing: 6, runSpacing: 6, children: [
@@ -1331,7 +1333,7 @@ class _UnitEditor extends StatelessWidget {
             ]),
           ),
           IconButton(
-            tooltip: 'حذف الوحدة',
+            tooltip: tr('حذف الوحدة'),
             onPressed: onDelete,
             icon: Icon(Icons.delete_outline, color: G.ruby.first),
           ),
@@ -1349,8 +1351,8 @@ class _UnitEditor extends StatelessWidget {
                 decoration: deco('اسم الوحدة *', Icons.straighten_outlined),
                 validator: (v) {
                   final t = (v ?? '').trim();
-                  if (t.isEmpty) return 'اكتب اسم الوحدة';
-                  if (taken.contains(t)) return 'الوحدة مكررة';
+                  if (t.isEmpty) return tr('اكتب اسم الوحدة');
+                  if (taken.contains(t)) return tr('الوحدة مكررة');
                   return null;
                 },
               ),
@@ -1374,7 +1376,7 @@ class _UnitEditor extends StatelessWidget {
                 readOnly: true,
                 textDirection: TextDirection.ltr,
                 decoration: deco('رقم الصنف (تلقائي)', Icons.qr_code_2_outlined)
-                    .copyWith(hintText: 'يُولّد عند الحفظ'),
+                    .copyWith(hintText: tr('يُولّد عند الحفظ')),
               ),
             ),
           ]);

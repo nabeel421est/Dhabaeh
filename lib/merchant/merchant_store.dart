@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 const planRank = {'trial': 0, 'monthly': 1, 'yearly': 2};
 const planLook = <String, (IconData, List<Color>)>{
@@ -756,7 +758,7 @@ class _PlanPaymentPageState extends State<PlanPaymentPage> {
                           ),
                           if (iban.isNotEmpty)
                             IconButton(
-                              tooltip: 'نسخ',
+                              tooltip: tr('نسخ'),
                               icon: const Icon(Icons.copy_outlined),
                               onPressed: () {
                                 Clipboard.setData(ClipboardData(text: iban));

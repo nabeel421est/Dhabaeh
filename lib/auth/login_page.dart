@@ -1,9 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../core/brand.dart';
 import '../core/common.dart';
 import '../core/config.dart';
 import 'signup_page.dart';
+import '../core/ttext.dart';
+import '../core/lang_button.dart';
+import '../core/i18n.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -34,7 +37,8 @@ class _LoginPageState extends State<LoginPage> {
     final b = brands['login']!;
     return Scaffold(
       body: AuthBackdrop(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           const AuthEmblem(),
           const SizedBox(height: 26),
           AuthCard(
@@ -54,10 +58,10 @@ class _LoginPageState extends State<LoginPage> {
                       controller: pass,
                       obscureText: hide,
                       decoration: InputDecoration(
-                        labelText: 'كلمة المرور',
+                        labelText: tr('كلمة المرور'),
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
-                          tooltip: hide ? 'إظهار' : 'إخفاء',
+                          tooltip: tr(hide ? 'إظهار' : 'إخفاء'),
                           icon: Icon(hide
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined),
@@ -66,7 +70,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       validator: (v) => (v ?? '').length >= 6
                           ? null
-                          : 'كلمة المرور 6 أحرف على الأقل',
+                          : tr('كلمة المرور 6 أحرف على الأقل'),
                       onFieldSubmitted: (_) => submit(),
                     ),
                     const SizedBox(height: 22),
@@ -98,8 +102,10 @@ class _LoginPageState extends State<LoginPage> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
                       ),
-                      onPressed: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const SignupPage())),
+                      onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const SignupPage())),
                       icon: const Icon(Icons.person_add_alt_1_outlined),
                       label: const Text('سجّل حساب جديد',
                           style: TextStyle(fontWeight: FontWeight.w700)),
@@ -163,6 +169,12 @@ class AuthBackdrop extends StatelessWidget {
             ),
           ),
         ),
+        const PositionedDirectional(
+            top: 0,
+            end: 0,
+            child: SafeArea(
+                child:
+                    Padding(padding: EdgeInsets.all(12), child: LangButton()))),
       ]),
     );
   }
@@ -204,9 +216,9 @@ class AuthEmblem extends StatelessWidget {
       ),
       SizedBox(height: compact ? 8 : 14),
       ShaderMask(
-        shaderCallback: (r) => LinearGradient(
-                colors: [Colors.white, b.accent, Colors.white])
-            .createShader(r),
+        shaderCallback: (r) =>
+            LinearGradient(colors: [Colors.white, b.accent, Colors.white])
+                .createShader(r),
         child: Text('ذبائح البحرين',
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -303,14 +315,14 @@ class PhoneField extends StatelessWidget {
         keyboardType: TextInputType.phone,
         textDirection: TextDirection.ltr,
         decoration: InputDecoration(
-            labelText: required ? 'رقم الجوال *' : 'رقم الجوال',
+            labelText: tr(required ? 'رقم الجوال *' : 'رقم الجوال'),
             prefixIcon: const Icon(Icons.phone_iphone),
             suffix: const Text('+973',
                 textDirection: TextDirection.ltr,
                 style: TextStyle(color: Colors.black54)),
-            hintText: '3XXX XXXX'),
+            hintText: tr('3XXX XXXX')),
         validator: (v) =>
-            normPhone(v ?? '').length == 8 ? null : 'رقم الجوال 8 أرقام',
+            normPhone(v ?? '').length == 8 ? null : tr('رقم الجوال 8 أرقام'),
       );
 }
 

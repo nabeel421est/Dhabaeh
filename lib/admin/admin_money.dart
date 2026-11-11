@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -7,6 +7,8 @@ import '../core/brand.dart';
 import '../core/common.dart';
 import '../customer/customer_shell.dart' show StoreLogo;
 import 'admin_plan_requests.dart';
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 /// Gradient pairs used to tell merchants apart in the reports, in rank order.
 const reportGradients = <List<Color>>[
@@ -103,7 +105,7 @@ class _AdminReportsState extends State<AdminReports> {
                     controller: searchCtrl,
                     decoration: InputDecoration(
                       prefixIcon: Icon(Icons.search, color: G.violet.first),
-                      hintText: 'ابحث عن تاجر بالاسم، مثل: مسلخ الواحة',
+                      hintText: tr('ابحث عن تاجر بالاسم، مثل: مسلخ الواحة'),
                       filled: true,
                       fillColor: Colors.white,
                       suffixIcon: search.isEmpty
@@ -1551,9 +1553,9 @@ Future<bool> showZoneEditor(
           : <String>[];
       InputDecoration deco(String label, IconData icon, {String? suffix}) =>
           InputDecoration(
-            labelText: label,
+            labelText: tr(label),
             prefixIcon: Icon(icon, color: colors.first),
-            suffixText: suffix,
+            suffixText: tr(suffix),
             filled: true,
             fillColor: colors.first.withValues(alpha: .04),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -1678,7 +1680,7 @@ Future<bool> showZoneEditor(
                             onChanged: (_) => set(() {}),
                             decoration: deco('الدولة *', Icons.public_outlined),
                             validator: (v) =>
-                                (v ?? '').trim().isEmpty ? 'اكتب الدولة' : null,
+                                (v ?? '').trim().isEmpty ? tr('اكتب الدولة') : null,
                           ),
                           bh
                               ? DropdownButtonFormField<String>(
@@ -1695,7 +1697,7 @@ Future<bool> showZoneEditor(
                                   ],
                                   onChanged: (v) => set(() => gov = v),
                                   validator: (v) =>
-                                      v == null ? 'اختر المحافظة' : null,
+                                      v == null ? tr('اختر المحافظة') : null,
                                 )
                               : TextFormField(
                                   controller: govCtrl,
@@ -1703,7 +1705,7 @@ Future<bool> showZoneEditor(
                                   decoration: deco('المحافظة *',
                                       Icons.location_city_outlined),
                                   validator: (v) => (v ?? '').trim().isEmpty
-                                      ? 'اكتب المحافظة'
+                                      ? tr('اكتب المحافظة')
                                       : null,
                                 ),
                         ]),
@@ -1715,7 +1717,7 @@ Future<bool> showZoneEditor(
                           decoration:
                               deco('المدينة *', Icons.apartment_outlined),
                           validator: (v) => (v ?? '').trim().isEmpty
-                              ? 'اختر أو اكتب المدينة'
+                              ? tr('اختر أو اكتب المدينة')
                               : null,
                         ),
                         if (cities.isNotEmpty) ...[
@@ -1738,7 +1740,7 @@ Future<bool> showZoneEditor(
                             decoration: deco('اسم المنطقة كما يراه العميل *',
                                 Icons.place_outlined),
                             validator: (v) => (v ?? '').trim().isEmpty
-                                ? 'اكتب اسم المنطقة'
+                                ? tr('اكتب اسم المنطقة')
                                 : null,
                           ),
                           TextFormField(
@@ -1751,7 +1753,7 @@ Future<bool> showZoneEditor(
                                 suffix: ' د.ب '),
                             validator: (v) =>
                                 num.tryParse((v ?? '').trim()) == null
-                                    ? 'اكتب الرسوم'
+                                    ? tr('اكتب الرسوم')
                                     : null,
                           ),
                         ]),

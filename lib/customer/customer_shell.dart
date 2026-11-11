@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../auth/gate.dart';
 import '../core/brand.dart';
@@ -6,6 +6,8 @@ import '../core/common.dart';
 import 'stores.dart';
 import 'order_details.dart';
 import 'customer_profile.dart';
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 class CustomerShell extends StatefulWidget {
   const CustomerShell({super.key, required this.profile, this.switcher});
@@ -30,7 +32,7 @@ class _CustomerShellState extends State<CustomerShell> {
           Padding(
             padding: const EdgeInsetsDirectional.only(end: 4),
             child: IconButton(
-              tooltip: 'معلوماتي',
+              tooltip: tr('معلوماتي'),
               onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -56,13 +58,13 @@ class _CustomerShellState extends State<CustomerShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
         onDestinationSelected: (i) => setState(() => tab = i),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-              icon: Icon(Icons.storefront_outlined), label: 'الملاحم'),
+              icon: Icon(Icons.storefront_outlined), label: tr('الملاحم')),
           NavigationDestination(
-              icon: Icon(Icons.receipt_long_outlined), label: 'طلباتي'),
+              icon: Icon(Icons.receipt_long_outlined), label: tr('طلباتي')),
           NavigationDestination(
-              icon: Icon(Icons.notifications_outlined), label: 'الإشعارات'),
+              icon: Icon(Icons.notifications_outlined), label: tr('الإشعارات')),
         ],
       ),
     );

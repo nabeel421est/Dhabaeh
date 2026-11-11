@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import 'package:latlong2/latlong.dart';
 
 import '../core/address_map.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 typedef _ProfileData = (
   Map<String, dynamic>?,
@@ -104,13 +106,17 @@ class _ProfileFormState extends State<_ProfileForm> {
     setState(() => locating = true);
     final r = await geocodeBahrain(
         building: house.text.trim(),
-        block: block.text.trim(), road: road.text.trim(), area: area, city: city);
+        block: block.text.trim(),
+        road: road.text.trim(),
+        area: area,
+        city: city);
     if (!mounted) return;
     setState(() {
       locating = false;
       if (r != null) pin = r;
     });
-    if (r == null) toast(context, 'ما قدرنا نحدد العنوان، اضغط على الخريطة', error: true);
+    if (r == null)
+      toast(context, 'ما قدرنا نحدد العنوان، اضغط على الخريطة', error: true);
   }
 
   Future<void> save() async {
@@ -182,11 +188,8 @@ class _ProfileFormState extends State<_ProfileForm> {
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: LinearGradient(colors: [
-                              b.accent,
-                              Colors.white,
-                              b.accent
-                            ])),
+                            gradient: LinearGradient(
+                                colors: [b.accent, Colors.white, b.accent])),
                         child: CircleAvatar(
                           radius: 40,
                           backgroundColor: b.dark,
@@ -252,9 +255,9 @@ class _ProfileFormState extends State<_ProfileForm> {
                             TextFormField(
                               controller: name,
                               decoration:
-                                  const InputDecoration(labelText: 'الاسم *'),
+                                  InputDecoration(labelText: tr('الاسم *')),
                               validator: (v) => (v ?? '').trim().isEmpty
-                                  ? 'اكتب اسمك'
+                                  ? tr('اكتب اسمك')
                                   : null,
                             ),
                             const SizedBox(height: 10),
@@ -262,24 +265,25 @@ class _ProfileFormState extends State<_ProfileForm> {
                               initialValue: phone,
                               enabled: false,
                               textDirection: TextDirection.ltr,
-                              decoration: const InputDecoration(
-                                  labelText: 'رقم الهاتف',
+                              decoration: InputDecoration(
+                                  labelText: tr('رقم الهاتف'),
                                   prefixIcon: Icon(Icons.lock_outline),
-                                  helperText:
-                                      'رقم الهاتف هو اسم الدخول، ولتغييره تواصل مع الإدارة'),
+                                  helperText: tr(
+                                      'رقم الهاتف هو اسم الدخول، ولتغييره تواصل مع الإدارة')),
                             ),
                             const SizedBox(height: 10),
                             TextFormField(
                               controller: cpr,
                               keyboardType: TextInputType.number,
                               textDirection: TextDirection.ltr,
-                              decoration: const InputDecoration(
-                                  labelText: 'الرقم الشخصي'),
+                              decoration: InputDecoration(
+                                  labelText: tr('الرقم الشخصي')),
                               validator: (v) {
-                                final d = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                                final d =
+                                    (v ?? '').replaceAll(RegExp(r'\D'), '');
                                 return d.isEmpty || d.length == 9
                                     ? null
-                                    : 'الرقم الشخصي 9 أرقام';
+                                    : tr('الرقم الشخصي 9 أرقام');
                               },
                             ),
                             const SizedBox(height: 10),
@@ -287,15 +291,16 @@ class _ProfileFormState extends State<_ProfileForm> {
                               controller: email,
                               keyboardType: TextInputType.emailAddress,
                               textDirection: TextDirection.ltr,
-                              decoration: const InputDecoration(
-                                  labelText: 'البريد الإلكتروني'),
+                              decoration: InputDecoration(
+                                  labelText: tr('البريد الإلكتروني')),
                             ),
                             const SizedBox(height: 10),
                             DropdownButtonFormField<String>(
-                              initialValue: bahrainCities.contains(city) ? city : null,
+                              initialValue:
+                                  bahrainCities.contains(city) ? city : null,
                               isExpanded: true,
                               decoration:
-                                  const InputDecoration(labelText: 'المدينة'),
+                                  InputDecoration(labelText: tr('المدينة')),
                               items: [
                                 for (final c in bahrainCities)
                                   DropdownMenuItem(value: c, child: Text(c)),
@@ -304,10 +309,9 @@ class _ProfileFormState extends State<_ProfileForm> {
                             ),
                             const SizedBox(height: 10),
                             DropdownButtonFormField<String>(
-                              initialValue:
-                                  zones.contains(area) ? area : null,
+                              initialValue: zones.contains(area) ? area : null,
                               decoration:
-                                  const InputDecoration(labelText: 'المنطقة'),
+                                  InputDecoration(labelText: tr('المنطقة')),
                               items: [
                                 for (final z in zones)
                                   DropdownMenuItem(value: z, child: Text(z)),
@@ -327,10 +331,17 @@ class _ProfileFormState extends State<_ProfileForm> {
                             _row(Icons.alternate_email, 'البريد الإلكتروني',
                                 email.text.isEmpty ? '-' : email.text, G.violet,
                                 ltr: true),
-                            _row(Icons.location_city_outlined, 'المدينة والمنطقة',
-                                [city, area].where((x) => (x ?? '').isNotEmpty).join(' · ').isEmpty
+                            _row(
+                                Icons.location_city_outlined,
+                                'المدينة والمنطقة',
+                                [city, area]
+                                        .where((x) => (x ?? '').isNotEmpty)
+                                        .join(' · ')
+                                        .isEmpty
                                     ? '-'
-                                    : [city, area].where((x) => (x ?? '').isNotEmpty).join(' · '),
+                                    : [city, area]
+                                        .where((x) => (x ?? '').isNotEmpty)
+                                        .join(' · '),
                                 G.violet),
                           ]),
                   ),
@@ -373,7 +384,8 @@ class _ProfileFormState extends State<_ProfileForm> {
                                           setState(() => locating = true);
                                           try {
                                             final p = await currentLocation();
-                                            if (mounted) setState(() => pin = p);
+                                            if (mounted)
+                                              setState(() => pin = p);
                                           } catch (e) {
                                             if (context.mounted) {
                                               toast(context, errText(e),
@@ -410,8 +422,12 @@ class _ProfileFormState extends State<_ProfileForm> {
                                     fontSize: 12, color: Colors.black54)),
                           ])
                         : Column(children: [
-                            _row(Icons.signpost_outlined, 'العنوان',
-                                addressText.isEmpty ? 'لم يُحفظ بعد' : addressText,
+                            _row(
+                                Icons.signpost_outlined,
+                                'العنوان',
+                                addressText.isEmpty
+                                    ? 'لم يُحفظ بعد'
+                                    : addressText,
                                 G.teal),
                             if ('${addr?['note'] ?? ''}'.isNotEmpty)
                               _row(Icons.sticky_note_2_outlined, 'ملاحظة',
@@ -466,6 +482,7 @@ class _ProfileFormState extends State<_ProfileForm> {
                 ]),
           ),
         ),
+        const _SupportCard(),
       ]),
     );
   }
@@ -512,18 +529,67 @@ class _ProfileFormState extends State<_ProfileForm> {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(k,
-                      style:
-                          const TextStyle(fontSize: 12, color: Colors.black54)),
-                  Text(v,
-                      textDirection: ltr ? TextDirection.ltr : null,
-                      style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w600)),
-                ]),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(k,
+                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              Text(v,
+                  textDirection: ltr ? TextDirection.ltr : null,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w600)),
+            ]),
           ),
         ]),
+      );
+}
+
+/// Support phone and WhatsApp set by the admin in Settings.
+class _SupportCard extends StatelessWidget {
+  const _SupportCard();
+  @override
+  Widget build(BuildContext context) => FutureBuilder(
+        future: sb
+            .from('platform_settings')
+            .select('support_phone, support_whatsapp')
+            .eq('id', 1)
+            .maybeSingle(),
+        builder: (context, snap) {
+          final s = snap.data;
+          final phone = '${s?['support_phone'] ?? ''}';
+          final whats = '${s?['support_whatsapp'] ?? ''}';
+          if (phone.isEmpty && whats.isEmpty) return const SizedBox.shrink();
+          Widget row(IconData i, String label, String v) => Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(children: [
+                  Icon(i, size: 18, color: G.violet.first),
+                  const SizedBox(width: 8),
+                  Text(label, style: const TextStyle(color: Colors.black54)),
+                  const Spacer(),
+                  SelectableText(v,
+                      textDirection: TextDirection.ltr,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                ]),
+              );
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: GradientHeaderCard(
+                  title: 'التواصل والدعم',
+                  subtitle: 'فريق ذبائح البحرين في خدمتك',
+                  icon: Icons.support_agent_outlined,
+                  colors: G.violet,
+                  child: Column(children: [
+                    if (phone.isNotEmpty)
+                      row(Icons.call_outlined, 'هاتف الدعم', phone),
+                    if (whats.isNotEmpty)
+                      row(Icons.chat_outlined, 'واتساب الدعم', whats),
+                  ]),
+                ),
+              ),
+            ),
+          );
+        },
       );
 }

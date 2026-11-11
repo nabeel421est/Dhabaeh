@@ -1,12 +1,15 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:intl/intl.dart' show NumberFormat, DateFormat;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'ttext.dart';
+import 'i18n.dart';
 
 SupabaseClient get sb => Supabase.instance.client;
 String? get myId => sb.auth.currentUser?.id;
 
 final _money = NumberFormat('#,##0.000', 'en');
-String bhd(dynamic v) => '${_money.format(num.tryParse('${v ?? 0}') ?? 0)} د.ب';
+String bhd(dynamic v) =>
+    '${_money.format(num.tryParse('${v ?? 0}') ?? 0)} ${tr('د.ب')}';
 num toNum(dynamic v) => num.tryParse('${v ?? 0}') ?? 0;
 String dateText(dynamic v) {
   if (v == null) return '';
@@ -322,12 +325,13 @@ class Field extends StatelessWidget {
         maxLines: maxLines,
         textDirection: ltr ? TextDirection.ltr : null,
         decoration: InputDecoration(
-          labelText: required ? '$label *' : label,
-          hintText: hint,
-          helperText: note,
+          labelText: tr(required ? '$label *' : label),
+          hintText: tr(hint),
+          helperText: tr(note),
         ),
         validator: required
-            ? (v) => (v == null || v.trim().isEmpty) ? 'هذا الحقل مطلوب' : null
+            ? (v) =>
+                (v == null || v.trim().isEmpty) ? tr('هذا الحقل مطلوب') : null
             : null,
       );
 }

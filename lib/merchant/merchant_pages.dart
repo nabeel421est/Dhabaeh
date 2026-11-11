@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../admin/admin_products.dart' show ProductManageTile;
 import '../core/brand.dart';
 import '../core/common.dart';
 import '../customer/order_details.dart';
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 int gridCols(double w, double cell, {int min = 1, int max = 4}) =>
     (w / cell).floor().clamp(min, max);
@@ -76,9 +78,9 @@ class _MerchantOrdersState extends State<MerchantOrders> {
           ),
           const SizedBox(height: 14),
           TextField(
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
                 prefixIcon: Icon(Icons.search),
-                hintText: 'ابحث برقم الطلب أو اسم العميل أو الصنف'),
+                hintText: tr('ابحث برقم الطلب أو اسم العميل أو الصنف')),
             onChanged: (v) => setState(() => search = v),
           ),
           const SizedBox(height: 12),
@@ -377,9 +379,9 @@ class _MerchantProductsState extends State<MerchantProducts> {
           ),
           const SizedBox(height: 14),
           TextField(
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
                 prefixIcon: Icon(Icons.search),
-                hintText: 'ابحث عن صنف، مثل: نعيمي'),
+                hintText: tr('ابحث عن صنف، مثل: نعيمي')),
             onChanged: (v) => setState(() => search = v),
           ),
           const SizedBox(height: 12),
@@ -514,7 +516,7 @@ class MerchantOffers extends StatelessWidget {
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String?>(
                   initialValue: productId,
-                  decoration: const InputDecoration(labelText: 'المنتج'),
+                  decoration: InputDecoration(labelText: tr('المنتج')),
                   items: [
                     const DropdownMenuItem<String?>(
                         value: null, child: Text('كل المنتجات')),

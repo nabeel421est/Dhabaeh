@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../auth/gate.dart';
 import '../core/brand.dart';
@@ -7,6 +7,8 @@ import '../core/payouts.dart';
 import '../admin/admin_money.dart' show Kpi;
 import 'merchant_pages.dart';
 import 'merchant_store.dart';
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 class MerchantShell extends StatefulWidget {
   const MerchantShell(
@@ -149,7 +151,7 @@ class _MerchantShellState extends State<MerchantShell> {
                   onDestinationSelected: (i) => setState(() => tab = i),
                   destinations: [
                     for (final t in tabs)
-                      NavigationDestination(icon: Icon(t.$2), label: t.$1)
+                      NavigationDestination(icon: Icon(t.$2), label: tr(t.$1))
                   ],
                 ),
         );
@@ -561,7 +563,7 @@ class MerchantStaffTab extends StatelessWidget {
                               .map((e) => e.value)
                               .join('، ')),
                           trailing: IconButton(
-                            tooltip: 'إزالة',
+                            tooltip: tr('إزالة'),
                             icon: const Icon(Icons.person_remove_outlined),
                             onPressed: () async {
                               await guard(

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../auth/gate.dart';
 import '../core/brand.dart';
@@ -10,6 +10,8 @@ import 'admin_money.dart';
 import 'admin_payouts.dart';
 import 'admin_people.dart';
 import 'admin_products.dart';
+import '../core/ttext.dart';
+import 'admin_settings.dart';
 
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key, required this.profile, this.switcher});
@@ -39,6 +41,7 @@ class _AdminShellState extends State<AdminShell> {
     ('العمولات', Icons.percent, 'الإدارة العامة'),
     ('التوصيل', Icons.map_outlined, 'الإدارة العامة'),
     ('مستخدمو المنصة', Icons.admin_panel_settings_outlined, 'الإدارة العامة'),
+    ('الإعدادات', Icons.settings_outlined, 'الإدارة العامة'),
   ];
 
   Widget page(int i) => switch (sections[i].$1) {
@@ -59,6 +62,7 @@ class _AdminShellState extends State<AdminShell> {
         'الاشتراكات' => const AdminPlans(),
         'العمولات' => const AdminCommissions(),
         'التوصيل' => const AdminZones(),
+        'الإعدادات' => const AdminSettings(),
         _ => const AdminUsers(group: UserGroup.platform),
       };
 

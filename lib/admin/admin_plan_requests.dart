@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/ttext.dart';
 import '../merchant/merchant_store.dart'
     show planLook, planReqLabels, planReqColors;
 

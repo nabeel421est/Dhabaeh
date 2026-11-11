@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../admin/admin_shell.dart';
@@ -10,6 +10,9 @@ import '../customer/customer_shell.dart';
 import '../driver/driver_shell.dart';
 import '../merchant/merchant_shell.dart';
 import 'login_page.dart';
+import '../core/ttext.dart';
+import '../core/lang_button.dart';
+import '../core/i18n.dart';
 
 /// One login for everyone. After sign-in the account's roles decide which app opens:
 /// admin > merchant owner > merchant staff > driver > customer.
@@ -79,6 +82,7 @@ class _AuthGateState extends State<AuthGate> {
       await sb.auth.signOut();
       throw Exception('هذا الحساب موقوف، تواصل مع الإدارة');
     }
+    await loadUserLanguage();
     final s = Session(List<Map<String, dynamic>>.from(roles), profile);
     // Switch the look before the app opens, so the first frame already has its identity.
     activeBrand.value = brands[s.available.first] ?? brands['customer']!;
@@ -156,7 +160,6 @@ void useBrand(String key) {
     WidgetsBinding.instance.addPostFrameCallback((_) => activeBrand.value = b);
 }
 
-
 /// Switches between the apps an account can open, shown as gradient role cards.
 class RoleSwitcher extends StatelessWidget {
   const RoleSwitcher(
@@ -172,7 +175,7 @@ class RoleSwitcher extends StatelessWidget {
   Widget build(BuildContext context) {
     final cur = roleGradients[current] ?? G.violet;
     return PopupMenuButton<String>(
-      tooltip: 'التبديل بين صلاحيات الحساب',
+      tooltip: tr('التبديل بين صلاحيات الحساب'),
       onSelected: onPick,
       offset: const Offset(0, 52),
       color: Colors.white,
@@ -259,7 +262,8 @@ class _RoleTile extends StatelessWidget {
                 g.last.withValues(alpha: .12)
               ]),
         border: Border.all(
-            color: selected ? Colors.transparent : g.first.withValues(alpha: .18)),
+            color:
+                selected ? Colors.transparent : g.first.withValues(alpha: .18)),
         boxShadow: selected
             ? [
                 BoxShadow(
@@ -315,9 +319,10 @@ class _RoleTile extends StatelessWidget {
 
 /// Shared app-bar actions: role switcher (if any) and sign out.
 List<Widget> commonActions(BuildContext context, Widget? switcher) => [
+      const LangButton(),
       if (switcher != null) switcher,
       IconButton(
-        tooltip: 'تسجيل الخروج',
+        tooltip: tr('تسجيل الخروج'),
         icon: const Icon(Icons.logout),
         onPressed: () async {
           final ok = await showDialog<bool>(

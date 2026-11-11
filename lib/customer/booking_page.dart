@@ -1,10 +1,12 @@
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../core/brand.dart';
 import '../core/common.dart';
 import 'order_details.dart';
 import 'stores.dart' show offerValue;
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 const slaughterTimes = ['7:00 ص', '9:00 ص', '11:00 ص', '1:00 م', '4:00 م'];
 const deliverySlots = [
@@ -883,7 +885,7 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           DropdownButtonFormField<String>(
             initialValue: d.zoneId,
-            decoration: const InputDecoration(labelText: 'المنطقة *'),
+            decoration: InputDecoration(labelText: tr('المنطقة *')),
             items: [
               for (final z in zones)
                 DropdownMenuItem(
@@ -923,8 +925,20 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
           LayoutBuilder(builder: (context, c) {
             final cols = c.maxWidth >= 480 ? 3 : 1;
             final w = (c.maxWidth - 8 * (cols - 1)) / cols;
+            // Methods the admin turned off in Settings are not offered.
+            final allowed = {
+              'benefitpay': settings['allow_benefitpay'] != false,
+              'bank_transfer': settings['allow_bank_transfer'] != false,
+              'cash': settings['allow_cod'] != false,
+            };
+            final methods = paymentLabels.entries
+                .where((m) => allowed[m.key] ?? true)
+                .toList();
+            if (methods.isNotEmpty && !methods.any((m) => m.key == d.payment)) {
+              d.payment = methods.first.key;
+            }
             return Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final m in paymentLabels.entries)
+              for (final m in methods)
                 SizedBox(
                   width: w,
                   child: _PayTile(

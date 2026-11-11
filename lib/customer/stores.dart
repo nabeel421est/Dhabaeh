@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../core/brand.dart';
 import '../core/common.dart';
 import 'booking_page.dart';
 import 'customer_shell.dart' show StoreLogo;
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 /// Store colours: each butcher shop keeps its own gradient everywhere in the customer app.
 const storeTones = [
@@ -123,9 +125,9 @@ class _StoresPageState extends State<StoresPage> {
           ),
           const SizedBox(height: 14),
           TextField(
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
                 prefixIcon: Icon(Icons.search),
-                hintText: 'ابحث عن ملحمة أو صنف أو منطقة'),
+                hintText: tr('ابحث عن ملحمة أو صنف أو منطقة')),
             onChanged: (v) => setState(() => search = v),
           ),
           const SizedBox(height: 12),
@@ -690,9 +692,9 @@ class _StorePageState extends State<StorePage> {
             ],
             const SizedBox(height: 14),
             TextField(
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                   prefixIcon: Icon(Icons.search),
-                  hintText: 'ابحث في أصناف الملحمة'),
+                  hintText: tr('ابحث في أصناف الملحمة')),
               onChanged: (v) => setState(() => search = v),
             ),
             const SizedBox(height: 10),

@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import 'brand.dart';
 import 'common.dart';
+import 'ttext.dart';
 
 /// Stages of a merchant's withdrawal request, in order. "rejected" can end it at any point before transfer.
 const payoutLabels = {

@@ -1,12 +1,13 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 import 'common.dart';
+import 'ttext.dart';
 
 /// Bahrain cities offered on the address forms.
 const bahrainCities = [

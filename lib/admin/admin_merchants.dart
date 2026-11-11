@@ -1,5 +1,5 @@
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 
 import '../core/bg_remove.dart';
@@ -7,6 +7,8 @@ import '../core/brand.dart';
 import '../core/common.dart';
 import '../customer/customer_shell.dart' show StoreLogo;
 import '../merchant/merchant_store.dart' show planLook;
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 class AdminMerchants extends StatelessWidget {
   const AdminMerchants({super.key});
@@ -124,7 +126,7 @@ class AdminMerchants extends StatelessWidget {
         );
     Widget act(IconData i, String tip, VoidCallback onTap, {Color? color}) =>
         IconButton(
-          tooltip: tip,
+          tooltip: tr(tip),
           onPressed: onTap,
           style: IconButton.styleFrom(
               backgroundColor: (color ?? colors.first).withValues(alpha: .08)),
@@ -568,10 +570,10 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
         obscureText: isPass && hidePass,
         textDirection: ltr ? TextDirection.ltr : null,
         validator:
-            req ? (v) => (v ?? '').trim().isEmpty ? 'مطلوب' : null : null,
+            req ? (v) => (v ?? '').trim().isEmpty ? tr('مطلوب') : null : null,
         decoration: InputDecoration(
-          labelText: req ? '$label *' : label,
-          helperText: note,
+          labelText: tr(req ? '$label *' : label),
+          helperText: tr(note),
           prefixIcon: Icon(_icons[k] ?? Icons.edit_outlined, color: tone.first),
           suffixIcon: isPass
               ? IconButton(

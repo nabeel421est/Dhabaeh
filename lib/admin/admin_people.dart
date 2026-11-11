@@ -1,9 +1,11 @@
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 /// Which accounts a list shows: customers only, platform staff (admin, store owners and their employees), or one role.
 enum UserGroup { customers, platform }
@@ -106,9 +108,9 @@ class _AdminUsersState extends State<AdminUsers> {
           ),
           const SizedBox(height: 16),
           TextField(
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
                 prefixIcon: Icon(Icons.search),
-                hintText: 'بحث بالاسم أو الجوال'),
+                hintText: tr('بحث بالاسم أو الجوال')),
             onChanged: (v) => setState(() => search = v),
           ),
           const SizedBox(height: 16),
@@ -264,7 +266,7 @@ class _PersonCard extends StatelessWidget {
                   label: const Text('تعديل')),
               if (onDelete != null)
                 IconButton(
-                  tooltip: 'حذف المستخدم',
+                  tooltip: tr('حذف المستخدم'),
                   onPressed: onDelete,
                   style: IconButton.styleFrom(
                       backgroundColor:
@@ -338,8 +340,8 @@ Future<void> showEditUser(BuildContext context,
                       initialValue: '${p['phone'] ?? ''}',
                       enabled: false,
                       textDirection: TextDirection.ltr,
-                      decoration: const InputDecoration(
-                          labelText: 'رقم الجوال (اسم الدخول)',
+                      decoration: InputDecoration(
+                          labelText: tr('رقم الجوال (اسم الدخول)'),
                           prefixIcon: Icon(Icons.lock_outline)),
                     ),
                     const SizedBox(height: 10),
@@ -393,9 +395,9 @@ Future<void> showEditUser(BuildContext context,
                             initialValue: store[r.key],
                             isExpanded: true,
                             decoration: InputDecoration(
-                                labelText: r.key == 'merchant_owner'
+                                labelText: tr(r.key == 'merchant_owner'
                                     ? 'المتجر الذي يملكه *'
-                                    : 'المتجر الذي يعمل فيه *'),
+                                    : 'المتجر الذي يعمل فيه *')),
                             items: [
                               for (final m in merchants)
                                 DropdownMenuItem(
@@ -403,7 +405,7 @@ Future<void> showEditUser(BuildContext context,
                                     child: Text(m['name']))
                             ],
                             onChanged: (v) => set(() => store[r.key] = v),
-                            validator: (v) => v == null ? 'اختر المتجر' : null,
+                            validator: (v) => v == null ? tr('اختر المتجر') : null,
                           ),
                         ),
                     ],
@@ -520,7 +522,7 @@ Future<void> showAddUser(
 
   InputDecoration deco(String label, IconData icon, {Widget? suffix}) =>
       InputDecoration(
-        labelText: label,
+        labelText: tr(label),
         prefixIcon: Icon(icon, color: colors.first),
         suffixIcon: suffix,
         filled: true,
@@ -635,7 +637,7 @@ Future<void> showAddUser(
                             decoration:
                                 deco('الاسم الكامل *', Icons.person_outline),
                             validator: (v) =>
-                                (v ?? '').trim().isEmpty ? 'اكتب الاسم' : null,
+                                (v ?? '').trim().isEmpty ? tr('اكتب الاسم') : null,
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
@@ -658,7 +660,7 @@ Future<void> showAddUser(
                               return d.length == 8 ||
                                       (d.length == 11 && d.startsWith('973'))
                                   ? null
-                                  : 'رقم الجوال 8 أرقام';
+                                  : tr('رقم الجوال 8 أرقام');
                             },
                           ),
                           const SizedBox(height: 12),
@@ -672,7 +674,7 @@ Future<void> showAddUser(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       IconButton(
-                                        tooltip: 'إظهار',
+                                        tooltip: tr('إظهار'),
                                         icon: Icon(hidePass
                                             ? Icons.visibility_outlined
                                             : Icons.visibility_off_outlined),
@@ -680,7 +682,7 @@ Future<void> showAddUser(
                                             set(() => hidePass = !hidePass),
                                       ),
                                       IconButton(
-                                        tooltip: 'توليد كلمة مرور',
+                                        tooltip: tr('توليد كلمة مرور'),
                                         icon: Icon(Icons.auto_awesome,
                                             color: colors.first),
                                         onPressed: () => set(() {
@@ -697,7 +699,7 @@ Future<void> showAddUser(
                                       ),
                                     ])),
                             validator: (v) => (v ?? '').length < 6
-                                ? '6 أحرف على الأقل'
+                                ? tr('6 أحرف على الأقل')
                                 : null,
                           ),
                           Padding(
@@ -767,7 +769,7 @@ Future<void> showAddUser(
                               ],
                               onChanged: (v) => set(() => merchantId = v),
                               validator: (v) =>
-                                  v == null ? 'اختر المتجر' : null,
+                                  v == null ? tr('اختر المتجر') : null,
                             ),
                           ),
                         ],

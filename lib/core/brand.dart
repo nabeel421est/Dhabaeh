@@ -1,5 +1,5 @@
-
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'ttext.dart';
 
 /// Each app (customer, merchant, staff, driver, admin) has its own visual identity:
 /// a three-stop gradient, a metallic accent, and a softly tinted surface.

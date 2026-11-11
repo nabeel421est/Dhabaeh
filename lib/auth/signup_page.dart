@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:latlong2/latlong.dart';
 
 import '../core/address_map.dart';
@@ -6,6 +6,8 @@ import '../core/brand.dart';
 import '../core/common.dart';
 import '../core/config.dart';
 import 'login_page.dart';
+import '../core/ttext.dart';
+import '../core/i18n.dart';
 
 /// New customer account: personal details, full address, and a map pin
 /// located from the address (the customer can tap the map to adjust it).
@@ -140,7 +142,7 @@ class _SignupPageState extends State<SignupPage> {
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Row(children: [
               IconButton(
-                tooltip: 'رجوع',
+                tooltip: tr('رجوع'),
                 onPressed: () => Navigator.pop(context),
                 style: IconButton.styleFrom(
                     backgroundColor: Colors.white.withValues(alpha: .12)),
@@ -166,15 +168,17 @@ class _SignupPageState extends State<SignupPage> {
                     const SizedBox(height: 18),
                     TextFormField(
                       controller: name,
-                      decoration: const InputDecoration(
-                          labelText: 'الاسم الثلاثي *',
+                      decoration: InputDecoration(
+                          labelText: tr('الاسم الثلاثي *'),
                           prefixIcon: Icon(Icons.person_outline)),
                       validator: (v) {
                         final parts = (v ?? '')
                             .trim()
                             .split(RegExp(r'\s+'))
                             .where((x) => x.isNotEmpty);
-                        return parts.length < 3 ? 'اكتب الاسم الثلاثي' : null;
+                        return parts.length < 3
+                            ? tr('اكتب الاسم الثلاثي')
+                            : null;
                       },
                     ),
                     const SizedBox(height: 12),
@@ -185,22 +189,22 @@ class _SignupPageState extends State<SignupPage> {
                         controller: cpr,
                         keyboardType: TextInputType.number,
                         textDirection: TextDirection.ltr,
-                        decoration: const InputDecoration(
-                            labelText: 'الرقم الشخصي',
+                        decoration: InputDecoration(
+                            labelText: tr('الرقم الشخصي'),
                             prefixIcon: Icon(Icons.credit_card_outlined)),
                         validator: (v) {
                           final d = (v ?? '').replaceAll(RegExp(r'\D'), '');
                           return d.isEmpty || d.length == 9
                               ? null
-                              : 'الرقم الشخصي 9 أرقام';
+                              : tr('الرقم الشخصي 9 أرقام');
                         },
                       ),
                       TextFormField(
                         controller: email,
                         keyboardType: TextInputType.emailAddress,
                         textDirection: TextDirection.ltr,
-                        decoration: const InputDecoration(
-                            labelText: 'البريد الإلكتروني',
+                        decoration: InputDecoration(
+                            labelText: tr('البريد الإلكتروني'),
                             prefixIcon: Icon(Icons.alternate_email)),
                         validator: (v) {
                           final s = (v ?? '').trim();
@@ -208,7 +212,7 @@ class _SignupPageState extends State<SignupPage> {
                                   RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
                                       .hasMatch(s)
                               ? null
-                              : 'البريد غير صحيح';
+                              : tr('البريد غير صحيح');
                         },
                       ),
                     ),
@@ -218,7 +222,7 @@ class _SignupPageState extends State<SignupPage> {
                         controller: pass,
                         obscureText: hide,
                         decoration: InputDecoration(
-                          labelText: 'كلمة المرور *',
+                          labelText: tr('كلمة المرور *'),
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
                             icon: Icon(hide
@@ -229,16 +233,17 @@ class _SignupPageState extends State<SignupPage> {
                         ),
                         validator: (v) => (v ?? '').length >= 6
                             ? null
-                            : '6 أحرف على الأقل',
+                            : tr('6 أحرف على الأقل'),
                       ),
                       TextFormField(
                         controller: pass2,
                         obscureText: hide,
-                        decoration: const InputDecoration(
-                            labelText: 'تأكيد كلمة المرور *',
+                        decoration: InputDecoration(
+                            labelText: tr('تأكيد كلمة المرور *'),
                             prefixIcon: Icon(Icons.lock_reset_outlined)),
-                        validator: (v) =>
-                            v == pass.text ? null : 'كلمتا المرور غير متطابقتين',
+                        validator: (v) => v == pass.text
+                            ? null
+                            : tr('كلمتا المرور غير متطابقتين'),
                       ),
                     ),
                   ]),
@@ -258,36 +263,36 @@ class _SignupPageState extends State<SignupPage> {
                       DropdownButtonFormField<String>(
                         initialValue: city,
                         isExpanded: true,
-                        decoration: const InputDecoration(
-                            labelText: 'المدينة *',
+                        decoration: InputDecoration(
+                            labelText: tr('المدينة *'),
                             prefixIcon: Icon(Icons.location_city_outlined)),
                         items: [
                           for (final c in bahrainCities)
                             DropdownMenuItem(value: c, child: Text(c)),
                         ],
                         onChanged: (v) => setState(() => city = v),
-                        validator: (v) => req(v, 'المدينة'),
+                        validator: (v) => req(v, tr('المدينة')),
                       ),
                       zones.isEmpty
                           ? TextFormField(
                               controller: areaText,
-                              decoration: const InputDecoration(
-                                  labelText: 'المنطقة *',
+                              decoration: InputDecoration(
+                                  labelText: tr('المنطقة *'),
                                   prefixIcon: Icon(Icons.map_outlined)),
-                              validator: (v) => req(v, 'المنطقة'),
+                              validator: (v) => req(v, tr('المنطقة')),
                             )
                           : DropdownButtonFormField<String>(
                               initialValue: area,
                               isExpanded: true,
-                              decoration: const InputDecoration(
-                                  labelText: 'المنطقة *',
+                              decoration: InputDecoration(
+                                  labelText: tr('المنطقة *'),
                                   prefixIcon: Icon(Icons.map_outlined)),
                               items: [
                                 for (final z in zones)
                                   DropdownMenuItem(value: z, child: Text(z)),
                               ],
                               onChanged: (v) => setState(() => area = v),
-                              validator: (v) => req(v, 'المنطقة'),
+                              validator: (v) => req(v, tr('المنطقة')),
                             ),
                     ),
                     const SizedBox(height: 12),
@@ -368,7 +373,8 @@ class _SignupPageState extends State<SignupPage> {
                               ? Icons.touch_app_outlined
                               : Icons.check_circle,
                           size: 16,
-                          color: pin == null ? Colors.black45 : G.emerald.first),
+                          color:
+                              pin == null ? Colors.black45 : G.emerald.first),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -391,8 +397,8 @@ class _SignupPageState extends State<SignupPage> {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text('عندي حساب، تسجيل الدخول',
-                  style: TextStyle(
-                      color: b.accent, fontWeight: FontWeight.w600)),
+                  style:
+                      TextStyle(color: b.accent, fontWeight: FontWeight.w600)),
             ),
           ]),
         ),
@@ -415,7 +421,8 @@ class _SignupPageState extends State<SignupPage> {
       TextFormField(
         controller: c,
         keyboardType: TextInputType.number,
-        decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
+        decoration:
+            InputDecoration(labelText: tr(label), prefixIcon: Icon(icon)),
         validator: required ? (v) => req(v, label.replaceAll(' *', '')) : null,
       );
 }
