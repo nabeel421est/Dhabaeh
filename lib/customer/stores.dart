@@ -241,6 +241,10 @@ class _StoreCard extends StatelessWidget {
   final num? from;
   final bool hasOffer;
   final VoidCallback onTap;
+  bool get _hasLogo =>
+      m['logo_url'] is String && (m['logo_url'] as String).isNotEmpty;
+  bool get _cutLogo =>
+      _hasLogo && (m['logo_url'] as String).toLowerCase().endsWith('-cut.png');
   @override
   Widget build(BuildContext context) {
     final open = m['is_open'] == true;
@@ -259,7 +263,14 @@ class _StoreCard extends StatelessWidget {
                 gradient: LinearGradient(
                     begin: AlignmentDirectional.topStart,
                     end: AlignmentDirectional.bottomEnd,
-                    colors: cs)),
+                    // A cut-out logo shows on a soft tint of the store
+                    // colour so dark logos stay readable.
+                    colors: _cutLogo
+                        ? [
+                            Color.lerp(cs.first, Colors.white, .9)!,
+                            Color.lerp(cs.last, Colors.white, .8)!
+                          ]
+                        : cs)),
             child: Stack(children: [
               PositionedDirectional(
                   end: -24,
@@ -270,14 +281,31 @@ class _StoreCard extends StatelessWidget {
                       decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white.withValues(alpha: .1)))),
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: const BoxDecoration(
-                      color: Colors.white, shape: BoxShape.circle),
-                  child: ClipOval(child: StoreLogo(m['logo_url'], size: 58)),
+              if (_hasLogo)
+                // The logo fills the card's picture area with no frame:
+                // a cut-out logo sits whole on the gradient, a normal
+                // picture covers the area edge to edge.
+                Positioned.fill(
+                  child: Padding(
+                    padding: _cutLogo
+                        ? const EdgeInsetsDirectional.fromSTEB(10, 38, 10, 8)
+                        : EdgeInsets.zero,
+                    child: Image.network(m['logo_url'],
+                        fit: _cutLogo ? BoxFit.contain : BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(
+                            child: Icon(Icons.storefront,
+                                size: 44, color: Colors.white))),
+                  ),
+                )
+              else
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(
+                        color: Colors.white, shape: BoxShape.circle),
+                    child: ClipOval(child: StoreLogo(m['logo_url'], size: 58)),
+                  ),
                 ),
-              ),
               PositionedDirectional(
                 top: 8,
                 start: 8,
