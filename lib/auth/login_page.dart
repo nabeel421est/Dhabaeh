@@ -158,7 +158,7 @@ class AuthBackdrop extends StatelessWidget {
         PositionedDirectional(
             bottom: -120,
             end: -40,
-            child: _Glow(320, const Color(0xFFD0646B).withValues(alpha: .22))),
+            child: _Glow(320, const Color(0xFFB03C62).withValues(alpha: .25))),
         SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -186,34 +186,9 @@ class AuthEmblem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final b = brands['login']!;
-    final s = compact ? 64.0 : 92.0;
+    final s = compact ? 72.0 : 120.0;
     return Column(children: [
-      Container(
-        width: s,
-        height: s,
-        padding: const EdgeInsets.all(2.5),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-              colors: [b.accent, const Color(0xFFFFF1CF), b.accent]),
-          boxShadow: [
-            BoxShadow(
-                color: b.accent.withValues(alpha: .35),
-                blurRadius: 28,
-                spreadRadius: 2)
-          ],
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [b.stops[1], b.stops[0]])),
-          child: Icon(Icons.storefront_rounded,
-              color: b.accent, size: compact ? 30 : 44),
-        ),
-      ),
+      AppLogo(size: s),
       SizedBox(height: compact ? 8 : 14),
       ShaderMask(
         shaderCallback: (r) =>

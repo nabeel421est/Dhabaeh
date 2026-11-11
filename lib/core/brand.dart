@@ -39,17 +39,17 @@ const brands = <String, Brand>{
     name: 'ذبائح البحرين',
     tagline: 'ذبيحتك من الملحمة إلى باب بيتك',
     icon: Icons.storefront,
-    stops: [Color(0xFF2A0A16), Color(0xFF6E1630), Color(0xFFB0414F)],
-    accent: Color(0xFFE2B866),
-    surface: Color(0xFFFBF6F2),
+    stops: [Color(0xFF22050F), Color(0xFF5E0F2C), Color(0xFF9C2347)],
+    accent: Color(0xFFE7C077),
+    surface: Color(0xFFFBF7F1),
   ),
   'customer': Brand(
     name: 'ذبائح البحرين',
     tagline: 'اطلب ذبيحتك بسهولة',
     icon: Icons.shopping_bag_outlined,
-    stops: [Color(0xFF4A0D25), Color(0xFF8E2442), Color(0xFFD0646B)],
-    accent: Color(0xFFE2B866),
-    surface: Color(0xFFFCF7F4),
+    stops: [Color(0xFF2E0715), Color(0xFF6E1435), Color(0xFFB03C62)],
+    accent: Color(0xFFE7C077),
+    surface: Color(0xFFFBF7F1),
   ),
   'merchant_owner': Brand(
     name: 'تاجر ذبائح',
@@ -239,6 +239,7 @@ class GradientCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: b.gradient,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: b.accent.withValues(alpha: .38), width: 1),
         boxShadow: [
           BoxShadow(
               color: b.dark.withValues(alpha: .25),
@@ -271,6 +272,26 @@ class GradientCard extends StatelessWidget {
                   decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: b.accent.withValues(alpha: .12))),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      stops: const [0, .45, .55, 1],
+                      colors: [
+                        Colors.white.withValues(alpha: .10),
+                        Colors.white.withValues(alpha: 0),
+                        Colors.white.withValues(alpha: 0),
+                        b.accent.withValues(alpha: .10),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
             Padding(
                 padding: padding,
@@ -336,8 +357,10 @@ class PageHero extends StatelessWidget {
       required this.title,
       required this.subtitle,
       this.stats = const [],
-      this.action});
+      this.action,
+      this.logo = false});
   final IconData icon;
+  final bool logo;
   final String title;
   final String subtitle;
   final List<(String, String)> stats;
@@ -354,16 +377,19 @@ class PageHero extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Row(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .14),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: b.accent.withValues(alpha: .7)),
+            if (logo)
+              const AppLogo(size: 64)
+            else
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .14),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: b.accent.withValues(alpha: .7)),
+                ),
+                child: Icon(icon, color: b.accent, size: 26),
               ),
-              child: Icon(icon, color: b.accent, size: 26),
-            ),
             const SizedBox(width: 14),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
@@ -561,13 +587,50 @@ class GradientHeaderCard extends StatelessWidget {
 }
 
 /// Named gradient pairs for pages that colour-code their sections.
+/// The app's emblem: a gold ram on a wine roundel.
+class AppLogo extends StatelessWidget {
+  const AppLogo({super.key, this.size = 40, this.glow = true});
+  final double size;
+  final bool glow;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: glow
+            ? [
+                BoxShadow(
+                    color: const Color(0xFFE7C077).withValues(alpha: .35),
+                    blurRadius: size * .35,
+                    spreadRadius: 1),
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: .25),
+                    blurRadius: size * .2,
+                    offset: Offset(0, size * .06)),
+              ]
+            : null,
+      ),
+      child: Image.asset('assets/brand/badge.png',
+          width: size, height: size, filterQuality: FilterQuality.medium),
+    );
+  }
+}
+
 class G {
+  static const wine = [Color(0xFF4A0B22), Color(0xFFA8355A)];
+  static const bronze = [Color(0xFF5A3410), Color(0xFFC8914A)];
+  static const plum = [Color(0xFF2E1440), Color(0xFF8A56A8)];
+  static const midnight = [Color(0xFF0F2340), Color(0xFF4677B4)];
+  static const forest = [Color(0xFF0B3B33), Color(0xFF3A9478)];
+  static const rose = [Color(0xFF6B1E3A), Color(0xFFD7899E)];
   static const sky = [Color(0xFF0B6FB0), Color(0xFF47BFF0)];
   static const emerald = [Color(0xFF0D6152), Color(0xFF3CC4A0)];
   static const ruby = [Color(0xFF8E2442), Color(0xFFE07A86)];
   static const sapphire = [Color(0xFF1C4790), Color(0xFF5FA6F2)];
   static const amber = [Color(0xFF9A4A12), Color(0xFFF2A65A)];
-  static const gold = [Color(0xFF8C6A12), Color(0xFFD4AF37)];
+  static const gold = [Color(0xFF8A6416), Color(0xFFE2BC64)];
   static const violet = [Color(0xFF3A2878), Color(0xFF7A5AD4)];
   static const teal = [Color(0xFF136A82), Color(0xFF5CC8DA)];
 }

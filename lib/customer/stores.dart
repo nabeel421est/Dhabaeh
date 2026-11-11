@@ -9,12 +9,12 @@ import '../core/i18n.dart';
 
 /// Store colours: each butcher shop keeps its own gradient everywhere in the customer app.
 const storeTones = [
-  G.ruby,
-  G.amber,
-  G.violet,
-  G.sapphire,
-  G.emerald,
-  G.teal,
+  G.wine,
+  G.bronze,
+  G.plum,
+  G.midnight,
+  G.forest,
+  G.rose,
   G.gold
 ];
 
@@ -114,6 +114,7 @@ class _StoresPageState extends State<StoresPage> {
               }).toList();
         return ListView(padding: const EdgeInsets.all(16), children: [
           PageHero(
+            logo: true,
             icon: Icons.storefront_outlined,
             title: 'أهلاً بك',
             subtitle: 'اختر الملحمة واطلب ذبيحتك، ونوصلها لباب بيتك',
