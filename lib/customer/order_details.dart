@@ -83,134 +83,497 @@ class OrderView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final o = order;
+    final status = '${o['status']}';
     final events = {
       for (final e in (o['order_events'] as List)) e['status']: e['created_at']
     };
-    final cancelled = o['status'] == 'cancelled';
+    final cancelled = status == 'cancelled';
+    final tone = cancelled
+        ? G.ruby
+        : status == 'delivered'
+            ? G.emerald
+            : toneOf(statusColor(status));
     final items = List<Map<String, dynamic>>.from(o['order_items']);
-    return ListView(padding: const EdgeInsets.all(16), children: [
-      if (justPlaced)
-        Card(
-          color: const Color(0xFFE6EFEB),
-          child: ListTile(
-            leading: const Icon(Icons.check_circle, color: Color(0xFF2F5D50)),
-            title: Text('تم استلام طلبك #${o['code']}'),
-            subtitle: const Text('بنبلغك مع كل تحديث على الطلب'),
-          ),
-        ),
-      SectionCard(
-        title: 'طلب #${o['code']}',
-        trailing: StatusChip(o['status']),
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          KeyVal('الملحمة', o['merchants']?['name'] ?? ''),
-          KeyVal('نوع الطلب', orderKindLabels[orderKind(o)]!),
-          if (viewer != 'customer')
-            KeyVal('العميل',
-                '${o['customer_name'] ?? ''} · ${o['customer_phone'] ?? ''}'),
-          KeyVal('الذبح',
-              '${dateText(o['slaughter_date'])} · ${o['slaughter_time']}'),
-          KeyVal('التوصيل',
-              '${dateText(o['delivery_date'])} · ${o['delivery_slot']}'),
-          const SizedBox(height: 4),
-          Text(o['address'] ?? '',
-              style: const TextStyle(color: Colors.black54)),
-          if (o['driver_name'] != null)
-            KeyVal(
-                'المندوب', '${o['driver_name']} · ${o['driver_phone'] ?? ''}'),
-          KeyVal('الدفع',
-              '${paymentLabels[o['payment_method']]} · ${paymentStatusLabels[o['payment_status']]}'),
-        ]),
-      ),
-      const SizedBox(height: 12),
-      SectionCard(
-        title: 'المنتجات',
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          for (final it in items) ...[
-            KeyVal('${it['name']} × ${it['qty']}',
-                bhd(toNum(it['unit_price']) * toNum(it['qty']))),
-            if ((it['options'] as Map).isNotEmpty && it['options']['cutting'] != null)
-              Text(
-                [
-                  it['options']['cutting'],
-                  it['options']['packing'],
-                  if (it['options']['keep_head'] == true) 'مع الرأس والكوارع'
-                ].whereType<String>().join(' · '),
-                style: const TextStyle(color: Colors.black54, fontSize: 13),
-              ),
-          ],
-          const Divider(),
-          if (toNum(o['discount']) > 0)
-            KeyVal('الخصم', '- ${bhd(o['discount'])}'),
-          if (toNum(o['customer_commission']) > 0)
-            KeyVal('رسوم الخدمة', bhd(o['customer_commission'])),
-          KeyVal('التوصيل', bhd(o['delivery_fee'])),
-          KeyVal('إجمالي العميل', bhd(o['total']), bold: true),
-          if (viewer == 'merchant' || viewer == 'admin') ...[
-            const Divider(),
-            KeyVal('عمولة المنصة على التاجر',
-                '- ${bhd(o['merchant_commission'])}'),
-            KeyVal('صافي التاجر', bhd(o['merchant_net']), bold: true),
-          ],
-        ]),
-      ),
-      const SizedBox(height: 12),
-      SectionCard(
-        title: 'تتبع الطلب',
-        child: Column(children: [
-          for (final s in statusFlow)
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                  events.containsKey(s)
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
-                  color: events.containsKey(s)
-                      ? const Color(0xFF2F5D50)
-                      : Colors.black26),
-              title: Text(statusLabels[s]!),
-              trailing: Text(
-                  events.containsKey(s) ? dateTimeText(events[s]) : '',
-                  style: const TextStyle(fontSize: 12)),
+    final step = statusFlow.indexOf(status);
+    final staff = viewer == 'merchant' || viewer == 'admin';
+
+    Widget info(IconData icon, String k, String v, List<Color> c) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                  color: c.first.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, size: 18, color: c.first),
             ),
-          if (cancelled)
-            ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.cancel, color: Color(0xFF8F1D13)),
-                title: const Text('ملغي'),
-                trailing: Text(dateTimeText(events['cancelled']),
-                    style: const TextStyle(fontSize: 12))),
-        ]),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(k,
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.black54)),
+                    Text(v.isEmpty ? '-' : v,
+                        style: const TextStyle(
+                            fontSize: 14.5, fontWeight: FontWeight.w600)),
+                  ]),
+            ),
+          ]),
+        );
+    Widget money(String k, String v,
+            {bool bold = false, Color? color, bool big = false}) =>
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(children: [
+            Expanded(
+                child: Text(k,
+                    style: TextStyle(
+                        color: bold ? Colors.black87 : Colors.black54,
+                        fontWeight: bold ? FontWeight.w700 : null))),
+            Text(v,
+                style: TextStyle(
+                    fontSize: big ? 18 : 14.5,
+                    fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+                    color: color)),
+          ]),
+        );
+
+    // ---------------------------------------------------------------- hero
+    final hero = Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+            begin: AlignmentDirectional.topStart,
+            end: AlignmentDirectional.bottomEnd,
+            colors: [tone.first, tone.last]),
+        boxShadow: [
+          BoxShadow(
+              color: tone.first.withValues(alpha: .35),
+              blurRadius: 18,
+              offset: const Offset(0, 8))
+        ],
       ),
-      if (viewer == 'admin') ...[
-        const SizedBox(height: 12),
-        AdminOrderTools(order: o, reload: reload)
-      ],
-      const SizedBox(height: 16),
-      for (final (s, label) in actions())
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .18),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: .4))),
+            child: const Icon(Icons.receipt_long, color: Colors.white, size: 28),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('طلب #${o['code']}',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800)),
+              Text(
+                  '${o['merchants']?['name'] ?? ''} · ${dateTimeText(o['created_at'])}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13)),
+            ]),
+          ),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            _pill(statusLabels[status] ?? status, .28),
+            const SizedBox(height: 5),
+            _pill(orderKindLabels[orderKind(o)] ?? '', .15),
+          ]),
+        ]),
+        if (step >= 0) ...[
+          const SizedBox(height: 16),
+          Row(children: [
+            for (var i = 0; i < statusFlow.length; i++) ...[
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: i <= step
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: .18),
+                ),
+                child: Icon(_flowIcons[i],
+                    size: 16, color: i <= step ? tone.first : Colors.white70),
+              ),
+              if (i < statusFlow.length - 1)
+                Expanded(
+                  child: Container(
+                      height: 3,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(2),
+                          color: i < step
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: .25))),
+                ),
+            ],
+          ]),
+          const SizedBox(height: 6),
+          Text(
+              step == statusFlow.length - 1
+                  ? 'تم تسليم الطلب'
+                  : 'المرحلة التالية: ${statusLabels[statusFlow[step + 1]]}',
+              style: const TextStyle(color: Colors.white, fontSize: 12.5)),
+        ],
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: .25))),
+          child: Row(children: [
+            const Icon(Icons.payments_outlined, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                  '${paymentLabels[o['payment_method']] ?? ''} · ${paymentStatusLabels[o['payment_status']] ?? ''}',
+                  style: const TextStyle(color: Colors.white)),
+            ),
+            Text(bhd(o['total']),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800)),
+          ]),
+        ),
+      ]),
+    );
+
+    // ---------------------------------------------------------------- cards
+    final people = GradientHeaderCard(
+      title: 'الأطراف',
+      subtitle: 'الملحمة والعميل والمندوب',
+      icon: Icons.groups_2_outlined,
+      colors: G.sapphire,
+      child: Column(children: [
+        info(Icons.storefront_outlined, 'الملحمة',
+            '${o['merchants']?['name'] ?? ''}', G.sapphire),
+        if (viewer != 'customer')
+          info(Icons.person_outline, 'العميل',
+              '${o['customer_name'] ?? ''} · ${o['customer_phone'] ?? ''}',
+              G.sapphire),
+        info(
+            Icons.delivery_dining_outlined,
+            'المندوب',
+            o['driver_name'] == null
+                ? 'لم يُعيّن بعد'
+                : '${o['driver_name']} · ${o['driver_phone'] ?? ''}',
+            G.sapphire),
+      ]),
+    );
+    final timing = GradientHeaderCard(
+      title: 'المواعيد والعنوان',
+      icon: Icons.event_available_outlined,
+      colors: G.amber,
+      child: Column(children: [
+        info(Icons.content_cut, 'موعد الذبح',
+            '${dateText(o['slaughter_date'])} · ${o['slaughter_time'] ?? ''}',
+            G.amber),
+        info(Icons.local_shipping_outlined, 'موعد التوصيل',
+            '${dateText(o['delivery_date'])} · ${o['delivery_slot'] ?? ''}',
+            G.amber),
+        info(
+            Icons.location_on_outlined,
+            'العنوان${o['delivery_zones']?['name'] == null ? '' : ' · ${o['delivery_zones']['name']}'}',
+            '${o['address'] ?? ''}',
+            G.amber),
+      ]),
+    );
+    final bill = GradientHeaderCard(
+      title: 'المنتجات والفاتورة',
+      subtitle: '${items.length} صنف',
+      icon: Icons.set_meal_outlined,
+      colors: G.emerald,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        for (final it in items)
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: LinearGradient(colors: [
+                  G.emerald.first.withValues(alpha: .07),
+                  G.emerald.last.withValues(alpha: .12)
+                ])),
+            child: Row(children: [
+              GradientBadge(
+                  colors: G.emerald, text: '${it['qty']}×', size: 38),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${it['name']}',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      if (it['options'] is Map &&
+                          (it['options'] as Map)['cutting'] != null)
+                        Text(
+                          [
+                            it['options']['cutting'],
+                            it['options']['packing'],
+                            if (it['options']['keep_head'] == true)
+                              'مع الرأس والكوارع'
+                          ].whereType<String>().join(' · '),
+                          style: const TextStyle(
+                              color: Colors.black54, fontSize: 12.5),
+                        ),
+                    ]),
+              ),
+              Text(bhd(toNum(it['unit_price']) * toNum(it['qty'])),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+            ]),
+          ),
+        const SizedBox(height: 4),
+        if (toNum(o['discount']) > 0)
+          money('الخصم', '- ${bhd(o['discount'])}', color: G.ruby.first),
+        if (toNum(o['customer_commission']) > 0)
+          money('رسوم الخدمة', bhd(o['customer_commission'])),
+        money('التوصيل', bhd(o['delivery_fee'])),
+        const Divider(height: 14),
+        money('إجمالي العميل', bhd(o['total']),
+            bold: true, big: true, color: G.emerald.first),
+        if (staff) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: G.gold.first.withValues(alpha: .08),
+                border:
+                    Border.all(color: G.gold.first.withValues(alpha: .25))),
+            child: Column(children: [
+              money('عمولة المنصة على التاجر',
+                  '- ${bhd(o['merchant_commission'])}'),
+              money('صافي التاجر', bhd(o['merchant_net']),
+                  bold: true, color: G.gold.first),
+            ]),
+          ),
+        ],
+      ]),
+    );
+    final track = GradientHeaderCard(
+      title: 'تتبع الطلب',
+      icon: Icons.timeline,
+      colors: G.violet,
+      child: Column(children: [
+        for (final (i, s) in [...statusFlow, if (cancelled) 'cancelled'].indexed)
+          _TimelineRow(
+            label: statusLabels[s] ?? s,
+            time: events.containsKey(s) ? dateTimeText(events[s]) : '',
+            done: events.containsKey(s),
+            color: s == 'cancelled' ? G.ruby.first : statusColor(s),
+            last: i == statusFlow.length - (cancelled ? 0 : 1),
+          ),
+      ]),
+    );
+
+    final acts = actions();
+    final buttons = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      for (final (s, label) in acts)
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: s == 'cancelled'
-              ? OutlinedButton(
-                  onPressed: () => setStatus(context, s), child: Text(label))
-              : FilledButton(
-                  onPressed: () => setStatus(context, s), child: Text(label)),
+              ? OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      foregroundColor: G.ruby.first,
+                      side: BorderSide(color: G.ruby.first.withValues(alpha: .5))),
+                  onPressed: () => setStatus(context, s),
+                  icon: const Icon(Icons.block, size: 18),
+                  label: Text(label))
+              : DecoratedBox(
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      gradient: LinearGradient(
+                          colors: toneOf(statusColor(s)).reversed.toList())),
+                  child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          minimumSize: const Size.fromHeight(48)),
+                      onPressed: () => setStatus(context, s),
+                      icon: const Icon(Icons.arrow_circle_left_outlined,
+                          size: 20),
+                      label: Text(label,
+                          style: const TextStyle(fontWeight: FontWeight.w700))),
+                ),
         ),
     ]);
+
+    return LayoutBuilder(builder: (context, c) {
+      final wide = c.maxWidth >= 900;
+      const gap = SizedBox(height: 14);
+      final left = <Widget>[
+        people,
+        gap,
+        timing,
+        gap,
+        track,
+      ];
+      final right = <Widget>[
+        bill,
+        if (viewer == 'admin') ...[gap, AdminOrderTools(order: o, reload: reload)],
+        if (acts.isNotEmpty) ...[
+          gap,
+          GradientHeaderCard(
+              title: viewer == 'admin' ? 'تغيير الحالة' : 'الإجراءات',
+              icon: Icons.bolt_outlined,
+              colors: tone,
+              child: buttons),
+        ],
+      ];
+      return ListView(padding: const EdgeInsets.all(16), children: [
+        if (justPlaced) ...[
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: G.emerald.first.withValues(alpha: .1),
+                border: Border.all(color: G.emerald.first.withValues(alpha: .3))),
+            child: Row(children: [
+              Icon(Icons.check_circle, color: G.emerald.first),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                    'تم استلام طلبك #${o['code']}، وبنبلغك مع كل تحديث عليه',
+                    style: TextStyle(
+                        color: G.emerald.first, fontWeight: FontWeight.w600)),
+              ),
+            ]),
+          ),
+          gap,
+        ],
+        hero,
+        gap,
+        if (wide)
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: Column(children: left)),
+            const SizedBox(width: 14),
+            Expanded(child: Column(children: right)),
+          ])
+        else ...[
+          ...left,
+          gap,
+          ...right,
+        ],
+      ]);
+    });
   }
+
+  Widget _pill(String t, double a) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
+        decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: a),
+            borderRadius: BorderRadius.circular(999)),
+        child: Text(t,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700)),
+      );
+}
+
+const _flowIcons = [
+  Icons.receipt_outlined,
+  Icons.thumb_up_alt_outlined,
+  Icons.content_cut,
+  Icons.inventory_2_outlined,
+  Icons.local_shipping_outlined,
+  Icons.home_outlined,
+];
+
+class _TimelineRow extends StatelessWidget {
+  const _TimelineRow(
+      {required this.label,
+      required this.time,
+      required this.done,
+      required this.color,
+      required this.last});
+  final String label;
+  final String time;
+  final bool done;
+  final Color color;
+  final bool last;
+  @override
+  Widget build(BuildContext context) => IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          SizedBox(
+            width: 30,
+            child: Column(children: [
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: done ? LinearGradient(colors: toneOf(color)) : null,
+                  color: done ? null : Colors.black.withValues(alpha: .06),
+                ),
+                child: Icon(done ? Icons.check : Icons.circle,
+                    size: done ? 15 : 7,
+                    color: done ? Colors.white : Colors.black26),
+              ),
+              if (!last)
+                Expanded(
+                  child: Container(
+                      width: 2.5,
+                      margin: const EdgeInsets.symmetric(vertical: 2),
+                      color: done
+                          ? color.withValues(alpha: .5)
+                          : Colors.black.withValues(alpha: .08)),
+                ),
+            ]),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 3, bottom: 14),
+              child: Row(children: [
+                Expanded(
+                  child: Text(label,
+                      style: TextStyle(
+                          fontWeight: done ? FontWeight.w700 : FontWeight.w400,
+                          color: done ? color : Colors.black45)),
+                ),
+                Text(time,
+                    style:
+                        const TextStyle(fontSize: 12, color: Colors.black54)),
+              ]),
+            ),
+          ),
+        ]),
+      );
 }
 
 class AdminOrderTools extends StatelessWidget {
   const AdminOrderTools({super.key, required this.order, required this.reload});
   final Map<String, dynamic> order;
   final Future<void> Function() reload;
+
+  static const _payTones = {
+    'paid': G.emerald,
+    'pending': G.amber,
+    'refunded': G.ruby,
+  };
+
   @override
   Widget build(BuildContext context) {
-    return SectionCard(
+    return GradientHeaderCard(
       title: 'إجراءات الإدارة',
+      subtitle: 'المندوب وحالة الدفع والإيصال',
+      icon: Icons.admin_panel_settings_outlined,
+      colors: G.teal,
       child: FutureBuilder(
         future: sb
             .from('user_roles')
@@ -223,7 +586,10 @@ class AdminOrderTools extends StatelessWidget {
               children: [
                 DropdownButtonFormField<String?>(
                   initialValue: order['driver_id'],
-                  decoration: const InputDecoration(labelText: 'تعيين مندوب'),
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                      labelText: 'تعيين مندوب',
+                      prefixIcon: Icon(Icons.delivery_dining_outlined)),
                   items: [
                     const DropdownMenuItem<String?>(
                         value: null, child: Text('بدون مندوب')),
@@ -242,32 +608,22 @@ class AdminOrderTools extends StatelessWidget {
                     await reload();
                   },
                 ),
-                const SizedBox(height: 12),
-                if (order['receipt_path'] != null)
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.receipt_outlined),
-                    label: const Text('عرض إيصال التحويل'),
-                    onPressed: () async {
-                      final url = await guard(
-                          context,
-                          () => sb.storage
-                              .from('docs')
-                              .createSignedUrl(order['receipt_path'], 600));
-                      if (url != null && context.mounted) {
-                        showDialog(
-                            context: context,
-                            builder: (_) =>
-                                AlertDialog(content: SelectableText(url)));
-                      }
-                    },
-                  ),
+                const SizedBox(height: 14),
+                const Text('حالة الدفع',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
-                Wrap(spacing: 8, runSpacing: 8, children: [
+                Wrap(runSpacing: 8, children: [
                   for (final ps in ['paid', 'pending', 'refunded'])
-                    ChoiceChip(
-                      label: Text(paymentStatusLabels[ps]!),
+                    TonePill(
+                      label: paymentStatusLabels[ps]!,
+                      colors: _payTones[ps]!,
                       selected: order['payment_status'] == ps,
-                      onSelected: (_) async {
+                      icon: ps == 'paid'
+                          ? Icons.verified_outlined
+                          : ps == 'pending'
+                              ? Icons.hourglass_bottom
+                              : Icons.undo,
+                      onTap: () async {
                         await guard(
                             context,
                             () => sb.rpc('admin_set_payment', params: {
@@ -279,6 +635,47 @@ class AdminOrderTools extends StatelessWidget {
                       },
                     ),
                 ]),
+                if (order['receipt_path'] != null) ...[
+                  const SizedBox(height: 14),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(46),
+                        foregroundColor: G.teal.first),
+                    icon: const Icon(Icons.receipt_outlined),
+                    label: const Text('عرض إيصال التحويل'),
+                    onPressed: () async {
+                      final url = await guard(
+                          context,
+                          () => sb.storage
+                              .from('docs')
+                              .createSignedUrl(order['receipt_path'], 600));
+                      if (url != null && context.mounted) {
+                        showDialog(
+                          context: context,
+                          builder: (c) => AlertDialog(
+                            title: const Text('إيصال التحويل'),
+                            content: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                  maxWidth: 520, maxHeight: 620),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: Image.network(url,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) =>
+                                        SelectableText(url)),
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                  onPressed: () => Navigator.pop(c),
+                                  child: const Text('إغلاق'))
+                            ],
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
               ]);
         },
       ),

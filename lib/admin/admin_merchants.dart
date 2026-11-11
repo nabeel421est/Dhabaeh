@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
 import '../customer/customer_shell.dart' show StoreLogo;
+import '../merchant/merchant_store.dart' show planLook;
 
 class AdminMerchants extends StatelessWidget {
   const AdminMerchants({super.key});
@@ -612,92 +613,268 @@ class MerchantAdminPage extends StatelessWidget {
         builder: (context, m, reload) {
           final d = Map<String, dynamic>.from(m['merchant_details'] ?? {});
           final ledger = List<Map<String, dynamic>>.from(m['ledger']);
+          final staff = List<Map<String, dynamic>>.from(m['staff']);
           final bal = ledger.fold<num>(0, (a, r) => a + toNum(r['amount']));
           final perms = Map<String, dynamic>.from(m['perms'] ?? {});
           final amount = TextEditingController(
               text: bal > 0 ? bal.toStringAsFixed(3) : '');
           final ref = TextEditingController();
-          return ListView(padding: const EdgeInsets.all(16), children: [
-            SectionCard(
-              title: m['name'],
-              child: Column(children: [
-                KeyVal('المالك',
-                    '${d['owner_name'] ?? ''} · ${d['owner_phone'] ?? ''}'),
-                KeyVal('الرقم الشخصي', '${d['owner_cpr'] ?? ''}'),
-                KeyVal('السجل التجاري', '${d['cr_number'] ?? ''}'),
-                KeyVal('الترخيص الصحي', '${d['health_license'] ?? ''}'),
-                KeyVal('الرقم الضريبي', '${d['vat_number'] ?? '-'}'),
-                KeyVal('هاتف المتجر', '${m['store_phone']}'),
-                KeyVal('العنوان',
-                    'محل ${d['shop_no']}، مبنى ${d['building']}، طريق ${d['road']}، مجمع ${d['block']}، ${d['address_area']}'),
-                KeyVal('البنك',
-                    '${d['bank_name'] ?? ''} · ${d['account_name'] ?? ''}'),
-                KeyVal('IBAN', '${d['iban'] ?? ''}'),
-                const SizedBox(height: 8),
-                Wrap(spacing: 8, runSpacing: 8, children: [
-                  for (final k in _docNames.keys)
-                    if (d[k] != null)
-                      ActionChip(
-                        avatar:
-                            const Icon(Icons.description_outlined, size: 18),
-                        label: Text(_docNames[k]!),
-                        onPressed: () async {
-                          final url = await guard(
-                              context,
-                              () => sb.storage
-                                  .from('docs')
-                                  .createSignedUrl(d[k], 600));
-                          if (url != null && context.mounted) {
-                            showDialog(
-                                context: context,
-                                builder: (_) => AlertDialog(
-                                    title: Text(_docNames[k]!),
-                                    content: SelectableText(url)));
-                          }
-                        },
-                      ),
+          final ends = DateTime.tryParse('${m['plan_ends']}');
+          final daysLeft = ends == null
+              ? null
+              : ends.difference(DateTime.now()).inDays + 1;
+          final frozen = m['frozen'] == true, suspended = m['suspended'] == true;
+
+          Widget row(IconData icon, String k, String v, List<Color> c,
+                  {bool ltr = false}) =>
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                        color: c.first.withValues(alpha: .1),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Icon(icon, size: 18, color: c.first),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(k,
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.black54)),
+                          Text(v.trim().isEmpty || v == 'null' ? '-' : v,
+                              textDirection: ltr ? TextDirection.ltr : null,
+                              style: const TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w600)),
+                        ]),
+                  ),
                 ]),
-              ]),
+              );
+
+          // ------------------------------------------------ hero
+          final heroTone = suspended
+              ? G.ruby
+              : frozen
+                  ? G.sapphire
+                  : G.emerald;
+          final hero = Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(26),
+              gradient: LinearGradient(
+                  begin: AlignmentDirectional.topStart,
+                  end: AlignmentDirectional.bottomEnd,
+                  colors: [heroTone.first, heroTone.last]),
+              boxShadow: [
+                BoxShadow(
+                    color: heroTone.first.withValues(alpha: .35),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8))
+              ],
             ),
-            const SizedBox(height: 12),
-            SectionCard(
-              title: 'الاشتراك',
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                        'الخطة الحالية: ${planLabels[m['plan']]} · تنتهي ${dateText(m['plan_ends'])}'),
-                    const SizedBox(height: 8),
-                    Wrap(spacing: 8, children: [
-                      for (final p in planLabels.entries)
-                        OutlinedButton(
-                          onPressed: () async {
-                            await guard(
-                                context,
-                                () => sb.rpc('admin_set_plan', params: {
-                                      'p_merchant': merchantId,
-                                      'p_plan': p.key
-                                    }),
-                                ok: 'تم تحديث الخطة');
-                            await reload();
-                          },
-                          child: Text(m['plan'] == p.key
-                              ? 'تجديد ${p.value}'
-                              : 'تحويل إلى ${p.value}'),
-                        ),
-                    ]),
+            child: Wrap(
+              spacing: 20,
+              runSpacing: 16,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        gradient: LinearGradient(colors: [
+                          const Color(0xFFE2B866),
+                          Colors.white,
+                          const Color(0xFFE2B866)
+                        ])),
+                    child: StoreLogo(m['logo_url'], size: 68),
+                  ),
+                  const SizedBox(width: 14),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 360),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('${m['name']}',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800)),
+                          Text(
+                              '${m['area'] ?? ''} · ${m['store_phone'] ?? ''}',
+                              style: const TextStyle(color: Colors.white70)),
+                          const SizedBox(height: 8),
+                          Wrap(spacing: 6, runSpacing: 6, children: [
+                            _heroPill(
+                                suspended
+                                    ? 'موقوف'
+                                    : m['is_open'] == true
+                                        ? 'مفتوح للطلبات'
+                                        : 'مغلق حالياً',
+                                suspended
+                                    ? Icons.block
+                                    : Icons.storefront_outlined),
+                            if (frozen)
+                              _heroPill('المحفظة مجمّدة', Icons.ac_unit),
+                            _heroPill(
+                                'باقة ${planLabels[m['plan']] ?? ''}',
+                                (planLook[m['plan']] ?? planLook['monthly']!)
+                                    .$1),
+                          ]),
+                        ]),
+                  ),
+                ]),
+                Wrap(spacing: 10, runSpacing: 10, children: [
+                  _heroStat('رصيد المحفظة', bhd(bal)),
+                  _heroStat('متبقي على الاشتراك',
+                      daysLeft == null ? '-' : '$daysLeft يوم'),
+                  _heroStat('الموظفون', '${staff.length}'),
+                ]),
+              ],
+            ),
+          );
+
+          // ------------------------------------------------ cards
+          final info = GradientHeaderCard(
+            title: 'بيانات المتجر والمالك',
+            subtitle: 'السجلات الرسمية والعنوان والحساب البنكي',
+            icon: Icons.badge_outlined,
+            colors: G.sapphire,
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  row(Icons.person_outline, 'المالك',
+                      '${d['owner_name'] ?? ''} · ${d['owner_phone'] ?? ''}',
+                      G.sapphire),
+                  row(Icons.credit_card_outlined, 'الرقم الشخصي',
+                      '${d['owner_cpr'] ?? ''}', G.sapphire,
+                      ltr: true),
+                  row(Icons.assignment_outlined, 'السجل التجاري',
+                      '${d['cr_number'] ?? ''}', G.sapphire),
+                  row(Icons.health_and_safety_outlined, 'الترخيص الصحي',
+                      '${d['health_license'] ?? ''}', G.sapphire),
+                  row(Icons.receipt_long_outlined, 'الرقم الضريبي',
+                      '${d['vat_number'] ?? '-'}', G.sapphire),
+                  row(
+                      Icons.location_on_outlined,
+                      'العنوان',
+                      'محل ${d['shop_no'] ?? ''}، مبنى ${d['building'] ?? ''}، طريق ${d['road'] ?? ''}، مجمع ${d['block'] ?? ''}، ${d['address_area'] ?? ''}',
+                      G.sapphire),
+                  row(Icons.account_balance_outlined, 'البنك',
+                      '${d['bank_name'] ?? ''} · ${d['account_name'] ?? ''}',
+                      G.sapphire),
+                  row(Icons.numbers, 'IBAN', '${d['iban'] ?? ''}', G.sapphire,
+                      ltr: true),
+                  const SizedBox(height: 4),
+                  const Text('المستندات',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (final k in _docNames.keys)
+                      _DocTile(
+                        label: _docNames[k]!,
+                        available: d[k] != null,
+                        onTap: d[k] == null
+                            ? null
+                            : () async {
+                                final url = await guard(
+                                    context,
+                                    () => sb.storage
+                                        .from('docs')
+                                        .createSignedUrl(d[k], 600));
+                                if (url != null && context.mounted) {
+                                  showDialog(
+                                    context: context,
+                                    builder: (c) => AlertDialog(
+                                      title: Text(_docNames[k]!),
+                                      content: ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                            maxWidth: 560, maxHeight: 640),
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(14),
+                                          child: Image.network(url,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (_, __, ___) =>
+                                                  SelectableText(url)),
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                            onPressed: () => Navigator.pop(c),
+                                            child: const Text('إغلاق'))
+                                      ],
+                                    ),
+                                  );
+                                }
+                              },
+                      ),
                   ]),
-            ),
-            const SizedBox(height: 12),
-            SectionCard(
-              title: 'صلاحيات التاجر',
-              child: Column(children: [
-                const Text('التاجر يوزّع على موظفيه من هذه الصلاحيات فقط',
-                    style: TextStyle(fontSize: 12, color: Colors.black54)),
-                for (final e in merchantPermLabels.entries)
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(e.value),
+                ]),
+          );
+
+          final plan = GradientHeaderCard(
+            title: 'الاشتراك',
+            subtitle:
+                'الباقة الحالية ${planLabels[m['plan']] ?? ''} · تنتهي ${dateText(m['plan_ends'])}',
+            icon: Icons.workspace_premium_outlined,
+            colors: G.gold,
+            child: LayoutBuilder(builder: (context, c) {
+              final w = c.maxWidth < 420 ? c.maxWidth : (c.maxWidth - 16) / 3;
+              return Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final p in planLabels.entries)
+                  SizedBox(
+                    width: w,
+                    child: _PlanChoice(
+                      label: p.value,
+                      look: planLook[p.key] ?? planLook['monthly']!,
+                      current: m['plan'] == p.key,
+                      onTap: () async {
+                        await guard(
+                            context,
+                            () => sb.rpc('admin_set_plan', params: {
+                                  'p_merchant': merchantId,
+                                  'p_plan': p.key
+                                }),
+                            ok: 'تم تحديث الخطة');
+                        await reload();
+                      },
+                    ),
+                  ),
+              ]);
+            }),
+          );
+
+          final permsCard = GradientHeaderCard(
+            title: 'صلاحيات التاجر',
+            subtitle: 'التاجر يوزّع على موظفيه من هذه الصلاحيات فقط',
+            icon: Icons.tune,
+            colors: G.violet,
+            child: Column(children: [
+              for (final e in merchantPermLabels.entries)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: perms[e.key] == true
+                        ? G.violet.first.withValues(alpha: .07)
+                        : null,
+                    border: Border.all(
+                        color: G.violet.first.withValues(
+                            alpha: perms[e.key] == true ? .3 : .1)),
+                  ),
+                  child: SwitchListTile(
+                    dense: true,
+                    activeThumbColor: G.violet.first,
+                    title: Text(e.value,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
                     value: perms[e.key] == true,
                     onChanged: (v) async {
                       await guard(
@@ -708,93 +885,226 @@ class MerchantAdminPage extends StatelessWidget {
                       await reload();
                     },
                   ),
-              ]),
-            ),
-            const SizedBox(height: 12),
-            SectionCard(
-              title: 'محفظة التاجر',
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(bhd(bal),
-                        style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF2F5D50))),
-                    if (m['frozen'] == true)
-                      const Text(
-                          'المحفظة مجمّدة: لا يمكن الصرف حتى فك تجميد المتجر',
-                          style: TextStyle(
-                              color: Color(0xFF1D4E89),
-                              fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          SizedBox(
-                              width: 160,
-                              child: Field('مبلغ الصرف', amount,
-                                  keyboard:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true))),
-                          SizedBox(
-                              width: 160, child: Field('رقم الحوالة', ref)),
-                          FilledButton(
-                            onPressed: m['frozen'] == true
-                                ? null
-                                : () async {
-                                    await guard(
-                                        context,
-                                        () => sb.rpc('admin_payout', params: {
-                                              'p_merchant': merchantId,
-                                              'p_amount':
-                                                  num.tryParse(amount.text) ??
-                                                      0,
-                                              'p_ref': ref.text
-                                            }),
-                                        ok: 'تم تسجيل الصرف');
-                                    await reload();
-                                  },
-                            child: const Text('صرف وتحويل'),
-                          ),
-                        ]),
-                    const SizedBox(height: 8),
-                    for (final r in ledger.take(30))
-                      ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(r['note'] ?? r['kind']),
-                        subtitle: Text(dateTimeText(r['created_at'])),
-                        trailing: Text(bhd(r['amount']),
-                            textDirection: TextDirection.ltr),
+                ),
+            ]),
+          );
+
+          final wallet = GradientHeaderCard(
+            title: 'محفظة التاجر',
+            subtitle: 'الرصيد بعد العمولة ورسوم التوصيل',
+            icon: Icons.account_balance_wallet_outlined,
+            colors: G.emerald,
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        gradient: LinearGradient(colors: [
+                          G.emerald.first.withValues(alpha: .1),
+                          G.emerald.last.withValues(alpha: .18)
+                        ])),
+                    child: Row(children: [
+                      Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('الرصيد المتاح',
+                                  style: TextStyle(color: Colors.black54)),
+                              ShaderMask(
+                                shaderCallback: (r) =>
+                                    LinearGradient(colors: G.emerald)
+                                        .createShader(r),
+                                child: Text(bhd(bal),
+                                    style: const TextStyle(
+                                        fontSize: 28,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800)),
+                              ),
+                            ]),
                       ),
-                  ]),
-            ),
-            const SizedBox(height: 12),
-            SectionCard(
-              title: 'موظفو المتجر',
-              child: Column(children: [
-                if ((m['staff'] as List).isEmpty) const Text('لا يوجد موظفون'),
-                for (final s in m['staff'] as List)
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                        '${s['profiles']?['full_name'] ?? ''} · ${s['title']}'),
-                    subtitle: Text(merchantPermLabels.entries
-                        .where((e) => s['perms']?[e.key] == true)
-                        .map((e) => e.value)
-                        .join('، ')),
+                      if (frozen)
+                        _softPill('مجمّدة', Icons.ac_unit, G.sapphire.first),
+                    ]),
                   ),
-              ]),
-            ),
-          ]);
+                  if (frozen)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                          'لا يمكن الصرف حتى فك تجميد المتجر',
+                          style: TextStyle(
+                              color: G.sapphire.first,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(
+                        child: Field('مبلغ الصرف', amount,
+                            ltr: true,
+                            keyboard: const TextInputType.numberWithOptions(
+                                decimal: true))),
+                    const SizedBox(width: 8),
+                    Expanded(child: Field('رقم الحوالة', ref)),
+                  ]),
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: G.emerald.first,
+                        minimumSize: const Size.fromHeight(48)),
+                    onPressed: frozen
+                        ? null
+                        : () async {
+                            await guard(
+                                context,
+                                () => sb.rpc('admin_payout', params: {
+                                      'p_merchant': merchantId,
+                                      'p_amount':
+                                          num.tryParse(amount.text) ?? 0,
+                                      'p_ref': ref.text
+                                    }),
+                                ok: 'تم تسجيل الصرف');
+                            await reload();
+                          },
+                    icon: const Icon(Icons.send_outlined, size: 18),
+                    label: const Text('صرف وتحويل'),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('آخر الحركات',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  if (ledger.isEmpty)
+                    const Text('لا توجد حركات بعد',
+                        style: TextStyle(color: Colors.black54)),
+                  for (final r in ledger.take(30))
+                    _LedgerRow(r: r),
+                ]),
+          );
+
+          final staffCard = GradientHeaderCard(
+            title: 'موظفو المتجر',
+            subtitle: '${staff.length} موظف',
+            icon: Icons.groups_outlined,
+            colors: G.teal,
+            child: Column(children: [
+              if (staff.isEmpty)
+                const Text('لا يوجد موظفون',
+                    style: TextStyle(color: Colors.black54)),
+              for (final s in staff)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(children: [
+                    GradientBadge(
+                        colors: G.teal,
+                        text: '${s['profiles']?['full_name'] ?? '?'}'
+                                .characters
+                                .firstOrNull ??
+                            '?',
+                        size: 40),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                                '${s['profiles']?['full_name'] ?? ''} · ${s['title'] ?? ''}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700)),
+                            Text(
+                                merchantPermLabels.entries
+                                    .where((e) => s['perms']?[e.key] == true)
+                                    .map((e) => e.value)
+                                    .join('، '),
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.black54)),
+                          ]),
+                    ),
+                  ]),
+                ),
+            ]),
+          );
+
+          return LayoutBuilder(builder: (context, c) {
+            final wide = c.maxWidth >= 900;
+            const gap = SizedBox(height: 14);
+            return ListView(padding: const EdgeInsets.all(16), children: [
+              hero,
+              gap,
+              if (wide)
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(
+                      child: Column(children: [info, gap, staffCard])),
+                  const SizedBox(width: 14),
+                  Expanded(
+                      child: Column(
+                          children: [wallet, gap, plan, gap, permsCard])),
+                ])
+              else ...[
+                wallet,
+                gap,
+                plan,
+                gap,
+                info,
+                gap,
+                permsCard,
+                gap,
+                staffCard,
+              ],
+            ]);
+          });
         },
       ),
     );
   }
+
+  static Widget _heroPill(String t, IconData i) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .18),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withValues(alpha: .3))),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(i, size: 14, color: Colors.white),
+          const SizedBox(width: 5),
+          Text(t,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600)),
+        ]),
+      );
+
+  static Widget _heroStat(String k, String v) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .14),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white.withValues(alpha: .22))),
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(k,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              Text(v,
+                  style: const TextStyle(
+                      color: Color(0xFFFFE6A8),
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800)),
+            ]),
+      );
+
+  static Widget _softPill(String t, IconData i, Color c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+            color: c.withValues(alpha: .1),
+            borderRadius: BorderRadius.circular(999)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(i, size: 14, color: c),
+          const SizedBox(width: 4),
+          Text(t, style: TextStyle(color: c, fontWeight: FontWeight.w700)),
+        ]),
+      );
 
   static const _docNames = {
     'doc_id_path': 'هوية التاجر',
@@ -802,4 +1112,140 @@ class MerchantAdminPage extends StatelessWidget {
     'doc_tax_path': 'الشهادة الضريبية',
     'doc_health_path': 'الشهادة الصحية'
   };
+}
+
+class _DocTile extends StatelessWidget {
+  const _DocTile(
+      {required this.label, required this.available, required this.onTap});
+  final String label;
+  final bool available;
+  final VoidCallback? onTap;
+  @override
+  Widget build(BuildContext context) {
+    final c = available ? G.sapphire : [Colors.grey, Colors.grey.shade400];
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: available
+              ? LinearGradient(colors: [
+                  c.first.withValues(alpha: .08),
+                  c.last.withValues(alpha: .16)
+                ])
+              : null,
+          border: Border.all(color: c.first.withValues(alpha: .25)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(available ? Icons.description_outlined : Icons.do_not_disturb,
+              size: 18, color: c.first),
+          const SizedBox(width: 6),
+          Text(available ? label : '$label (غير مرفق)',
+              style: TextStyle(
+                  color: c.first, fontWeight: FontWeight.w600, fontSize: 13)),
+        ]),
+      ),
+    );
+  }
+}
+
+class _PlanChoice extends StatelessWidget {
+  const _PlanChoice(
+      {required this.label,
+      required this.look,
+      required this.current,
+      required this.onTap});
+  final String label;
+  final (IconData, List<Color>) look;
+  final bool current;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final (icon, g) = look;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: current
+              ? LinearGradient(colors: g)
+              : LinearGradient(colors: [
+                  g.first.withValues(alpha: .06),
+                  g.last.withValues(alpha: .14)
+                ]),
+          border: Border.all(
+              color: current ? Colors.transparent : g.first.withValues(alpha: .25)),
+          boxShadow: current
+              ? [
+                  BoxShadow(
+                      color: g.first.withValues(alpha: .3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 5))
+                ]
+              : null,
+        ),
+        child: Row(children: [
+          Icon(icon, color: current ? Colors.white : g.first),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: current ? Colors.white : g.first)),
+                  Text(current ? 'اضغط للتجديد' : 'اضغط للتحويل',
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          color: current ? Colors.white70 : Colors.black54)),
+                ]),
+          ),
+          if (current)
+            const Icon(Icons.check_circle, color: Colors.white, size: 20),
+        ]),
+      ),
+    );
+  }
+}
+
+class _LedgerRow extends StatelessWidget {
+  const _LedgerRow({required this.r});
+  final Map<String, dynamic> r;
+  @override
+  Widget build(BuildContext context) {
+    final a = toNum(r['amount']);
+    final g = a >= 0 ? G.emerald : G.ruby;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+              shape: BoxShape.circle, color: g.first.withValues(alpha: .1)),
+          child: Icon(a >= 0 ? Icons.south_west : Icons.north_east,
+              size: 16, color: g.first),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('${r['note'] ?? r['kind']}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(dateTimeText(r['created_at']),
+                style: const TextStyle(fontSize: 11.5, color: Colors.black45)),
+          ]),
+        ),
+        Text('${a >= 0 ? '+' : '−'}${bhd(a.abs())}',
+            textDirection: TextDirection.ltr,
+            style: TextStyle(fontWeight: FontWeight.w800, color: g.first)),
+      ]),
+    );
+  }
 }
