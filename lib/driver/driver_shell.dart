@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:latlong2/latlong.dart';
+
 import '../auth/gate.dart';
+import '../core/address_map.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
 
@@ -620,7 +623,7 @@ class DriverOrderPage extends StatelessWidget {
         load: () async => await sb
             .from('orders')
             .select(
-                'id, code, status, address, notes, delivery_date, delivery_slot, slaughter_date, slaughter_time, payment_method, payment_status, total, driver_id, customer_name, customer_phone, merchants(name, area, store_phone), order_items(name, qty, options), delivery_zones(name)')
+                'id, code, status, address, notes, delivery_date, delivery_slot, slaughter_date, slaughter_time, payment_method, payment_status, total, driver_id, customer_name, customer_phone, merchants(name, area, store_phone), order_items(name, qty, options), delivery_zones(name, governorate, city, lat, lng)')
             .eq('id', orderId)
             .single(),
         builder: (context, o, reload) {
@@ -720,8 +723,27 @@ class DriverOrderPage extends StatelessWidget {
                         const Divider(height: 18),
                         _kv('التسليم إلى', '${o['address'] ?? ''}'),
                         if (o['delivery_zones'] != null)
-                          _kv('منطقة التوصيل',
-                              '${o['delivery_zones']['name']}'),
+                          _kv(
+                              'منطقة التوصيل',
+                              [
+                                o['delivery_zones']['name'],
+                                o['delivery_zones']['city'],
+                                o['delivery_zones']['governorate']
+                              ]
+                                  .where((x) => '${x ?? ''}'.isNotEmpty)
+                                  .toSet()
+                                  .join(' · ')),
+                        if (o['delivery_zones']?['lat'] != null) ...[
+                          const SizedBox(height: 8),
+                          AddressMap(
+                            point: LatLng(
+                                toNum(o['delivery_zones']['lat']).toDouble(),
+                                toNum(o['delivery_zones']['lng']).toDouble()),
+                            height: 200,
+                            color: G.sapphire.first,
+                          ),
+                          const SizedBox(height: 8),
+                        ],
                         if (mine)
                           _kv('العميل',
                               '${o['customer_name'] ?? ''} · ${o['customer_phone'] ?? ''}'),

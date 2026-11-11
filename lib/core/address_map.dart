@@ -195,3 +195,52 @@ class _AddressMapState extends State<AddressMap> {
     );
   }
 }
+
+/// Bahrain's four governorates and the main cities in each, with an approximate
+/// centre point used to drop the first pin before the admin adjusts it.
+const bahrainGovernorates = <String, Map<String, LatLng>>{
+  'محافظة العاصمة': {
+    'المنامة': LatLng(26.2235, 50.5876),
+    'الجفير': LatLng(26.2110, 50.6050),
+    'السيف': LatLng(26.2340, 50.5330),
+    'العدلية': LatLng(26.2130, 50.5900),
+    'توبلي': LatLng(26.1950, 50.5630),
+    'سترة': LatLng(26.1540, 50.6200),
+  },
+  'محافظة المحرق': {
+    'المحرق': LatLng(26.2572, 50.6119),
+    'الحد': LatLng(26.2460, 50.6540),
+    'عراد': LatLng(26.2550, 50.6350),
+    'قلالي': LatLng(26.2730, 50.6510),
+    'البسيتين': LatLng(26.2700, 50.6050),
+    'ديار المحرق': LatLng(26.2900, 50.6300),
+    'جزر أمواج': LatLng(26.2930, 50.6630),
+  },
+  'المحافظة الشمالية': {
+    'البديع': LatLng(26.2170, 50.4480),
+    'مدينة حمد': LatLng(26.1150, 50.5070),
+    'جدحفص': LatLng(26.2180, 50.5480),
+    'سار': LatLng(26.1880, 50.4870),
+    'الدراز': LatLng(26.2190, 50.4760),
+    'مدينة سلمان': LatLng(26.2400, 50.4800),
+    'سلماباد': LatLng(26.1840, 50.5300),
+    'عالي': LatLng(26.1550, 50.5300),
+    'مدينة زايد': LatLng(26.1600, 50.5100),
+  },
+  'المحافظة الجنوبية': {
+    'الرفاع': LatLng(26.1300, 50.5550),
+    'مدينة عيسى': LatLng(26.1736, 50.5478),
+    'عوالي': LatLng(26.0870, 50.5480),
+    'الزلاق': LatLng(26.0480, 50.4840),
+    'عسكر': LatLng(26.0560, 50.6150),
+  },
+};
+
+/// Looks up a known Bahrain city: (governorate, centre) or null.
+(String, LatLng)? bahrainPlace(String city) {
+  for (final g in bahrainGovernorates.entries) {
+    final p = g.value[city.trim()];
+    if (p != null) return (g.key, p);
+  }
+  return null;
+}

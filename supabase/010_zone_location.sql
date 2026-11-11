@@ -1,0 +1,2 @@
+-- Applied 2026-11-11 via MCP (migration 010_zone_location): delivery_zones.country/governorate/city/lat/lng,
+-- backfilled the 12 existing Bahrain zones with governorate and approximate city centre.
