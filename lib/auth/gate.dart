@@ -156,20 +156,6 @@ void useBrand(String key) {
     WidgetsBinding.instance.addPostFrameCallback((_) => activeBrand.value = b);
 }
 
-const _roleIcons = {
-  'admin': Icons.admin_panel_settings_outlined,
-  'merchant_owner': Icons.storefront_outlined,
-  'merchant_staff': Icons.badge_outlined,
-  'driver': Icons.delivery_dining_outlined,
-  'customer': Icons.shopping_bag_outlined,
-};
-const _roleHints = {
-  'admin': 'لوحة إدارة المنصة كاملة',
-  'merchant_owner': 'متجرك وطلباته ومحفظته',
-  'merchant_staff': 'طلبات المتجر حسب صلاحياتك',
-  'driver': 'الطلبات المتاحة ومحفظة التوصيل',
-  'customer': 'تصفح الملاحم واطلب',
-};
 
 /// Switches between the apps an account can open, shown as gradient role cards.
 class RoleSwitcher extends StatelessWidget {
@@ -235,7 +221,7 @@ class RoleSwitcher extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: LinearGradient(colors: cur),
                 border: Border.all(color: Colors.white, width: 1.4)),
-            child: Icon(_roleIcons[current] ?? Icons.person,
+            child: Icon(roleIcons[current] ?? Icons.person,
                 size: 15, color: Colors.white),
           ),
           const SizedBox(width: 8),
@@ -292,7 +278,7 @@ class _RoleTile extends StatelessWidget {
             color: selected ? Colors.white.withValues(alpha: .22) : null,
             gradient: selected ? null : LinearGradient(colors: g),
           ),
-          child: Icon(_roleIcons[role] ?? Icons.person,
+          child: Icon(roleIcons[role] ?? Icons.person,
               color: Colors.white, size: 22),
         ),
         const SizedBox(width: 12),
@@ -306,7 +292,7 @@ class _RoleTile extends StatelessWidget {
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: selected ? Colors.white : g.first)),
-                Text(_roleHints[role] ?? '',
+                Text(roleHints[role] ?? '',
                     style: TextStyle(
                         fontSize: 12,
                         color: selected ? Colors.white70 : Colors.black54)),

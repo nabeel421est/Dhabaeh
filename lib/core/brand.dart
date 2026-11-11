@@ -474,6 +474,21 @@ class GradientBadge extends StatelessWidget {
 }
 
 /// Gradient pairs per account role, so a role reads the same everywhere.
+const roleIcons = {
+  'admin': Icons.admin_panel_settings_outlined,
+  'merchant_owner': Icons.storefront_outlined,
+  'merchant_staff': Icons.badge_outlined,
+  'driver': Icons.delivery_dining_outlined,
+  'customer': Icons.shopping_bag_outlined,
+};
+const roleHints = {
+  'admin': 'لوحة إدارة المنصة كاملة',
+  'merchant_owner': 'متجرك وطلباته ومحفظته',
+  'merchant_staff': 'طلبات المتجر حسب صلاحياتك',
+  'driver': 'الطلبات المتاحة ومحفظة التوصيل',
+  'customer': 'تصفح الملاحم واطلب',
+};
+
 const roleGradients = <String, List<Color>>{
   'admin': [Color(0xFF06375A), Color(0xFF4CC3F2)],
   'merchant_owner': [Color(0xFF0D6152), Color(0xFF3CC4A0)],

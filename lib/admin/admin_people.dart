@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../core/brand.dart';
@@ -355,8 +357,8 @@ Future<void> showEditUser(BuildContext context,
                           borderRadius: BorderRadius.circular(14),
                           gradient: on[r.key] == true
                               ? LinearGradient(colors: [
-                                  for (final x in roleGradients[r.key] ??
-                                      G.violet)
+                                  for (final x
+                                      in roleGradients[r.key] ?? G.violet)
                                     x.withValues(alpha: .12)
                                 ])
                               : null,
@@ -499,78 +501,348 @@ Future<void> showAddUser(
       r: have.contains(r) || r == (preset ?? 'customer')
   };
   String? merchantId = merchants.isEmpty ? null : merchants.first['id'];
+  var hidePass = true;
+  final main = preset ?? 'customer';
+  final colors = roleGradients[main] ?? G.violet;
+  final isCustomer = existing == null && main == 'customer';
+  final title = existing != null
+      ? 'صلاحيات ${existing['full_name']}'
+      : main == 'driver'
+          ? 'إضافة مندوب'
+          : isCustomer
+              ? 'إضافة عميل'
+              : 'إضافة مستخدم';
+  final subtitle = existing != null
+      ? 'أضف صلاحيات جديدة لهذا الحساب'
+      : isCustomer
+          ? 'حساب عميل جديد يدخل برقم جواله'
+          : 'حساب جديد للمنصة مع صلاحياته';
+
+  InputDecoration deco(String label, IconData icon, {Widget? suffix}) =>
+      InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: colors.first),
+        suffixIcon: suffix,
+        filled: true,
+        fillColor: colors.first.withValues(alpha: .04),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: colors.first.withValues(alpha: .18))),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: colors.first, width: 1.6)),
+      );
+
+  Widget section(IconData icon, String text, String hint) => Padding(
+        padding: const EdgeInsets.only(bottom: 10, top: 4),
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+                gradient: LinearGradient(colors: colors),
+                borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, size: 16, color: Colors.white),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(text,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 15)),
+              Text(hint,
+                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            ]),
+          ),
+        ]),
+      );
+
   final ok = await showDialog<bool>(
     context: context,
-    builder: (c) => StatefulBuilder(
-      builder: (c, set) => AlertDialog(
-        title: Text(existing == null
-            ? 'إضافة مستخدم'
-            : 'صلاحيات ${existing['full_name']}'),
-        content: SizedBox(
-          width: 460,
-          child: Form(
-            key: form,
-            child: SingleChildScrollView(
-              child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (existing == null) ...[
-                      Field('الاسم', name, required: true),
-                      const SizedBox(height: 10),
-                      Field('رقم الجوال', phone,
-                          required: true,
-                          keyboard: TextInputType.phone,
-                          ltr: true),
-                      const SizedBox(height: 10),
-                      Field('كلمة مرور مبدئية', pass,
-                          required: true, note: 'يغيّرها المستخدم لاحقاً'),
-                      const SizedBox(height: 10),
-                      Field('المنطقة', area),
-                      const SizedBox(height: 12),
-                    ],
-                    const Text('الصلاحيات',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
-                    for (final r in roleLabels.entries)
-                      CheckboxListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        value: roles[r.key],
-                        enabled: !have.contains(r.key),
-                        title: Text(r.value),
-                        onChanged: (v) => set(() => roles[r.key] = v == true),
-                      ),
-                    if (roles['merchant_owner'] == true ||
-                        roles['merchant_staff'] == true)
-                      DropdownButtonFormField<String>(
-                        initialValue: merchantId,
-                        decoration: const InputDecoration(
-                            labelText: 'المتجر المرتبط *'),
-                        items: [
-                          for (final m in merchants)
-                            DropdownMenuItem(
-                                value: m['id'] as String,
-                                child: Text(m['name']))
-                        ],
-                        onChanged: (v) => set(() => merchantId = v),
-                        validator: (v) => v == null ? 'اختر المتجر' : null,
-                      ),
-                  ]),
+    builder: (c) => StatefulBuilder(builder: (c, set) {
+      final needStore =
+          roles['merchant_owner'] == true || roles['merchant_staff'] == true;
+      return Dialog(
+        clipBehavior: Clip.antiAlias,
+        insetPadding: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560, maxHeight: 760),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // Gradient header
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 12, 20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                    begin: AlignmentDirectional.topStart,
+                    end: AlignmentDirectional.bottomEnd,
+                    colors: [colors.last, colors.first]),
+              ),
+              child: Row(children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .2),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: .5), width: 1.5),
+                  ),
+                  child: Icon(
+                      existing != null
+                          ? Icons.key_outlined
+                          : Icons.person_add_alt_1_outlined,
+                      color: Colors.white,
+                      size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 2),
+                        Text(subtitle,
+                            style: TextStyle(
+                                color: Colors.white.withValues(alpha: .85),
+                                fontSize: 13)),
+                      ]),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(c, false),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ]),
             ),
-          ),
+            Flexible(
+              child: Form(
+                key: form,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (existing == null) ...[
+                          section(Icons.badge_outlined, 'بيانات الحساب',
+                              'رقم الجوال هو اسم الدخول'),
+                          TextFormField(
+                            controller: name,
+                            decoration:
+                                deco('الاسم الكامل *', Icons.person_outline),
+                            validator: (v) =>
+                                (v ?? '').trim().isEmpty ? 'اكتب الاسم' : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: phone,
+                            keyboardType: TextInputType.phone,
+                            textDirection: TextDirection.ltr,
+                            decoration: deco(
+                                'رقم الجوال *', Icons.phone_iphone_outlined,
+                                suffix: const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 14),
+                                  child: Text('+973',
+                                      textDirection: TextDirection.ltr,
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.black54)),
+                                )),
+                            validator: (v) {
+                              final d = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                              return d.length == 8 ||
+                                      (d.length == 11 && d.startsWith('973'))
+                                  ? null
+                                  : 'رقم الجوال 8 أرقام';
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: pass,
+                            obscureText: hidePass,
+                            textDirection: TextDirection.ltr,
+                            decoration: deco(
+                                'كلمة مرور مبدئية *', Icons.lock_outline,
+                                suffix: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'إظهار',
+                                        icon: Icon(hidePass
+                                            ? Icons.visibility_outlined
+                                            : Icons.visibility_off_outlined),
+                                        onPressed: () =>
+                                            set(() => hidePass = !hidePass),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'توليد كلمة مرور',
+                                        icon: Icon(Icons.auto_awesome,
+                                            color: colors.first),
+                                        onPressed: () => set(() {
+                                          const a =
+                                              'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+                                          final rnd = Random.secure();
+                                          pass.text = List.generate(
+                                                  10,
+                                                  (_) =>
+                                                      a[rnd.nextInt(a.length)])
+                                              .join();
+                                          hidePass = false;
+                                        }),
+                                      ),
+                                    ])),
+                            validator: (v) => (v ?? '').length < 6
+                                ? '6 أحرف على الأقل'
+                                : null,
+                          ),
+                          Padding(
+                            padding: const EdgeInsetsDirectional.only(
+                                start: 12, top: 4),
+                            child: Text('يغيّرها المستخدم بعد أول دخول',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey.shade600)),
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: area,
+                            decoration:
+                                deco('المنطقة', Icons.location_on_outlined),
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+                        section(Icons.verified_user_outlined, 'الصلاحيات',
+                            'اختر ما يستطيع هذا الحساب فتحه'),
+                        LayoutBuilder(builder: (context, box) {
+                          final w = box.maxWidth >= 440
+                              ? (box.maxWidth - 10) / 2
+                              : box.maxWidth;
+                          return Wrap(spacing: 10, runSpacing: 10, children: [
+                            for (final r in roleLabels.entries)
+                              SizedBox(
+                                width: w,
+                                child: _RolePick(
+                                  label: r.value,
+                                  hint: roleHints[r.key] ?? '',
+                                  icon: roleIcons[r.key] ?? Icons.person,
+                                  colors: roleGradients[r.key] ?? G.violet,
+                                  selected: roles[r.key] == true,
+                                  locked: have.contains(r.key),
+                                  onTap: () => set(() =>
+                                      roles[r.key] = !(roles[r.key] ?? false)),
+                                ),
+                              ),
+                          ]);
+                        }),
+                        if (needStore) ...[
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              gradient: LinearGradient(colors: [
+                                for (final x
+                                    in roleGradients['merchant_owner']!)
+                                  x.withValues(alpha: .08)
+                              ]),
+                              border: Border.all(
+                                  color: roleGradients['merchant_owner']!
+                                      .first
+                                      .withValues(alpha: .25)),
+                            ),
+                            child: DropdownButtonFormField<String>(
+                              initialValue: merchantId,
+                              isExpanded: true,
+                              decoration: deco('المتجر المرتبط *',
+                                  Icons.storefront_outlined),
+                              items: [
+                                for (final m in merchants)
+                                  DropdownMenuItem(
+                                      value: m['id'] as String,
+                                      child: Text(m['name']))
+                              ],
+                              onChanged: (v) => set(() => merchantId = v),
+                              validator: (v) =>
+                                  v == null ? 'اختر المتجر' : null,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                      ]),
+                ),
+              ),
+            ),
+            // Footer
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+              decoration: BoxDecoration(
+                border: Border(
+                    top: BorderSide(color: colors.first.withValues(alpha: .1))),
+              ),
+              child: Row(children: [
+                Expanded(
+                  flex: 2,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient:
+                          LinearGradient(colors: [colors.first, colors.last]),
+                      boxShadow: [
+                        BoxShadow(
+                            color: colors.first.withValues(alpha: .35),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6))
+                      ],
+                    ),
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        minimumSize: const Size.fromHeight(50),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed: () {
+                        if (!roles.values.any((v) => v)) {
+                          toast(c, 'اختر صلاحية واحدة على الأقل');
+                          return;
+                        }
+                        if (form.currentState!.validate()) {
+                          Navigator.pop(c, true);
+                        }
+                      },
+                      icon: const Icon(Icons.check_circle_outline),
+                      label: Text(existing == null ? 'إنشاء الحساب' : 'حفظ',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: 15)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      foregroundColor: colors.first,
+                      side:
+                          BorderSide(color: colors.first.withValues(alpha: .4)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () => Navigator.pop(c, false),
+                    child: const Text('إلغاء'),
+                  ),
+                ),
+              ]),
+            ),
+          ]),
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(c, false),
-              child: const Text('إلغاء')),
-          FilledButton(
-              onPressed: () {
-                if (form.currentState!.validate()) Navigator.pop(c, true);
-              },
-              child: const Text('حفظ')),
-        ],
-      ),
-    ),
+      );
+    }),
   );
   if (ok != true || !context.mounted) return;
   await guard(
@@ -587,7 +859,103 @@ Future<void> showAddUser(
             ],
             'merchant_id': merchantId,
           }),
-      ok: 'تم الحفظ');
+      ok: existing == null ? 'تم إنشاء الحساب' : 'تم الحفظ');
+}
+
+/// A selectable role card: full gradient when chosen, soft tint otherwise.
+class _RolePick extends StatelessWidget {
+  const _RolePick(
+      {required this.label,
+      required this.hint,
+      required this.icon,
+      required this.colors,
+      required this.selected,
+      required this.locked,
+      required this.onTap});
+  final String label, hint;
+  final IconData icon;
+  final List<Color> colors;
+  final bool selected, locked;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final fg = selected ? Colors.white : colors.first;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: selected
+            ? LinearGradient(
+                begin: AlignmentDirectional.centerStart,
+                end: AlignmentDirectional.centerEnd,
+                colors: colors)
+            : LinearGradient(
+                colors: [for (final x in colors) x.withValues(alpha: .07)]),
+        border: Border.all(
+            color: colors.first.withValues(alpha: selected ? 0 : .2)),
+        boxShadow: selected
+            ? [
+                BoxShadow(
+                    color: colors.first.withValues(alpha: .3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5))
+              ]
+            : null,
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: locked ? null : onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Colors.white.withValues(alpha: .22)
+                      : colors.first.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: fg, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: selected ? Colors.white : Colors.black87)),
+                      Text(locked ? 'لديه هذه الصلاحية' : hint,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              color: selected
+                                  ? Colors.white.withValues(alpha: .85)
+                                  : Colors.black54)),
+                    ]),
+              ),
+              Icon(
+                  locked
+                      ? Icons.lock_outline
+                      : selected
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                  color: selected
+                      ? Colors.white
+                      : colors.first.withValues(alpha: .5),
+                  size: 22),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class AdminDrivers extends StatelessWidget {
