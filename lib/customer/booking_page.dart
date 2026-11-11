@@ -59,6 +59,12 @@ class OrderDraft {
   }
   final String kind;
   int qty = 1;
+
+  /// The chosen extra unit (null = the product's base unit).
+  Map<String, dynamic>? unit;
+  num priceFor(Map p) =>
+      unit == null ? toNum(p['price']) : toNum(unit!['price']);
+  String unitNameFor(Map p) => '${unit?['name'] ?? p['base_unit'] ?? 'ذبيحة'}';
   String cutting = cuttingOptions.first;
   String packing = packingOptions.first;
   bool keepHead = false;
@@ -232,6 +238,7 @@ class _ProductBanner extends StatelessWidget {
       required this.colors,
       required this.kind,
       required this.unit,
+      this.unitName = 'ذبيحة',
       this.qty,
       this.onQty});
   final Map<String, dynamic> store;
@@ -239,6 +246,7 @@ class _ProductBanner extends StatelessWidget {
   final List<Color> colors;
   final String kind;
   final num unit;
+  final String unitName;
   final int? qty;
   final ValueChanged<int>? onQty;
   @override
@@ -269,7 +277,8 @@ class _ProductBanner extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -287,8 +296,9 @@ class _ProductBanner extends StatelessWidget {
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.w700)),
-              Text('${store['name']} · ${bhd(unit)} للذبيحة',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12.5)),
+              Text('${store['name']} · ${bhd(unit)} / $unitName',
+                  style:
+                      const TextStyle(color: Colors.white70, fontSize: 12.5)),
             ]),
           ),
           if (onQty != null)
@@ -375,10 +385,42 @@ class _OrderPageState extends State<OrderPage> {
                     product: widget.product,
                     colors: cs,
                     kind: d.kind,
-                    unit: toNum(widget.product['price']),
+                    unit: d.priceFor(widget.product),
+                    unitName: d.unitNameFor(widget.product),
                     qty: d.qty,
                     onQty: (v) => setState(() => d.qty = v)),
-                if (purchase && '${widget.product['description'] ?? ''}'.isNotEmpty) ...[
+                if ((widget.product['product_units'] as List? ?? [])
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _Section(
+                    icon: Icons.straighten_outlined,
+                    title: 'اختر الوحدة',
+                    colors: cs,
+                    child: _wrap([
+                      _Choice(
+                          label: '${widget.product['base_unit'] ?? 'ذبيحة'}',
+                          sub: bhd(widget.product['price']),
+                          width: 132,
+                          colors: cs,
+                          selected: d.unit == null,
+                          onTap: () => setState(() => d.unit = null)),
+                      for (final u in ([
+                        ...(widget.product['product_units'] as List)
+                      ]..sort((a, b) =>
+                          toNum(a['sort']).compareTo(toNum(b['sort'])))))
+                        _Choice(
+                            label: '${u['name']}',
+                            sub: bhd(u['price']),
+                            width: 132,
+                            colors: cs,
+                            selected: d.unit?['id'] == u['id'],
+                            onTap: () => setState(
+                                () => d.unit = Map<String, dynamic>.from(u))),
+                    ]),
+                  ),
+                ],
+                if (purchase &&
+                    '${widget.product['description'] ?? ''}'.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   _Section(
                     icon: Icons.info_outline,
@@ -590,7 +632,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 product: widget.product,
                 colors: cs,
                 kind: d.kind,
-                unit: toNum(widget.product['price']),
+                unit: d.priceFor(widget.product),
+                unitName: d.unitNameFor(widget.product),
                 qty: d.qty),
             const SizedBox(height: 12),
             Card(
@@ -599,13 +642,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 padding: const EdgeInsets.all(14),
                 child: Row(children: [
                   Expanded(
-                      child: _when(Icons.schedule, 'الذبح',
+                      child: _when(
+                          Icons.schedule,
+                          'الذبح',
                           '${_weekdays[d.slaughterDay.weekday - 1]} ${d.slaughterDay.day}/${d.slaughterDay.month} · ${d.slaughterTime}',
                           cs)),
                   Container(width: 1, height: 40, color: Colors.black12),
                   const SizedBox(width: 12),
                   Expanded(
-                      child: _when(Icons.local_shipping_outlined, 'التوصيل',
+                      child: _when(
+                          Icons.local_shipping_outlined,
+                          'التوصيل',
                           '${_weekdays[d.deliveryDay.weekday - 1]} ${d.deliveryDay.day}/${d.deliveryDay.month} · ${d.slot}',
                           cs)),
                   TextButton(
@@ -634,7 +681,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
         Icon(i, color: cs.first),
         const SizedBox(width: 8),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(k,
                 style: const TextStyle(fontSize: 12, color: Colors.black54)),
             Text(v,
@@ -703,6 +751,7 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
           {
             'product_id': widget.product['id'],
             'qty': d.qty,
+            if (d.unit != null) 'unit_id': d.unit!['id'],
             'options': d.options,
           }
         ],
@@ -716,7 +765,8 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
         'p_notes': null,
       });
       if (d.receipt != null && d.receipt!.bytes != null) {
-        final safe = d.receipt!.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+        final safe =
+            d.receipt!.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
         final path = '$myId/receipt-${o['id']}-$safe';
         await sb.storage.from('docs').uploadBinary(path, d.receipt!.bytes!);
         await sb.rpc('attach_receipt',
@@ -738,7 +788,8 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
           saved.first['area'] == row['area'];
       // Keep the saved address (with its city, flat and map pin) when unchanged.
       if (same) {
-        await sb.from('customer_addresses')
+        await sb
+            .from('customer_addresses')
             .update({'note': row['note']}).eq('id', saved.first['id']);
       } else {
         await sb.from('customer_addresses').insert(row);
@@ -775,7 +826,7 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
             .firstOrNull;
       }
     }
-    final price = toNum(widget.product['price']);
+    final price = d.priceFor(widget.product);
     final sub = price * d.qty;
     final disc = offerValue(widget.offer, price) * d.qty;
     final custComm = calcValue(
@@ -809,7 +860,8 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
         icon: Icons.place_outlined,
         title: 'عنوان التوصيل',
         colors: cs,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           DropdownButtonFormField<String>(
             initialValue: d.zoneId,
             decoration: const InputDecoration(labelText: 'المنطقة *'),
@@ -847,7 +899,8 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
         icon: Icons.account_balance_wallet_outlined,
         title: 'طريقة الدفع',
         colors: cs,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           LayoutBuilder(builder: (context, c) {
             final cols = c.maxWidth >= 480 ? 3 : 1;
             final w = (c.maxWidth - 8 * (cols - 1)) / cols;
@@ -918,7 +971,8 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
       Card(
         margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -954,7 +1008,9 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
                         '${d.cutting} · ${d.packing}${d.keepHead ? ' · مع الرأس' : ''}'),
                   line('الدفع', paymentLabels[d.payment] ?? d.payment),
                   const Divider(height: 20),
-                  line('${widget.product['name']} × ${d.qty}', bhd(sub)),
+                  line(
+                      '${widget.product['name']} (${d.unitNameFor(widget.product)}) × ${d.qty}',
+                      bhd(sub)),
                   if (disc > 0)
                     line('الخصم', '- ${bhd(disc)}', color: G.emerald.first),
                   if (custComm > 0) line('رسوم الخدمة', bhd(custComm)),

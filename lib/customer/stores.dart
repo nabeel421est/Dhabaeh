@@ -6,7 +6,15 @@ import 'booking_page.dart';
 import 'customer_shell.dart' show StoreLogo;
 
 /// Store colours: each butcher shop keeps its own gradient everywhere in the customer app.
-const storeTones = [G.ruby, G.amber, G.violet, G.sapphire, G.emerald, G.teal, G.gold];
+const storeTones = [
+  G.ruby,
+  G.amber,
+  G.violet,
+  G.sapphire,
+  G.emerald,
+  G.teal,
+  G.gold
+];
 
 /// The offer that applies to a product (product-specific offers only, as the order is priced).
 Map<String, dynamic>? offerFor(List<Map<String, dynamic>> offers, Map p) {
@@ -61,7 +69,7 @@ class _StoresPageState extends State<StoresPage> {
             .order('name'));
         final p = List<Map<String, dynamic>>.from(await sb
             .from('products')
-            .select()
+            .select('*, product_units(id, name, price, sku, sort)')
             .eq('available', true)
             .order('price'));
         final o = List<Map<String, dynamic>>.from(
@@ -76,9 +84,9 @@ class _StoresPageState extends State<StoresPage> {
             stores[i]['id']: storeTones[i % storeTones.length]
         };
         final byId = {for (final m in stores) m['id']: m};
-        final areas =
-            <String>{for (final m in stores) '${m['area'] ?? ''}'}.toList()
-              ..removeWhere((a) => a.isEmpty);
+        final areas = <String>{for (final m in stores) '${m['area'] ?? ''}'}
+            .toList()
+          ..removeWhere((a) => a.isEmpty);
         final q = search.trim();
         bool inArea(Map m) => area == null || m['area'] == area;
         final shownStores = stores.where((m) {
@@ -179,8 +187,9 @@ class _StoresPageState extends State<StoresPage> {
                   count: ps.length,
                   from: ps.isEmpty
                       ? null
-                      : ps.map((p) => toNum(p['price'])).reduce(
-                          (a, b) => a < b ? a : b),
+                      : ps
+                          .map((p) => toNum(p['price']))
+                          .reduce((a, b) => a < b ? a : b),
                   hasOffer: offers.any((o) => o['merchant_id'] == m['id']),
                   onTap: () => Navigator.push(
                       context,
@@ -233,13 +242,15 @@ class _StoreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final open = m['is_open'] == true;
-    final cs = open ? colors : [Colors.blueGrey.shade500, Colors.blueGrey.shade300];
+    final cs =
+        open ? colors : [Colors.blueGrey.shade500, Colors.blueGrey.shade300];
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: open ? onTap : null,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Container(
             height: 112,
             decoration: BoxDecoration(
@@ -413,7 +424,8 @@ class ProductTile extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           SizedBox(
             height: 124,
             child: Stack(fit: StackFit.expand, children: [
@@ -565,7 +577,7 @@ class _StorePageState extends State<StorePage> {
         load: () async {
           final p = await sb
               .from('products')
-              .select()
+              .select('*, product_units(id, name, price, sku, sort)')
               .eq('merchant_id', store['id'])
               .eq('available', true)
               .order('price');
@@ -581,9 +593,9 @@ class _StorePageState extends State<StorePage> {
         },
         builder: (context, data, _) {
           final (products, offers) = data;
-          final cats =
-              <String>{for (final p in products) '${p['category'] ?? ''}'}
-                  .toList();
+          final cats = <String>{
+            for (final p in products) '${p['category'] ?? ''}'
+          }.toList();
           final q = search.trim();
           final shown = products.where((p) {
             if (cat != null && p['category'] != cat) return false;
@@ -612,7 +624,8 @@ class _StorePageState extends State<StorePage> {
                   padding: const EdgeInsets.all(3),
                   decoration: const BoxDecoration(
                       color: Colors.white, shape: BoxShape.circle),
-                  child: ClipOval(child: StoreLogo(store['logo_url'], size: 64)),
+                  child:
+                      ClipOval(child: StoreLogo(store['logo_url'], size: 64)),
                 ),
                 const SizedBox(width: 14),
                 Expanded(

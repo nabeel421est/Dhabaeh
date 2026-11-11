@@ -22,11 +22,12 @@ class _AdminProductsState extends State<AdminProducts> {
   @override
   Widget build(BuildContext context) {
     return Loader<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)>(
-      realtimeTables: const ['products', 'merchants'],
+      realtimeTables: const ['products', 'merchants', 'product_units'],
       load: () async {
         final p = await sb
             .from('products')
-            .select('*, merchants(id, name, logo_url)')
+            .select(
+                '*, merchants(id, name, logo_url), product_units(id, name, price, sku, sort)')
             .order('created_at', ascending: false);
         final m = await sb
             .from('merchants')
@@ -375,9 +376,32 @@ class _ProductTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                       fontWeight: FontWeight.w800, fontSize: 15.5)),
-              if ('${p['description'] ?? ''}'.isNotEmpty)
+              if ('${p['name_en'] ?? ''}'.isNotEmpty)
+                Text('${p['name_en']}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textDirection: TextDirection.ltr,
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: colors.first.withValues(alpha: .8),
+                        fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              SizedBox(
+                height: 24,
+                child: ListView(scrollDirection: Axis.horizontal, children: [
+                  _unitChip(
+                      '${p['base_unit'] ?? 'ذبيحة'}', p['price'], colors, true),
+                  for (final u in ([
+                    ...(p['product_units'] as List? ?? [])
+                  ]..sort(
+                      (a, b) => toNum(a['sort']).compareTo(toNum(b['sort'])))))
+                    _unitChip('${u['name']}', u['price'], colors, false),
+                ]),
+              ),
+              if ('${p['description'] ?? ''}'.isNotEmpty &&
+                  (p['product_units'] as List? ?? []).isEmpty)
                 Text('${p['description']}',
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                         fontSize: 12, color: Colors.black54, height: 1.4)),
@@ -499,6 +523,28 @@ Future<bool> showProductEditor(BuildContext context,
   PlatformFile? image;
   String? imageUrl = p?['image_url'] as String?;
   const cats = ['ذبائح', 'لحوم مقطعة', 'دواجن', 'أضاحي', 'عروض'];
+  final nameEn = TextEditingController(text: p?['name_en'] ?? '');
+  final sku = TextEditingController(text: p?['sku'] ?? '');
+  String baseUnit = (p?['base_unit'] as String?) ?? unitPresets.first;
+  final units = <_UnitRow>[];
+  if (p != null) {
+    try {
+      final rows = await sb
+          .from('product_units')
+          .select()
+          .eq('product_id', p['id'])
+          .order('sort');
+      for (final u in rows) {
+        units.add(_UnitRow(
+            id: u['id'] as String,
+            name: '${u['name'] ?? ''}',
+            price: '${u['price'] ?? ''}',
+            sku: '${u['sku'] ?? ''}'));
+      }
+    } catch (_) {}
+  }
+  if (!context.mounted) return false;
+  final removed = <String>[];
 
   final ok = await showDialog<bool>(
     context: context,
@@ -529,7 +575,7 @@ Future<bool> showProductEditor(BuildContext context,
         insetPadding: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560, maxHeight: 800),
+          constraints: const BoxConstraints(maxWidth: 640, maxHeight: 860),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             // Header doubles as a live preview of the product card.
             AnimatedContainer(
@@ -611,7 +657,7 @@ Future<bool> showProductEditor(BuildContext context,
                               Icons.sell_outlined,
                               price.text.trim().isEmpty
                                   ? 'السعر'
-                                  : bhd(num.tryParse(price.text.trim()) ?? 0)),
+                                  : '${bhd(num.tryParse(price.text.trim()) ?? 0)} / $baseUnit'),
                           _pill(
                               Icons.category_outlined,
                               category.text.trim().isEmpty
@@ -672,19 +718,121 @@ Future<bool> showProductEditor(BuildContext context,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
-                          controller: price,
-                          onChanged: (_) => set(() {}),
+                          controller: nameEn,
                           textDirection: TextDirection.ltr,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          decoration: deco('السعر *', Icons.sell_outlined,
-                              suffix: ' د.ب '),
-                          validator: (v) {
-                            final n = num.tryParse((v ?? '').trim());
-                            return n == null || n <= 0
-                                ? 'اكتب سعراً صحيحاً'
-                                : null;
-                          },
+                          decoration: deco(
+                              'اسم المنتج بالإنجليزي', Icons.translate_outlined,
+                              hint: 'e.g. Naimi Lamb'),
+                        ),
+                        const SizedBox(height: 16),
+                        _UnitBox(
+                          title: 'الوحدة الأساسية',
+                          subtitle: 'السعر الذي يظهر أولاً للعميل',
+                          icon: Icons.star_outline,
+                          colors: colors,
+                          child: LayoutBuilder(builder: (context, box) {
+                            final w = box.maxWidth >= 480
+                                ? (box.maxWidth - 20) / 3
+                                : box.maxWidth;
+                            return Wrap(spacing: 10, runSpacing: 10, children: [
+                              SizedBox(
+                                width: w,
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: baseUnit,
+                                  isExpanded: true,
+                                  decoration: deco(
+                                      'الوحدة *', Icons.straighten_outlined),
+                                  items: [
+                                    for (final u in {...unitPresets, baseUnit})
+                                      DropdownMenuItem(value: u, child: Text(u))
+                                  ],
+                                  onChanged: (v) =>
+                                      set(() => baseUnit = v ?? baseUnit),
+                                ),
+                              ),
+                              SizedBox(
+                                width: w,
+                                child: TextFormField(
+                                  controller: price,
+                                  onChanged: (_) => set(() {}),
+                                  textDirection: TextDirection.ltr,
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true),
+                                  decoration: deco(
+                                      'السعر *', Icons.sell_outlined,
+                                      suffix: ' د.ب '),
+                                  validator: _priceCheck,
+                                ),
+                              ),
+                              SizedBox(
+                                width: w,
+                                child: TextFormField(
+                                  controller: sku,
+                                  textDirection: TextDirection.ltr,
+                                  decoration: deco(
+                                      'رقم الصنف', Icons.qr_code_2_outlined),
+                                ),
+                              ),
+                            ]);
+                          }),
+                        ),
+                        const SizedBox(height: 12),
+                        _UnitBox(
+                          title: 'وحدات إضافية',
+                          subtitle: units.isEmpty
+                              ? 'مثل نصف ذبيحة أو ربع ذبيحة أو كيلو، لكل وحدة سعرها ورقم صنفها'
+                              : '${units.length} وحدة إضافية',
+                          icon: Icons.layers_outlined,
+                          colors: G.violet,
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                for (var i = 0; i < units.length; i++)
+                                  _UnitEditor(
+                                    key: ObjectKey(units[i]),
+                                    row: units[i],
+                                    index: i + 1,
+                                    taken: {
+                                      baseUnit,
+                                      for (final u in units)
+                                        if (u != units[i]) u.name.text.trim()
+                                    },
+                                    deco: deco,
+                                    onChanged: () => set(() {}),
+                                    onDelete: () => set(() {
+                                      final u = units.removeAt(i);
+                                      if (u.id != null) removed.add(u.id!);
+                                    }),
+                                  ),
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size.fromHeight(46),
+                                    foregroundColor: G.violet.first,
+                                    side: BorderSide(
+                                        color: G.violet.first
+                                            .withValues(alpha: .35),
+                                        style: BorderStyle.solid),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(14)),
+                                  ),
+                                  onPressed: () => set(() {
+                                    final used = {
+                                      baseUnit,
+                                      for (final u in units) u.name.text.trim()
+                                    };
+                                    units.add(_UnitRow(
+                                        name: unitPresets.firstWhere(
+                                            (x) => !used.contains(x),
+                                            orElse: () => '')));
+                                  }),
+                                  icon: const Icon(Icons.add_circle_outline),
+                                  label: const Text('إضافة وحدة',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w800)),
+                                ),
+                              ]),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -848,16 +996,40 @@ Future<bool> showProductEditor(BuildContext context,
     final row = {
       'merchant_id': mid,
       'name': name.text.trim(),
+      'name_en': nameEn.text.trim().isEmpty ? null : nameEn.text.trim(),
+      'base_unit': baseUnit,
+      'sku': sku.text.trim().isEmpty ? null : sku.text.trim(),
       'category': category.text.trim(),
       'description': desc.text.trim(),
       'price': num.tryParse(price.text.trim()) ?? 0,
       'available': available,
       'image_url': url,
     };
+    String pid;
     if (p == null) {
-      await sb.from('products').insert(row);
+      final ins = await sb.from('products').insert(row).select('id').single();
+      pid = ins['id'] as String;
     } else {
-      await sb.from('products').update(row).eq('id', p['id']);
+      pid = p['id'] as String;
+      await sb.from('products').update(row).eq('id', pid);
+    }
+    if (removed.isNotEmpty) {
+      await sb.from('product_units').delete().inFilter('id', removed);
+    }
+    for (var i = 0; i < units.length; i++) {
+      final u = units[i];
+      final data = {
+        'product_id': pid,
+        'name': u.name.text.trim(),
+        'price': num.tryParse(u.price.text.trim()) ?? 0,
+        'sku': u.sku.text.trim().isEmpty ? null : u.sku.text.trim(),
+        'sort': i,
+      };
+      if (u.id == null) {
+        await sb.from('product_units').insert(data);
+      } else {
+        await sb.from('product_units').update(data).eq('id', u.id!);
+      }
     }
     return true;
   }, ok: p == null ? 'تمت إضافة المنتج' : 'تم حفظ التعديلات');
@@ -880,4 +1052,209 @@ Widget _pill(IconData i, String t) => Container(
                 fontSize: 12,
                 fontWeight: FontWeight.w700)),
       ]),
+    );
+
+/// Unit names offered when adding a product.
+const unitPresets = ['ذبيحة', 'نصف ذبيحة', 'ربع ذبيحة', 'كيلو'];
+
+String? _priceCheck(String? v) {
+  final n = num.tryParse((v ?? '').trim());
+  return n == null || n <= 0 ? 'اكتب سعراً صحيحاً' : null;
+}
+
+class _UnitRow {
+  _UnitRow({this.id, String name = '', String price = '', String sku = ''})
+      : name = TextEditingController(text: name),
+        price = TextEditingController(text: price),
+        sku = TextEditingController(text: sku);
+  final String? id;
+  final TextEditingController name, price, sku;
+}
+
+/// A tinted box with a small gradient title, used for the unit sections.
+class _UnitBox extends StatelessWidget {
+  const _UnitBox(
+      {required this.title,
+      required this.subtitle,
+      required this.icon,
+      required this.colors,
+      required this.child});
+  final String title, subtitle;
+  final IconData icon;
+  final List<Color> colors;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(colors: [
+            colors.first.withValues(alpha: .05),
+            colors.last.withValues(alpha: .12)
+          ]),
+          border: Border.all(color: colors.first.withValues(alpha: .2)),
+        ),
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: colors),
+                  borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, size: 16, color: Colors.white),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: colors.first)),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.black54)),
+                  ]),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          child,
+        ]),
+      );
+}
+
+/// One extra unit: name (with quick picks), price and its own item number.
+class _UnitEditor extends StatelessWidget {
+  const _UnitEditor(
+      {super.key,
+      required this.row,
+      required this.index,
+      required this.taken,
+      required this.deco,
+      required this.onChanged,
+      required this.onDelete});
+  final _UnitRow row;
+  final int index;
+  final Set<String> taken;
+  final InputDecoration Function(String, IconData,
+      {String? suffix, String? hint}) deco;
+  final VoidCallback onChanged, onDelete;
+  @override
+  Widget build(BuildContext context) {
+    final g = G.violet;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: g.first.withValues(alpha: .15)),
+        boxShadow: [
+          BoxShadow(
+              color: g.first.withValues(alpha: .06),
+              blurRadius: 10,
+              offset: const Offset(0, 4))
+        ],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                gradient: LinearGradient(colors: g), shape: BoxShape.circle),
+            child: Text('$index',
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w800)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final u in unitPresets)
+                if (!taken.contains(u))
+                  TonePill(
+                    label: u,
+                    colors: g,
+                    selected: row.name.text.trim() == u,
+                    onTap: () {
+                      row.name.text = u;
+                      onChanged();
+                    },
+                  ),
+            ]),
+          ),
+          IconButton(
+            tooltip: 'حذف الوحدة',
+            onPressed: onDelete,
+            icon: Icon(Icons.delete_outline, color: G.ruby.first),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        LayoutBuilder(builder: (context, box) {
+          final w =
+              box.maxWidth >= 480 ? (box.maxWidth - 20) / 3 : box.maxWidth;
+          return Wrap(spacing: 10, runSpacing: 10, children: [
+            SizedBox(
+              width: w,
+              child: TextFormField(
+                controller: row.name,
+                onChanged: (_) => onChanged(),
+                decoration: deco('اسم الوحدة *', Icons.straighten_outlined),
+                validator: (v) {
+                  final t = (v ?? '').trim();
+                  if (t.isEmpty) return 'اكتب اسم الوحدة';
+                  if (taken.contains(t)) return 'الوحدة مكررة';
+                  return null;
+                },
+              ),
+            ),
+            SizedBox(
+              width: w,
+              child: TextFormField(
+                controller: row.price,
+                textDirection: TextDirection.ltr,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration:
+                    deco('السعر *', Icons.sell_outlined, suffix: ' د.ب '),
+                validator: _priceCheck,
+              ),
+            ),
+            SizedBox(
+              width: w,
+              child: TextFormField(
+                controller: row.sku,
+                textDirection: TextDirection.ltr,
+                decoration: deco('رقم صنف الوحدة', Icons.qr_code_2_outlined),
+              ),
+            ),
+          ]);
+        }),
+      ]),
+    );
+  }
+}
+
+Widget _unitChip(String name, dynamic price, List<Color> colors, bool base) =>
+    Container(
+      margin: const EdgeInsetsDirectional.only(end: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        gradient: base
+            ? LinearGradient(colors: colors)
+            : LinearGradient(colors: [
+                colors.first.withValues(alpha: .08),
+                colors.last.withValues(alpha: .16)
+              ]),
+      ),
+      child: Text('$name · ${bhd(price)}',
+          style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: base ? Colors.white : colors.first)),
     );

@@ -1,0 +1,3 @@
+-- Applied 2026-11-11 via MCP (migration 009_product_units): products.name_en/base_unit/sku,
+-- product_units table with RLS, order_items.unit_name/sku, place_order accepts items[].unit_id.
+-- See Supabase migration history for the full text.
