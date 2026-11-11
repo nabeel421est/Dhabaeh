@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 /// Each app (customer, merchant, staff, driver, admin) has its own visual identity:
@@ -648,3 +650,141 @@ class TonePill extends StatelessWidget {
 
 /// Two-colour gradient derived from a single tone.
 List<Color> toneOf(Color c) => [c, Color.lerp(c, Colors.white, .38)!];
+
+/// A product photo shown whole inside a framed card: the same photo blurred and
+/// tinted with the store's gradient fills the background, and the sharp photo
+/// sits in the middle with a white frame and a soft shadow. With [zoom] a tap
+/// opens it full screen.
+class ProductPhoto extends StatelessWidget {
+  const ProductPhoto(
+      {super.key,
+      required this.url,
+      required this.colors,
+      this.zoom = false,
+      this.padding = 10});
+  final String url;
+  final List<Color> colors;
+  final bool zoom;
+  final double padding;
+
+  void _open(BuildContext context) => showDialog(
+        context: context,
+        barrierColor: Colors.black87,
+        builder: (c) => GestureDetector(
+          onTap: () => Navigator.pop(c),
+          child: Stack(children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                maxScale: 5,
+                child: Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Image.network(url, fit: BoxFit.contain),
+                  ),
+                ),
+              ),
+            ),
+            PositionedDirectional(
+              top: 16,
+              end: 16,
+              child: IconButton.filled(
+                style: IconButton.styleFrom(
+                    backgroundColor: Colors.white24,
+                    foregroundColor: Colors.white),
+                onPressed: () => Navigator.pop(c),
+                icon: const Icon(Icons.close),
+              ),
+            ),
+          ]),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final photo = Image.network(
+      url,
+      fit: BoxFit.contain,
+      loadingBuilder: (_, child, p) => p == null
+          ? child
+          : SizedBox(
+              width: 34,
+              height: 34,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2.5, color: Colors.white.withValues(alpha: .9))),
+      errorBuilder: (_, __, ___) => Icon(Icons.broken_image_outlined,
+          size: 44, color: Colors.white.withValues(alpha: .85)),
+    );
+    final body = Stack(fit: StackFit.expand, children: [
+      DecoratedBox(
+          decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  begin: AlignmentDirectional.topStart,
+                  end: AlignmentDirectional.bottomEnd,
+                  colors: [colors.last, colors.first]))),
+      // Blurred copy of the photo as a soft, colour-matched backdrop.
+      Opacity(
+        opacity: .55,
+        child: ImageFiltered(
+          imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Image.network(url,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox()),
+        ),
+      ),
+      DecoratedBox(
+          decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+            colors.first.withValues(alpha: .15),
+            colors.first.withValues(alpha: .55)
+          ]))),
+      PositionedDirectional(
+          end: -30,
+          top: -30,
+          child: Container(
+              width: 110,
+              height: 110,
+              decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: .10)))),
+      Padding(
+        padding: EdgeInsets.all(padding),
+        child: Center(
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: const [
+                BoxShadow(
+                    color: Colors.black38, blurRadius: 14, offset: Offset(0, 6))
+              ],
+            ),
+            child: ClipRRect(
+                borderRadius: BorderRadius.circular(13), child: photo),
+          ),
+        ),
+      ),
+      if (zoom)
+        PositionedDirectional(
+          bottom: 10,
+          end: 10,
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: .3),
+                shape: BoxShape.circle),
+            child:
+                const Icon(Icons.zoom_out_map, size: 16, color: Colors.white),
+          ),
+        ),
+    ]);
+    return zoom
+        ? Semantics(
+            button: true,
+            label: 'تكبير الصورة',
+            child: GestureDetector(onTap: () => _open(context), child: body))
+        : body;
+  }
+}

@@ -271,9 +271,28 @@ class _ProductBanner extends StatelessWidget {
             height: 58,
             decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: .18),
-                borderRadius: BorderRadius.circular(18)),
-            child: const Icon(Icons.set_meal_outlined,
-                color: Colors.white, size: 32),
+                borderRadius: BorderRadius.circular(18),
+                border: '${product['image_url'] ?? ''}'.isEmpty
+                    ? null
+                    : Border.all(color: Colors.white, width: 2.5),
+                boxShadow: '${product['image_url'] ?? ''}'.isEmpty
+                    ? null
+                    : const [
+                        BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 10,
+                            offset: Offset(0, 4))
+                      ]),
+            clipBehavior: Clip.antiAlias,
+            child: '${product['image_url'] ?? ''}'.isEmpty
+                ? const Icon(Icons.set_meal_outlined,
+                    color: Colors.white, size: 32)
+                : Image.network('${product['image_url']}',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Icon(
+                        Icons.set_meal_outlined,
+                        color: Colors.white,
+                        size: 32)),
           ),
           const SizedBox(width: 12),
           Expanded(

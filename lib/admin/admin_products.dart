@@ -318,9 +318,7 @@ class _ProductTile extends StatelessWidget {
                         shape: BoxShape.circle,
                         color: Colors.white.withValues(alpha: .08)))),
             if (img is String && img.isNotEmpty)
-              Image.network(img,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox())
+              ProductPhoto(url: img, colors: colors)
             else
               Center(
                   child: Icon(Icons.set_meal_outlined,

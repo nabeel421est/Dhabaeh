@@ -436,9 +436,7 @@ class ProductTile extends StatelessWidget {
                           end: AlignmentDirectional.bottomEnd,
                           colors: colors))),
               if (img is String && img.isNotEmpty)
-                Image.network(img,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox())
+                ProductPhoto(url: img, colors: colors)
               else ...[
                 PositionedDirectional(
                     start: -20,
@@ -831,9 +829,8 @@ class ProductPage extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: Stack(fit: StackFit.expand, children: [
                 if (img is String && img.isNotEmpty)
-                  Image.network(img,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox())
+                  ProductPhoto(
+                      url: img, colors: colors, zoom: true, padding: 16)
                 else ...[
                   PositionedDirectional(
                       end: -40,

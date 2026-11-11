@@ -20,7 +20,8 @@ class _MerchantOrdersState extends State<MerchantOrders> {
   String filter = 'open';
   String search = '';
 
-  static bool isOpen(Map o) => !['delivered', 'cancelled'].contains(o['status']);
+  static bool isOpen(Map o) =>
+      !['delivered', 'cancelled'].contains(o['status']);
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +148,8 @@ class MerchantOrderTile extends StatelessWidget {
             MaterialPageRoute(
                 builder: (_) =>
                     OrderDetailsPage(orderId: o['id'], viewer: 'merchant'))),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             decoration: BoxDecoration(
@@ -194,29 +196,26 @@ class MerchantOrderTile extends StatelessWidget {
                 backgroundColor: c.withValues(alpha: .1)),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  line(Icons.set_meal_outlined, items.isEmpty ? '-' : items),
-                  line(Icons.content_cut,
-                      'الذبح ${dateText(o['slaughter_date'])} · ${o['slaughter_time']}'),
-                  line(Icons.local_shipping_outlined,
-                      'التوصيل ${dateText(o['delivery_date'])} · ${o['delivery_slot']}'),
-                  const SizedBox(height: 4),
-                  Row(children: [
-                    Text(paymentLabels[o['payment_method']] ?? '',
-                        style: const TextStyle(
-                            fontSize: 12, color: Colors.black54)),
-                    const Spacer(),
-                    const Text('الصافي ',
-                        style: TextStyle(fontSize: 12, color: Colors.black54)),
-                    Text(bhd(o['merchant_net']),
-                        style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                            color: c)),
-                  ]),
-                ]),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              line(Icons.set_meal_outlined, items.isEmpty ? '-' : items),
+              line(Icons.content_cut,
+                  'الذبح ${dateText(o['slaughter_date'])} · ${o['slaughter_time']}'),
+              line(Icons.local_shipping_outlined,
+                  'التوصيل ${dateText(o['delivery_date'])} · ${o['delivery_slot']}'),
+              const SizedBox(height: 4),
+              Row(children: [
+                Text(paymentLabels[o['payment_method']] ?? '',
+                    style:
+                        const TextStyle(fontSize: 12, color: Colors.black54)),
+                const Spacer(),
+                const Text('الصافي ',
+                    style: TextStyle(fontSize: 12, color: Colors.black54)),
+                Text(bhd(o['merchant_net']),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: 15, color: c)),
+              ]),
+            ]),
           ),
         ]),
       ),
@@ -238,9 +237,18 @@ class MerchantProducts extends StatefulWidget {
 class _MerchantProductsState extends State<MerchantProducts> {
   String? cat;
   String search = '';
-  static const tones = [G.emerald, G.teal, G.amber, G.sapphire, G.ruby, G.violet, G.gold];
+  static const tones = [
+    G.emerald,
+    G.teal,
+    G.amber,
+    G.sapphire,
+    G.ruby,
+    G.violet,
+    G.gold
+  ];
 
-  Future<void> edit(Map<String, dynamic>? p, Future<void> Function() reload) async {
+  Future<void> edit(
+      Map<String, dynamic>? p, Future<void> Function() reload) async {
     final name = TextEditingController(text: p?['name'] ?? '');
     final category = TextEditingController(text: p?['category'] ?? 'ذبائح');
     final desc = TextEditingController(text: p?['description'] ?? '');
@@ -330,8 +338,8 @@ class _MerchantProductsState extends State<MerchantProducts> {
           .order('created_at')),
       builder: (context, list, reload) {
         final b = brandOf(context);
-        final cats = <String>{for (final p in list) '${p['category'] ?? ''}'}
-            .toList();
+        final cats =
+            <String>{for (final p in list) '${p['category'] ?? ''}'}.toList();
         List<Color> toneFor(String c) {
           final i = cats.indexOf(c);
           return tones[(i < 0 ? 0 : i) % tones.length];
@@ -393,7 +401,10 @@ class _MerchantProductsState extends State<MerchantProducts> {
           ),
           const SizedBox(height: 14),
           if (shown.isEmpty)
-            Empty(list.isEmpty ? 'أضف أول منتج لمتجرك' : 'لا توجد أصناف تطابق البحث',
+            Empty(
+                list.isEmpty
+                    ? 'أضف أول منتج لمتجرك'
+                    : 'لا توجد أصناف تطابق البحث',
                 icon: Icons.inventory_2_outlined),
           LayoutBuilder(builder: (context, c) {
             final cols = (c.maxWidth / 230).floor().clamp(2, 6);
@@ -435,8 +446,7 @@ class _MerchantProductsState extends State<MerchantProducts> {
                               ],
                             ));
                     if (yes != true || !context.mounted) return;
-                    await guard(
-                        context,
+                    await guard(context,
                         () => sb.from('products').delete().eq('id', p['id']),
                         ok: 'تم حذف المنتج');
                     await reload();
@@ -472,7 +482,8 @@ class _ProductCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onEdit,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           SizedBox(
             height: 120,
             child: Stack(fit: StackFit.expand, children: [
@@ -483,11 +494,12 @@ class _ProductCard extends StatelessWidget {
                           end: AlignmentDirectional.bottomEnd,
                           colors: on
                               ? colors
-                              : [Colors.blueGrey.shade400, Colors.blueGrey.shade200]))),
+                              : [
+                                  Colors.blueGrey.shade400,
+                                  Colors.blueGrey.shade200
+                                ]))),
               if (img is String && img.isNotEmpty)
-                Image.network(img,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox())
+                ProductPhoto(url: img, colors: colors)
               else ...[
                 PositionedDirectional(
                     end: -20,
@@ -553,7 +565,9 @@ class _ProductCard extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 12, color: Colors.black54, height: 1.4)),
+                              fontSize: 12,
+                              color: Colors.black54,
+                              height: 1.4)),
                     const Spacer(),
                     Text(bhd(p['price']),
                         style: TextStyle(
@@ -592,7 +606,14 @@ class _ProductCard extends StatelessWidget {
 class MerchantOffers extends StatelessWidget {
   const MerchantOffers({super.key, required this.mid});
   final String mid;
-  static const tones = [G.ruby, G.amber, G.violet, G.sapphire, G.emerald, G.teal];
+  static const tones = [
+    G.ruby,
+    G.amber,
+    G.violet,
+    G.sapphire,
+    G.emerald,
+    G.teal
+  ];
 
   Future<void> add(BuildContext context, List<Map<String, dynamic>> products,
       Future<void> Function() reload) async {
@@ -663,7 +684,8 @@ class MerchantOffers extends StatelessWidget {
                         initialDate:
                             DateTime.now().add(const Duration(days: 7)),
                         firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)));
+                        lastDate:
+                            DateTime.now().add(const Duration(days: 365)));
                     if (d != null) set(() => ends = d);
                   },
                   label: Text(ends == null
@@ -776,7 +798,8 @@ class _OfferCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final on = o['active'] == true;
     final pct = o['discount_type'] == 'percent';
-    final cs = on ? colors : [Colors.blueGrey.shade500, Colors.blueGrey.shade300];
+    final cs =
+        on ? colors : [Colors.blueGrey.shade500, Colors.blueGrey.shade300];
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -813,20 +836,22 @@ class _OfferCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                   border:
                       Border.all(color: Colors.white.withValues(alpha: .35))),
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text(
-                    pct
-                        ? '${toNum(o['discount_value']).toStringAsFixed(0)}%'
-                        : toNum(o['discount_value']).toStringAsFixed(
-                            toNum(o['discount_value']) % 1 == 0 ? 0 : 3),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800)),
-                Text(pct ? 'خصم' : 'د.ب خصم',
-                    style:
-                        const TextStyle(color: Colors.white70, fontSize: 11)),
-              ]),
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                        pct
+                            ? '${toNum(o['discount_value']).toStringAsFixed(0)}%'
+                            : toNum(o['discount_value']).toStringAsFixed(
+                                toNum(o['discount_value']) % 1 == 0 ? 0 : 3),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800)),
+                    Text(pct ? 'خصم' : 'د.ب خصم',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 11)),
+                  ]),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -860,7 +885,8 @@ class _OfferCard extends StatelessWidget {
                           activeThumbColor: colors.first,
                           activeTrackColor: Colors.white,
                           inactiveThumbColor: Colors.white,
-                          inactiveTrackColor: Colors.white.withValues(alpha: .25),
+                          inactiveTrackColor:
+                              Colors.white.withValues(alpha: .25),
                           onChanged: onToggle),
                     ]),
                   ]),
