@@ -190,16 +190,10 @@ class AuthEmblem extends StatelessWidget {
     return Column(children: [
       AppLogo(size: s),
       SizedBox(height: compact ? 8 : 14),
-      ShaderMask(
-        shaderCallback: (r) =>
-            LinearGradient(colors: [Colors.white, b.accent, Colors.white])
-                .createShader(r),
-        child: Text('ذبائح البحرين',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                fontSize: compact ? 24 : 32,
-                fontWeight: FontWeight.w800,
-                color: Colors.white)),
+      Semantics(
+        label: 'ذبائح البحرين',
+        child: Image.asset('assets/brand/wordmark.png',
+            width: compact ? 200 : 260, filterQuality: FilterQuality.medium),
       ),
       if (!compact) ...[
         const SizedBox(height: 4),
