@@ -415,7 +415,7 @@ class _MerchantProductsState extends State<MerchantProducts> {
                   crossAxisCount: cols,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  mainAxisExtent: 286),
+                  mainAxisExtent: 324),
               itemCount: shown.length,
               itemBuilder: (context, i) {
                 final p = shown[i];
@@ -485,7 +485,7 @@ class _ProductCard extends StatelessWidget {
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           SizedBox(
-            height: 120,
+            height: 158,
             child: Stack(fit: StackFit.expand, children: [
               Container(
                   decoration: BoxDecoration(

@@ -157,7 +157,7 @@ class _AdminProductsState extends State<AdminProducts> {
                   crossAxisCount: cols,
                   mainAxisSpacing: 14,
                   crossAxisSpacing: 14,
-                  mainAxisExtent: 322),
+                  mainAxisExtent: 360),
               itemCount: shown.length,
               itemBuilder: (context, i) => _ProductTile(
                 p: shown[i],
@@ -291,7 +291,7 @@ class _ProductTile extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         SizedBox(
-          height: 132,
+          height: 170,
           child: Stack(fit: StackFit.expand, children: [
             Container(
                 decoration: BoxDecoration(

@@ -376,7 +376,7 @@ class ProductGrid extends StatelessWidget {
             crossAxisCount: cols,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            mainAxisExtent: showStore ? 262 : 244),
+            mainAxisExtent: showStore ? 300 : 282),
         itemCount: products.length,
         itemBuilder: (context, i) {
           final p = products[i];
@@ -427,7 +427,7 @@ class ProductTile extends StatelessWidget {
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           SizedBox(
-            height: 124,
+            height: 162,
             child: Stack(fit: StackFit.expand, children: [
               Container(
                   decoration: BoxDecoration(
