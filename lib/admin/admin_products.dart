@@ -372,6 +372,28 @@ class ProductManageTile extends StatelessWidget {
                         fontWeight: FontWeight.w700)),
               ),
             ),
+            if ('${p['sku'] ?? ''}'.isNotEmpty)
+              PositionedDirectional(
+                top: 10,
+                end: 10,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: .35),
+                      borderRadius: BorderRadius.circular(999)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.qr_code_2, size: 13, color: Colors.white),
+                    const SizedBox(width: 4),
+                    Text('${p['sku']}',
+                        textDirection: TextDirection.ltr,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800)),
+                  ]),
+                ),
+              ),
           ]),
         ),
         Expanded(
@@ -842,9 +864,11 @@ Future<bool> showProductEditor(BuildContext context,
                                 width: w,
                                 child: TextFormField(
                                   controller: sku,
+                                  readOnly: true,
                                   textDirection: TextDirection.ltr,
-                                  decoration: deco(
-                                      'رقم الصنف', Icons.qr_code_2_outlined),
+                                  decoration: deco('رقم الصنف (تلقائي)',
+                                          Icons.qr_code_2_outlined)
+                                      .copyWith(hintText: 'يُولّد عند الحفظ'),
                                 ),
                               ),
                             ]);
@@ -1347,8 +1371,10 @@ class _UnitEditor extends StatelessWidget {
               width: w,
               child: TextFormField(
                 controller: row.sku,
+                readOnly: true,
                 textDirection: TextDirection.ltr,
-                decoration: deco('رقم صنف الوحدة', Icons.qr_code_2_outlined),
+                decoration: deco('رقم الصنف (تلقائي)', Icons.qr_code_2_outlined)
+                    .copyWith(hintText: 'يُولّد عند الحفظ'),
               ),
             ),
           ]);
