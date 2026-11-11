@@ -163,7 +163,7 @@ class _AdminProductsState extends State<AdminProducts> {
                   crossAxisSpacing: 14,
                   mainAxisExtent: 360),
               itemCount: shown.length,
-              itemBuilder: (context, i) => _ProductTile(
+              itemBuilder: (context, i) => ProductManageTile(
                 p: shown[i],
                 colors: colorOf[shown[i]['merchant_id']] ?? reportGradients[0],
                 onEdit: () async {
@@ -264,15 +264,20 @@ class _StorePill extends StatelessWidget {
 
 /// A product card: gradient picture area in the store's colours, price, and an
 /// action bar with edit and a show/hide switch. Hidden products are dimmed.
-class _ProductTile extends StatelessWidget {
-  const _ProductTile(
+/// Shared by the admin, merchant and staff product pages so they look the same.
+class ProductManageTile extends StatelessWidget {
+  const ProductManageTile(
       {required this.p,
       required this.colors,
       required this.onEdit,
-      required this.onToggle});
+      required this.onToggle,
+      this.onDelete,
+      this.showStore = true});
   final Map<String, dynamic> p;
   final List<Color> colors;
   final VoidCallback onEdit, onToggle;
+  final VoidCallback? onDelete;
+  final bool showStore; // false on the merchant's own pages
   @override
   Widget build(BuildContext context) {
     final img = p['image_url'];
@@ -410,11 +415,14 @@ class _ProductTile extends StatelessWidget {
                         fontSize: 12, color: Colors.black54, height: 1.4)),
               const Spacer(),
               Row(children: [
-                ClipOval(
-                    child: StoreLogo(p['merchants']?['logo_url'], size: 22)),
-                const SizedBox(width: 6),
+                if (showStore) ...[
+                  ClipOval(
+                      child: StoreLogo(p['merchants']?['logo_url'], size: 22)),
+                  const SizedBox(width: 6),
+                ],
                 Expanded(
-                    child: Text('${p['merchants']?['name'] ?? ''}',
+                    child: Text(
+                        showStore ? '${p['merchants']?['name'] ?? ''}' : '',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -502,6 +510,26 @@ class _ProductTile extends StatelessWidget {
                 ),
               ),
             ),
+            if (onDelete != null) ...[
+              const SizedBox(width: 8),
+              Tooltip(
+                message: 'حذف',
+                child: InkWell(
+                  onTap: onDelete,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: const Color(0xFFB83250).withValues(alpha: .1),
+                    ),
+                    child: const Icon(Icons.delete_outline,
+                        size: 18, color: Color(0xFFB83250)),
+                  ),
+                ),
+              ),
+            ],
           ]),
         ),
       ]),
@@ -581,7 +609,8 @@ Future<bool> showProductEditor(BuildContext context,
       Future<void> cutBackground(Uint8List bytes, String name) async {
         set(() {
           bgBusy = true;
-          bgNote = 'جاري إزالة الخلفية… (أول مرة قد تأخذ دقيقة أو دقيقتين لتحميل الأداة)';
+          bgNote =
+              'جاري إزالة الخلفية… (أول مرة قد تأخذ دقيقة أو دقيقتين لتحميل الأداة)';
         });
         final out = await removeImageBackground(bytes, mimeOf(name));
         if (!c.mounted) return;

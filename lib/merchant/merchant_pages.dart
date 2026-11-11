@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../admin/admin_products.dart' show ProductManageTile;
 import '../core/brand.dart';
 import '../core/common.dart';
 import '../customer/order_details.dart';
@@ -333,7 +334,8 @@ class _MerchantProductsState extends State<MerchantProducts> {
       realtimeTables: const ['products'],
       load: () async => List<Map<String, dynamic>>.from(await sb
           .from('products')
-          .select()
+          .select(
+              '*, merchants(id, name, logo_url), product_units(id, name, price, sku, sort)')
           .eq('merchant_id', widget.mid)
           .order('created_at')),
       builder: (context, list, reload) {
@@ -415,15 +417,17 @@ class _MerchantProductsState extends State<MerchantProducts> {
                   crossAxisCount: cols,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  mainAxisExtent: 324),
+                  mainAxisExtent: 360),
               itemCount: shown.length,
               itemBuilder: (context, i) {
                 final p = shown[i];
-                return _ProductCard(
+                return ProductManageTile(
                   p: p,
+                  showStore: false,
                   colors: toneFor('${p['category'] ?? ''}'),
                   onEdit: () => edit(p, reload),
-                  onToggle: (v) async {
+                  onToggle: () async {
+                    final v = p['available'] != true;
                     await guard(
                         context,
                         () => sb
@@ -457,146 +461,6 @@ class _MerchantProductsState extends State<MerchantProducts> {
           }),
         ]);
       },
-    );
-  }
-}
-
-class _ProductCard extends StatelessWidget {
-  const _ProductCard(
-      {required this.p,
-      required this.colors,
-      required this.onEdit,
-      required this.onToggle,
-      required this.onDelete});
-  final Map<String, dynamic> p;
-  final List<Color> colors;
-  final VoidCallback onEdit;
-  final ValueChanged<bool> onToggle;
-  final VoidCallback onDelete;
-  @override
-  Widget build(BuildContext context) {
-    final img = p['image_url'];
-    final on = p['available'] == true;
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onEdit,
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          SizedBox(
-            height: 158,
-            child: Stack(fit: StackFit.expand, children: [
-              Container(
-                  decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                          begin: AlignmentDirectional.topStart,
-                          end: AlignmentDirectional.bottomEnd,
-                          colors: on
-                              ? colors
-                              : [
-                                  Colors.blueGrey.shade400,
-                                  Colors.blueGrey.shade200
-                                ]))),
-              if (img is String && img.isNotEmpty)
-                ProductPhoto(url: img, colors: colors)
-              else ...[
-                PositionedDirectional(
-                    end: -20,
-                    top: -20,
-                    child: Container(
-                        width: 96,
-                        height: 96,
-                        decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: .1)))),
-                Center(
-                    child: Icon(Icons.set_meal_outlined,
-                        size: 52, color: Colors.white.withValues(alpha: .92))),
-              ],
-              PositionedDirectional(
-                top: 8,
-                start: 8,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: .22),
-                      borderRadius: BorderRadius.circular(999)),
-                  child: Text('${p['category'] ?? ''}',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600)),
-                ),
-              ),
-              if (!on)
-                PositionedDirectional(
-                  top: 8,
-                  end: 8,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(999)),
-                    child: const Text('موقوف',
-                        style: TextStyle(
-                            color: Color(0xFFB83250),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700)),
-                  ),
-                ),
-            ]),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 6, 4),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${p['name']}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15)),
-                    if ('${p['description'] ?? ''}'.isNotEmpty)
-                      Text('${p['description']}',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.black54,
-                              height: 1.4)),
-                    const Spacer(),
-                    Text(bhd(p['price']),
-                        style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                            color: colors.first)),
-                    Row(children: [
-                      Transform.scale(
-                          scale: .8,
-                          alignment: AlignmentDirectional.centerStart,
-                          child: Switch(
-                              value: on,
-                              activeTrackColor: colors.first,
-                              onChanged: onToggle)),
-                      Text(on ? 'متاح' : 'موقوف',
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.black54)),
-                      const Spacer(),
-                      IconButton(
-                          tooltip: 'حذف',
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(Icons.delete_outline, size: 20),
-                          onPressed: onDelete),
-                    ]),
-                  ]),
-            ),
-          ),
-        ]),
-      ),
     );
   }
 }
