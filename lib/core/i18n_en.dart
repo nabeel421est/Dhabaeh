@@ -1302,4 +1302,12 @@ const Map<String, String> enStrings = {
   'كلمة مرور حسابك': 'Your account password',
   'دخلت بكلمة مرور حسابك. خصّص كلمة مرور خاصة لهذا القسم.': 'You entered with your account password. Set a dedicated password for this section.',
   'تحديد كلمة مرور القسم': 'Set section password',
+  'إعادة فتح / الحالة': 'Reopen / status',
+  'مسلَّم': 'is delivered',
+  'الطلب': 'Order',
+  'ستُعكس مبالغه من محفظة التاجر وعمولات المنصة ومستحقات المندوب، وتُحسب من جديد إذا سُلِّم مرة أخرى.': 'Its amounts will be reversed from the store wallet, platform commissions and driver dues, and counted again if it is delivered again.',
+  'متابعة': 'Continue',
+  'أزرار التحكم بالطلبات: كلها مفعّلة للمدير العام، مع التحكم في الطلبات المغلقة': 'Order control buttons: all on for the super admin, including closed orders',
+  'أزرار التحكم بالطلبات': 'Order control buttons',
+  'لا تملك صلاحية هذا الإجراء في التحكم بالطلبات': 'You don\'t have permission for this order-control action',
 };

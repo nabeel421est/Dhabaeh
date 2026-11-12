@@ -8,6 +8,20 @@ import '../core/i18n.dart';
 import '../core/ttext.dart';
 import '../customer/order_details.dart';
 
+/// The order-control buttons a super admin can switch on or off per admin.
+const ocActions = <String, (String, IconData)>{
+  'edit': ('تعديل', Icons.edit_outlined),
+  'status': ('الحالة', Icons.sync_alt),
+  'hold': ('إيقاف', Icons.pause_circle_outline),
+  'transfer': ('تحويل لتاجر', Icons.swap_horiz),
+  'driver': ('المندوب', Icons.delivery_dining_outlined),
+  'delete': ('حذف', Icons.delete_outline),
+};
+
+Map<String, bool> permsOf(dynamic m) => {
+      for (final k in ocActions.keys) k: m is Map ? m[k] != false : true,
+    };
+
 Future<Map<String, dynamic>> loadAccess() async =>
     Map<String, dynamic>.from(await sb.rpc('admin_access_list') as Map);
 
@@ -119,6 +133,7 @@ class _AdminOrderControlState extends State<AdminOrderControl> {
       act: act,
       isSuper: access!['me']?['super'] == true,
       sectionSet: access!['any_key'] == true,
+      can: permsOf(access!['me']?['perms']),
       onAccess: () => openAccessPanel(context).then((_) => refreshAccess()),
     );
   }
@@ -245,8 +260,10 @@ class _ControlBoard extends StatefulWidget {
       required this.act,
       required this.isSuper,
       required this.sectionSet,
+      required this.can,
       required this.onAccess});
   final bool sectionSet;
+  final Map<String, bool> can;
   final DateTime until;
   final VoidCallback onLock;
   final VoidCallback onAccess;
@@ -451,6 +468,31 @@ class _ControlBoardState extends State<_ControlBoard> {
     }
   }
 
+  /// Re-opening, moving or deleting a delivered order reverses what it added
+  /// to the store wallet, platform ledger and driver ledger.
+  Future<bool> moneyWarning(
+          BuildContext context, Map<String, dynamic> o) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          icon: Icon(Icons.account_balance_wallet_outlined,
+              color: G.amber.first, size: 34),
+          title: Text('${tr('الطلب')} #${o['code']} ${tr('مسلَّم')}'),
+          content: const Text(
+              'ستُعكس مبالغه من محفظة التاجر وعمولات المنصة ومستحقات المندوب، وتُحسب من جديد إذا سُلِّم مرة أخرى.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(c, false),
+                child: const Text('رجوع')),
+            FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: G.amber.first),
+                onPressed: () => Navigator.pop(c, true),
+                child: const Text('متابعة')),
+          ],
+        ),
+      ) ==
+      true;
+
   Future<void> changeStatus(BuildContext context, Map<String, dynamic> o,
       Future<void> Function() reload) async {
     final s = await showDialog<String>(
@@ -473,6 +515,8 @@ class _ControlBoardState extends State<_ControlBoard> {
       ),
     );
     if (s == null || !context.mounted) return;
+    if (o['status'] == 'delivered' && !await moneyWarning(context, o)) return;
+    if (!context.mounted) return;
     if (s == 'delivered' || s == 'cancelled') {
       final sure = await showDialog<bool>(
         context: context,
@@ -527,6 +571,9 @@ class _ControlBoardState extends State<_ControlBoard> {
       Future<void> Function() reload) async {
     final restore = o['deleted_at'] != null;
     String? reason;
+    if (!restore && o['status'] == 'delivered') {
+      if (!await moneyWarning(context, o) || !context.mounted) return;
+    }
     if (!restore) {
       reason = await askReason(context, '${tr('حذف الطلب')} #${o['code']}',
           hint: 'سبب الحذف', action: 'حذف', tone: _deletedTone, required: true);
@@ -582,6 +629,9 @@ class _ControlBoardState extends State<_ControlBoard> {
       ),
     );
     if (to == null || !context.mounted) return;
+    if (o['status'] == 'delivered') {
+      if (!await moneyWarning(context, o) || !context.mounted) return;
+    }
     final reason = await askReason(context, 'سبب التحويل',
         action: 'تحويل', tone: G.violet);
     if (reason == null || !context.mounted) return;
@@ -778,6 +828,8 @@ class _ControlBoardState extends State<_ControlBoard> {
                   width: w,
                   child: ControlOrderCard(
                     o: o,
+                    can: widget.can,
+                    isSuper: widget.isSuper,
                     onEdit: () => editOrder(context, o, reload),
                     onStatus: () => changeStatus(context, o, reload),
                     onHold: () => hold(context, o, reload),
@@ -798,6 +850,8 @@ class ControlOrderCard extends StatelessWidget {
   const ControlOrderCard(
       {super.key,
       required this.o,
+      required this.can,
+      required this.isSuper,
       required this.onEdit,
       required this.onStatus,
       required this.onHold,
@@ -805,6 +859,8 @@ class ControlOrderCard extends StatelessWidget {
       required this.onTransfer,
       required this.onDriver});
   final Map<String, dynamic> o;
+  final Map<String, bool> can;
+  final bool isSuper;
   final VoidCallback onEdit, onStatus, onHold, onDelete, onTransfer, onDriver;
 
   @override
@@ -822,7 +878,10 @@ class ControlOrderCard extends StatelessWidget {
                 Color.lerp(sc, Colors.white, .35)!
               ];
     final delivery = o['fulfillment'] != 'pickup';
-    final canTransfer = !deleted && ['new', 'accepted'].contains(o['status']);
+    final canTransfer =
+        !deleted && (isSuper || ['new', 'accepted'].contains(o['status']));
+    // The super admin has full control, including closed orders.
+    final reopen = isSuper || !closed;
     Widget line(IconData i, String t) => Padding(
           padding: const EdgeInsets.only(bottom: 5),
           child: Row(children: [
@@ -936,25 +995,34 @@ class ControlOrderCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
           child: Wrap(children: [
             if (!deleted) ...[
-              btn(Icons.edit_outlined, 'تعديل', G.sapphire, onEdit),
-              btn(Icons.sync_alt, 'الحالة', G.midnight,
-                  closed ? null : onStatus),
-              btn(
-                  held ? Icons.play_circle_outline : Icons.pause_circle_outline,
-                  held ? 'استئناف' : 'إيقاف',
-                  _holdTone,
-                  closed ? null : onHold),
-              btn(Icons.swap_horiz, 'تحويل لتاجر', G.violet,
-                  canTransfer ? onTransfer : null),
-              if (delivery)
+              if (can['edit']!)
+                btn(Icons.edit_outlined, 'تعديل', G.sapphire, onEdit),
+              if (can['status']!)
+                btn(Icons.sync_alt, closed ? 'إعادة فتح / الحالة' : 'الحالة',
+                    G.midnight, reopen ? onStatus : null),
+              if (can['hold']!)
+                btn(
+                    held
+                        ? Icons.play_circle_outline
+                        : Icons.pause_circle_outline,
+                    held ? 'استئناف' : 'إيقاف',
+                    _holdTone,
+                    closed ? null : onHold),
+              if (can['transfer']!)
+                btn(Icons.swap_horiz, 'تحويل لتاجر', G.violet,
+                    canTransfer ? onTransfer : null),
+              if (delivery && can['driver']!)
                 btn(Icons.delivery_dining_outlined, 'المندوب', G.sky,
-                    closed ? null : onDriver),
+                    reopen ? onDriver : null),
             ],
-            btn(
-                deleted ? Icons.restore : Icons.delete_outline,
-                deleted ? 'استرجاع' : 'حذف',
-                _deletedTone,
-                o['status'] == 'delivered' && !deleted ? null : onDelete),
+            if (can['delete']!)
+              btn(
+                  deleted ? Icons.restore : Icons.delete_outline,
+                  deleted ? 'استرجاع' : 'حذف',
+                  _deletedTone,
+                  o['status'] == 'delivered' && !deleted && !isSuper
+                      ? null
+                      : onDelete),
           ]),
         ),
       ]),
@@ -1055,6 +1123,16 @@ class _AccessPanelState extends State<_AccessPanel> {
         () => sb.rpc('oc_set_password',
             params: {'p_user': user, 'p_password': null}),
         ok: 'تم سحب كلمة المرور');
+    await reload();
+  }
+
+  Future<void> setPerm(Map ad, String k, bool v) async {
+    final p = permsOf(ad['perms'])..[k] = v;
+    await guard(
+        context,
+        () => sb.rpc('admin_set_oc_perms',
+            params: {'p_user': ad['id'], 'p_perms': p}),
+        ok: 'تم تحديث الصلاحيات');
     await reload();
   }
 
@@ -1199,6 +1277,30 @@ class _AccessPanelState extends State<_AccessPanel> {
                                     size: 16),
                                 label: const Text('سحبها'),
                                 onPressed: () => removePassword(ad['id']),
+                              ),
+                          ]),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 2, 12, 4),
+                          child: Text(
+                              ad['super'] == true
+                                  ? 'أزرار التحكم بالطلبات: كلها مفعّلة للمدير العام، مع التحكم في الطلبات المغلقة'
+                                  : 'أزرار التحكم بالطلبات',
+                              style: const TextStyle(
+                                  color: Colors.black54, fontSize: 12.5)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+                          child: Wrap(spacing: 6, runSpacing: 6, children: [
+                            for (final e in ocActions.entries)
+                              FilterChip(
+                                avatar: Icon(e.value.$2, size: 16),
+                                label: Text(e.value.$1),
+                                selected: ad['super'] == true ||
+                                    permsOf(ad['perms'])[e.key]!,
+                                onSelected: ad['super'] == true
+                                    ? null
+                                    : (v) => setPerm(ad, e.key, v),
                               ),
                           ]),
                         ),
