@@ -9,6 +9,7 @@ import 'order_details.dart';
 import 'stores.dart' show offerValue;
 import '../core/ttext.dart';
 import '../core/i18n.dart';
+import '../core/tap_pay.dart';
 
 const slaughterTimes = ['7:00 ص', '9:00 ص', '11:00 ص', '1:00 م', '4:00 م'];
 const deliverySlots = [
@@ -846,6 +847,11 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
       return o;
     });
     if (!mounted) return;
+    if (order != null && await isTapMethod(d.method) && mounted) {
+      // Online payment: leave for Tap's page; the order stays unpaid until Tap confirms.
+      if (await startTapPay(context, order['id'])) return;
+    }
+    if (!mounted) return;
     setState(() => busy = false);
     if (order != null) {
       Navigator.of(context).popUntil((r) => r.isFirst);
@@ -898,6 +904,11 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
       }
       return o;
     });
+    if (!mounted) return;
+    if (order != null && await isTapMethod(d.method) && mounted) {
+      // Online payment: leave for Tap's page; the order stays unpaid until Tap confirms.
+      if (await startTapPay(context, order['id'])) return;
+    }
     if (!mounted) return;
     setState(() => busy = false);
     if (order != null) {

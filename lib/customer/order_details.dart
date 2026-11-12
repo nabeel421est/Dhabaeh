@@ -4,6 +4,7 @@ import '../core/brand.dart';
 import '../core/common.dart';
 import '../core/ttext.dart';
 import '../core/i18n.dart';
+import '../core/tap_pay.dart';
 
 /// Order details shared by every role. [viewer] decides which actions show:
 /// customer, merchant, driver or admin.
@@ -509,6 +510,7 @@ class OrderView extends StatelessWidget {
           ),
           gap,
         ],
+        if (viewer == 'customer') TapPayButton(order: o),
         hero,
         gap,
         if (wide)

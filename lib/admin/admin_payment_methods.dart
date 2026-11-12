@@ -4,6 +4,7 @@ import '../core/brand.dart';
 import '../core/common.dart';
 import '../core/i18n.dart';
 import '../core/ttext.dart';
+import '../core/tap_pay.dart';
 
 /// What each kind of method does in an order.
 const payKinds = <String, (String, String, List<Color>)>{
@@ -72,6 +73,7 @@ class AdminPaymentMethods extends StatelessWidget {
     bool del = m?['for_delivery'] != false;
     bool pick = m?['for_pickup'] != false;
     final builtin = m?['builtin'] == true;
+    bool tap = m?['gateway'] == 'tap';
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, set) {
@@ -158,6 +160,24 @@ class AdminPaymentMethods extends StatelessWidget {
                         const Text('طريقة عمل الوسائل الأساسية ثابتة.',
                             style:
                                 TextStyle(fontSize: 12, color: Colors.black45)),
+                      if (kind == 'benefitpay' && !builtin) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: .04),
+                              borderRadius: BorderRadius.circular(14)),
+                          child: SwitchListTile(
+                              value: tap,
+                              onChanged: (v) => set(() => tap = v),
+                              secondary: const Icon(Icons.apple),
+                              title: const Text(
+                                  'الدفع عبر بوابة Tap (Apple Pay والبطاقات)'),
+                              subtitle: const Text(
+                                  'ينتقل العميل لصفحة الدفع، ويتأكد الطلب مدفوعاً تلقائياً',
+                                  style: TextStyle(fontSize: 12))),
+                        ),
+                        const TapStatusNote(),
+                      ],
                       const SizedBox(height: 10),
                       Field('وصف قصير يظهر للعميل', c['description']!,
                           hint: 'مثل: ادفع من محفظتك'),
@@ -244,6 +264,7 @@ class AdminPaymentMethods extends StatelessWidget {
           'active': active,
           'for_delivery': del,
           'for_pickup': pick,
+          'gateway': kind == 'benefitpay' && tap ? 'tap' : '',
         },
         reload,
         ok: m == null ? 'تمت إضافة وسيلة الدفع' : 'تم الحفظ');
@@ -495,5 +516,40 @@ class _MethodCard extends StatelessWidget {
                   color: ok ? G.emerald.first : Colors.blueGrey,
                   fontWeight: FontWeight.w600)),
         ]),
+      );
+}
+
+/// Whether the Tap secret key is set on the server (test or live).
+class TapStatusNote extends StatelessWidget {
+  const TapStatusNote({super.key});
+  @override
+  Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
+        future:
+            tapFn({'action': 'status'}).catchError((_) => <String, dynamic>{}),
+        builder: (_, s) {
+          if (!s.hasData) return const SizedBox(height: 8);
+          final mode = s.data!['mode'];
+          final (txt, col) = switch (mode) {
+            'live' => ('بوابة Tap مربوطة (حساب فعلي)', Colors.green.shade700),
+            'test' => (
+                'بوابة Tap مربوطة على البيئة التجريبية',
+                Colors.orange.shade800
+              ),
+            _ => (
+                'بوابة Tap غير مربوطة بعد، العميل ما يقدر يدفع بها حالياً',
+                Colors.red.shade700
+              ),
+          };
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+            child: Row(children: [
+              Icon(mode == null ? Icons.link_off : Icons.verified,
+                  size: 16, color: col),
+              const SizedBox(width: 6),
+              Expanded(
+                  child: Text(txt, style: TextStyle(fontSize: 12, color: col))),
+            ]),
+          );
+        },
       );
 }

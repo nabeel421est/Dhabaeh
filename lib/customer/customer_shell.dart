@@ -9,6 +9,7 @@ import 'order_details.dart';
 import 'customer_profile.dart';
 import '../core/ttext.dart';
 import '../core/i18n.dart';
+import '../core/tap_pay.dart';
 
 class CustomerShell extends StatefulWidget {
   const CustomerShell({super.key, required this.profile, this.switcher});
@@ -20,6 +21,23 @@ class CustomerShell extends StatefulWidget {
 
 class _CustomerShellState extends State<CustomerShell> {
   int tab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Back from the Tap payment page: confirm the payment and open the order.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final id = await checkTapReturn(context);
+      if (id != null && mounted) {
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) =>
+                    OrderDetailsPage(orderId: id, viewer: 'customer')));
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
