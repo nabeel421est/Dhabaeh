@@ -7,6 +7,7 @@ import '../core/common.dart';
 import '../core/i18n.dart';
 import '../core/ttext.dart';
 import '../customer/order_details.dart';
+import 'admin_control_hub.dart';
 
 /// The order-control buttons a super admin can switch on or off per admin.
 const ocActions = <String, (String, IconData)>{
@@ -127,14 +128,23 @@ class _AdminOrderControlState extends State<AdminOrderControl> {
           : const Center(child: CircularProgressIndicator());
     }
     if (token == null) return lockScreen(context);
-    return _ControlBoard(
-      until: until!,
-      onLock: () => lock(),
-      act: act,
+    void onAccess() => openAccessPanel(context).then((_) => refreshAccess());
+    return ControlHub(
+      minutesLeft: until!.difference(DateTime.now()).inMinutes.clamp(0, 30),
       isSuper: access!['me']?['super'] == true,
+      myPerms: access!['me']?['perms'],
       sectionSet: access!['any_key'] == true,
-      can: permsOf(access!['me']?['perms']),
-      onAccess: () => openAccessPanel(context).then((_) => refreshAccess()),
+      onAccess: onAccess,
+      onLock: () => lock(),
+      ordersBoard: _ControlBoard(
+        until: until!,
+        onLock: () => lock(),
+        act: act,
+        isSuper: access!['me']?['super'] == true,
+        sectionSet: true,
+        can: permsOf(access!['me']?['perms']),
+        onAccess: onAccess,
+      ),
     );
   }
 
@@ -172,7 +182,7 @@ class _AdminOrderControlState extends State<AdminOrderControl> {
                   child: Icon(Icons.lock_outline, size: 38, color: b.accent),
                 ),
                 const SizedBox(height: 14),
-                const Text('التحكم في الطلبات',
+                const Text('التحكم الإداري',
                     style: TextStyle(
                         color: Colors.white,
                         fontSize: 22,
@@ -730,11 +740,6 @@ class _ControlBoardState extends State<_ControlBoard> {
               ('محذوفة', '${counts['deleted']}'),
             ],
             action: Wrap(spacing: 8, runSpacing: 8, children: [
-              if (widget.isSuper)
-                HeroButton(
-                    icon: Icons.admin_panel_settings_outlined,
-                    label: 'الصلاحيات وكلمات المرور',
-                    onPressed: widget.onAccess),
               HeroButton(
                   icon: Icons.lock_outline,
                   label: 'قفل القسم',
@@ -1127,7 +1132,11 @@ class _AccessPanelState extends State<_AccessPanel> {
   }
 
   Future<void> setPerm(Map ad, String k, bool v) async {
-    final p = permsOf(ad['perms'])..[k] = v;
+    final p = <String, dynamic>{
+      ...permsOf(ad['perms']),
+      if (ad['perms'] is Map) ...Map<String, dynamic>.from(ad['perms']),
+      k: v,
+    };
     await guard(
         context,
         () => sb.rpc('admin_set_oc_perms',
@@ -1301,6 +1310,32 @@ class _AccessPanelState extends State<_AccessPanel> {
                                 onSelected: ad['super'] == true
                                     ? null
                                     : (v) => setPerm(ad, e.key, v),
+                              ),
+                          ]),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 2, 12, 4),
+                          child: Text(
+                              ad['super'] == true
+                                  ? 'أقسام التحكم الإداري: كلها مفتوحة للمدير العام'
+                                  : 'أقسام التحكم الإداري',
+                              style: const TextStyle(
+                                  color: Colors.black54, fontSize: 12.5)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+                          child: Wrap(spacing: 6, runSpacing: 6, children: [
+                            for (final x in hubSections)
+                              FilterChip(
+                                avatar: Icon(x.icon, size: 16),
+                                label: Text(x.title),
+                                selectedColor:
+                                    x.stops[2].withValues(alpha: .25),
+                                selected: ad['super'] == true ||
+                                    secAllowed(ad['perms'], x.key),
+                                onSelected: ad['super'] == true
+                                    ? null
+                                    : (v) => setPerm(ad, 'sec_${x.key}', v),
                               ),
                           ]),
                         ),

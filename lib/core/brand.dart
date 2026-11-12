@@ -353,7 +353,16 @@ class BrandBanner extends StatelessWidget {
 /// The open app's identity, read through the theme so the widget repaints when the app changes.
 Brand brandOf(BuildContext context) {
   Theme.of(context);
-  return activeBrand.value;
+  final scope = context.dependOnInheritedWidgetOfExactType<BrandScope>();
+  return scope?.brand ?? activeBrand.value;
+}
+
+/// Gives a subtree its own gradient identity (used for the sections inside التحكم الإداري).
+class BrandScope extends InheritedWidget {
+  const BrandScope({super.key, required this.brand, required super.child});
+  final Brand brand;
+  @override
+  bool updateShouldNotify(BrandScope old) => old.brand != brand;
 }
 
 /// A page's opening banner: gradient, icon, title, one line of context, and a few headline numbers.
