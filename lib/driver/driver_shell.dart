@@ -48,6 +48,7 @@ class _DriverShellState extends State<DriverShell> {
         },
         child: Scaffold(
           appBar: GradientAppBar(
+            logo: true,
             title:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(tab == 0 ? 'الطلبات المتاحة' : 'طلباتي'),

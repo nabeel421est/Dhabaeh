@@ -6,7 +6,7 @@ self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim(
 self.addEventListener('push', function (e) {
   var d = {};
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : '' }; }
-  var title = d.title || 'ذبائح البحرين';
+  var title = d.title || 'ذبائح';
   var opts = {
     body: d.body || '',
     icon: 'icons/Icon-192.png',

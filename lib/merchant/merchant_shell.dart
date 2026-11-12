@@ -120,6 +120,7 @@ class _MerchantShellState extends State<MerchantShell> {
                         OrderDetailsPage(orderId: id, viewer: 'merchant'))),
             child: Scaffold(
               appBar: GradientAppBar(
+                logo: true,
                 title: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

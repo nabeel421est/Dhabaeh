@@ -36,52 +36,52 @@ class Brand {
 
 const brands = <String, Brand>{
   'login': Brand(
-    name: 'ذبائح البحرين',
+    name: 'ذبائح',
     tagline: 'ذبيحتك من الملحمة إلى باب بيتك',
     icon: Icons.storefront,
-    stops: [Color(0xFF22050F), Color(0xFF5E0F2C), Color(0xFF9C2347)],
-    accent: Color(0xFFE7C077),
-    surface: Color(0xFFFBF7F1),
+    stops: [Color(0xFF3A050E), Color(0xFF7E0C19), Color(0xFFA8182E)],
+    accent: Color(0xFFE2BF7A),
+    surface: Color(0xFFFAF5F2),
   ),
   'customer': Brand(
-    name: 'ذبائح البحرين',
+    name: 'ذبائح',
     tagline: 'اطلب ذبيحتك بسهولة',
     icon: Icons.shopping_bag_outlined,
-    stops: [Color(0xFF2E0715), Color(0xFF6E1435), Color(0xFFB03C62)],
-    accent: Color(0xFFE7C077),
-    surface: Color(0xFFFBF7F1),
+    stops: [Color(0xFF4A0712), Color(0xFF8B1023), Color(0xFFB52A3C)],
+    accent: Color(0xFFE2BF7A),
+    surface: Color(0xFFFAF5F2),
   ),
   'merchant_owner': Brand(
     name: 'تاجر ذبائح',
     tagline: 'إدارة المسلخ',
     icon: Icons.storefront_outlined,
-    stops: [Color(0xFF042F2A), Color(0xFF0D6152), Color(0xFF28A385)],
-    accent: Color(0xFFE6C877),
-    surface: Color(0xFFF3F8F6),
+    stops: [Color(0xFF2C0509), Color(0xFF6A0B16), Color(0xFF9A1A2A)],
+    accent: Color(0xFFE2BF7A),
+    surface: Color(0xFFFAF5F2),
   ),
   'merchant_staff': Brand(
     name: 'موظف المسلخ',
     tagline: 'طلبات المتجر',
     icon: Icons.badge_outlined,
-    stops: [Color(0xFF07313F), Color(0xFF136A82), Color(0xFF3AAFC4)],
-    accent: Color(0xFFF2CF7A),
-    surface: Color(0xFFF2F8FA),
+    stops: [Color(0xFF3A0A12), Color(0xFF7A1A2A), Color(0xFFB0485A)],
+    accent: Color(0xFFE8C988),
+    surface: Color(0xFFFAF5F3),
   ),
   'driver': Brand(
     name: 'مندوب ذبائح',
     tagline: 'التوصيل',
     icon: Icons.local_shipping_outlined,
-    stops: [Color(0xFF0B1934), Color(0xFF1C4790), Color(0xFF3D8BEA)],
-    accent: Color(0xFFFFA24A),
-    surface: Color(0xFFF3F6FB),
+    stops: [Color(0xFF2A1206), Color(0xFF6B3410), Color(0xFFA8642A)],
+    accent: Color(0xFFF0CB80),
+    surface: Color(0xFFFAF6F1),
   ),
   'admin': Brand(
     name: 'الإدارة العامة',
     tagline: 'لوحة تحكم المنصة',
     icon: Icons.admin_panel_settings_outlined,
-    stops: [Color(0xFF06375A), Color(0xFF0B7BC0), Color(0xFF4CC3F2)],
-    accent: Color(0xFFF4C752),
-    surface: Color(0xFFF1F7FB),
+    stops: [Color(0xFF16030A), Color(0xFF4A0712), Color(0xFF7E0C19)],
+    accent: Color(0xFFE2BF7A),
+    surface: Color(0xFFF9F5F3),
   ),
 };
 
@@ -181,8 +181,16 @@ ThemeData brandTheme(Brand b) {
 /// App bar painted with the open app's gradient, with a thin accent line at the bottom.
 class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
   const GradientAppBar(
-      {super.key, this.title, this.actions, this.bottom, this.leading});
+      {super.key,
+      this.title,
+      this.actions,
+      this.bottom,
+      this.leading,
+      this.logo = false});
   final Widget? title;
+
+  /// Shows the brand emblem before the title (the main screen of each app).
+  final bool logo;
   final List<Widget>? actions;
   final PreferredSizeWidget? bottom;
   final Widget? leading;
@@ -195,10 +203,18 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final b = brandOf(context);
     return AppBar(
+      titleSpacing: logo ? 8 : null,
       title: title == null
           ? null
           : DefaultTextStyle.merge(
-              style: const TextStyle(color: Colors.white), child: title!),
+              style: const TextStyle(color: Colors.white),
+              child: logo
+                  ? Row(mainAxisSize: MainAxisSize.min, children: [
+                      const AppLogo(size: 38, glow: false),
+                      const SizedBox(width: 10),
+                      Flexible(child: title!),
+                    ])
+                  : title!),
       actions: actions,
       leading: leading,
       bottom: PreferredSize(
@@ -314,18 +330,9 @@ class BrandBanner extends StatelessWidget {
   final String subtitle;
   @override
   Widget build(BuildContext context) {
-    final b = brandOf(context);
     return GradientCard(
       child: Row(children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .14),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: b.accent.withValues(alpha: .6))),
-          child: Icon(b.icon, color: b.accent),
-        ),
+        const AppLogo(size: 54),
         const SizedBox(width: 14),
         Expanded(
           child:

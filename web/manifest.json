@@ -1,11 +1,11 @@
 {
-    "name": "ذبائح البحرين",
-    "short_name": "ذبائح البحرين",
+    "name": "ذبائح",
+    "short_name": "ذبائح",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#4A0B22",
-    "theme_color": "#4A0B22",
-    "description": "ذبائح البحرين: اطلب ذبيحتك من الملاحم وتوصلك لباب بيتك",
+    "background_color": "#F6EEEA",
+    "theme_color": "#7E0C19",
+    "description": "ذبائح: اطلب ذبيحتك من الملاحم وتوصلك لباب بيتك",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

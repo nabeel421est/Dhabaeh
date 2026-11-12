@@ -27,7 +27,7 @@ class DhabaehApp extends StatelessWidget {
       builder: (context, lang, _) => ValueListenableBuilder<Brand>(
         valueListenable: activeBrand,
         builder: (context, b, _) => MaterialApp(
-          title: tr('ذبائح البحرين'),
+          title: appName,
           debugShowCheckedModeBanner: false,
           locale: lang == 'en' ? const Locale('en') : const Locale('ar', 'BH'),
           supportedLocales: const [Locale('ar', 'BH'), Locale('en')],

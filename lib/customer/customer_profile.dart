@@ -577,7 +577,7 @@ class _SupportCard extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 14),
                 child: GradientHeaderCard(
                   title: 'التواصل والدعم',
-                  subtitle: 'فريق ذبائح البحرين في خدمتك',
+                  subtitle: 'فريق ذبائح في خدمتك',
                   icon: Icons.support_agent_outlined,
                   colors: G.violet,
                   child: Column(children: [

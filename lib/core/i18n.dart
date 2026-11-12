@@ -10,6 +10,9 @@ import 'i18n_en.dart';
 final appLang = ValueNotifier<String>('ar');
 bool get isEn => appLang.value == 'en';
 
+/// The brand name in the open language.
+String get appName => isEn ? 'Dhabaeh' : 'ذبائح';
+
 const _prefKey = 'lang';
 bool _userChose = false;
 

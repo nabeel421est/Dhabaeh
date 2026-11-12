@@ -24,15 +24,12 @@ class _CustomerShellState extends State<CustomerShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: GradientAppBar(
-        title: Row(mainAxisSize: MainAxisSize.min, children: [
-          const AppLogo(size: 34, glow: false),
-          const SizedBox(width: 10),
-          Text(tab == 0
-              ? 'الملاحم'
-              : tab == 1
-                  ? 'طلباتي'
-                  : 'الإشعارات'),
-        ]),
+        logo: true,
+        title: Text(tab == 0
+            ? 'الملاحم'
+            : tab == 1
+                ? 'طلباتي'
+                : 'الإشعارات'),
         actions: [
           Padding(
             padding: const EdgeInsetsDirectional.only(end: 4),
@@ -557,7 +554,7 @@ class _NotifCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(999)),
                   child: Text(
                       n['kind'] == 'offer'
-                          ? 'عرض من ذبائح البحرين'
+                          ? 'عرض من ذبائح'
                           : 'رسالة من إدارة التطبيق',
                       style: const TextStyle(
                           color: Colors.white,

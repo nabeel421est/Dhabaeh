@@ -186,15 +186,37 @@ class AuthEmblem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final b = brands['login']!;
-    final s = compact ? 72.0 : 120.0;
+    final s = compact ? 130.0 : 210.0;
     return Column(children: [
-      AppLogo(size: s),
-      SizedBox(height: compact ? 8 : 14),
       Semantics(
-        label: 'ذبائح البحرين',
-        child: Image.asset('assets/brand/wordmark.png',
-            width: compact ? 200 : 260, filterQuality: FilterQuality.medium),
+        label: appName,
+        child: Container(
+          width: s,
+          height: s,
+          padding: EdgeInsets.all(compact ? 6 : 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF6EEEA),
+            borderRadius: BorderRadius.circular(compact ? 22 : 34),
+            border: Border.all(color: b.accent, width: 1.6),
+            boxShadow: [
+              BoxShadow(
+                  color: b.accent.withValues(alpha: .35),
+                  blurRadius: 30,
+                  spreadRadius: 1),
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: .3),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10)),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(compact ? 16 : 26),
+            child: Image.asset('assets/brand/logo-full.png',
+                fit: BoxFit.cover, filterQuality: FilterQuality.medium),
+          ),
+        ),
       ),
+      SizedBox(height: compact ? 8 : 14),
       if (!compact) ...[
         const SizedBox(height: 4),
         Text(b.tagline,

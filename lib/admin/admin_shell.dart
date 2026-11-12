@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide Text;
 
 import '../auth/gate.dart';
 import '../core/brand.dart';
+import '../core/i18n.dart';
 import '../core/common.dart';
 import '../customer/order_details.dart';
 import 'admin_driver_money.dart';
@@ -76,24 +77,16 @@ class _AdminShellState extends State<AdminShell> {
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
         child: Row(children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: b.accent.withValues(alpha: .7)),
-                color: Colors.white.withValues(alpha: .08)),
-            child: Icon(b.icon, color: b.accent),
-          ),
+          const AppLogo(size: 44),
           const SizedBox(width: 10),
-          const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('لوحة الإدارة',
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('لوحة الإدارة',
                 style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                     color: Colors.white)),
-            Text('ذبائح البحرين',
-                style: TextStyle(fontSize: 12, color: Colors.white60)),
+            Text(appName,
+                style: const TextStyle(fontSize: 12, color: Colors.white60)),
           ]),
         ]),
       ),
@@ -138,6 +131,7 @@ class _AdminShellState extends State<AdminShell> {
                     OrderDetailsPage(orderId: id, viewer: 'admin'))),
         child: Scaffold(
           appBar: GradientAppBar(
+            logo: true,
             title: Text(sections[idx].$1),
             actions: [
               Center(

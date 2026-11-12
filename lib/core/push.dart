@@ -91,7 +91,7 @@ class _PushBannerState extends State<PushBanner> {
       toast(
           context,
           r.contains('denied')
-              ? 'رفضت الإشعارات. فعّلها من إعدادات الهاتف ← الإشعارات ← ذبائح البحرين'
+              ? 'رفضت الإشعارات. فعّلها من إعدادات الهاتف ← الإشعارات ← ذبائح'
               : 'تعذر تفعيل الإشعارات على هذا الجهاز',
           error: true);
       return;
