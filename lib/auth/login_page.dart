@@ -25,10 +25,11 @@ class _LoginPageState extends State<LoginPage> {
     if (!form.currentState!.validate()) return;
     final p = normPhone(phone.text);
     setState(() => busy = true);
-    await guard(
-        context,
-        () => sb.auth
-            .signInWithPassword(email: emailForPhone(p), password: pass.text));
+    await guard(context, () async {
+      await sb.auth
+          .signInWithPassword(email: emailForPhone(p), password: pass.text);
+      logEvent('login');
+    });
     if (mounted) setState(() => busy = false);
   }
 

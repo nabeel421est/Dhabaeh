@@ -341,6 +341,7 @@ List<Widget> commonActions(BuildContext context, Widget? switcher) => [
             ),
           );
           if (ok == true) {
+            await logEvent('logout');
             await pushSignOut();
             await sb.auth.signOut();
           }

@@ -6,9 +6,12 @@ import '../core/i18n.dart';
 import '../core/common.dart';
 import '../customer/order_details.dart';
 import 'admin_driver_money.dart';
+import 'admin_activity.dart';
 import 'admin_drivers.dart';
 import 'admin_merchants.dart';
 import 'admin_money.dart';
+import 'admin_offers.dart';
+import 'admin_order_control.dart';
 import 'admin_payouts.dart';
 import 'admin_people.dart';
 import 'admin_products.dart';
@@ -33,9 +36,12 @@ class _AdminShellState extends State<AdminShell> {
     ('العملاء', Icons.people_outline, null),
     ('التجار', Icons.storefront_outlined, null),
     ('المنتجات', Icons.inventory_2_outlined, null),
+    ('العروض', Icons.local_offer_outlined, null),
     ('تقارير التجار', Icons.bar_chart_outlined, null),
     ('المندوبون', Icons.local_shipping_outlined, null),
     ('الإشعارات', Icons.campaign_outlined, null),
+    ('التحكم في الطلبات', Icons.tune_outlined, 'الإدارة العامة'),
+    ('سجل الأنشطة', Icons.manage_search, 'الإدارة العامة'),
     ('محفظة المنصة', Icons.account_balance_outlined, 'الإدارة العامة'),
     ('طلبات السحب', Icons.outbox_outlined, 'الإدارة العامة'),
     ('مبالغ الدفع عند الاستلام', Icons.payments_outlined, 'الإدارة العامة'),
@@ -55,6 +61,9 @@ class _AdminShellState extends State<AdminShell> {
         'العملاء' => const AdminUsers(group: UserGroup.customers),
         'التجار' => const AdminMerchants(),
         'المنتجات' => const AdminProducts(),
+        'العروض' => const AdminOffers(),
+        'التحكم في الطلبات' => const AdminOrderControl(),
+        'سجل الأنشطة' => const AdminActivity(),
         'تقارير التجار' => const AdminReports(),
         'المندوبون' => const AdminDriversHub(),
         'الإشعارات' => const AdminNotify(),
@@ -582,7 +591,10 @@ class _AdminOrdersState extends State<AdminOrders> {
           key: ValueKey(status),
           realtimeTables: const ['orders'],
           load: () async {
-            var q = sb.from('orders').select('*, merchants(name)');
+            var q = sb
+                .from('orders')
+                .select('*, merchants(name)')
+                .isFilter('deleted_at', null);
             if (status != 'all') q = q.eq('status', status);
             return List<Map<String, dynamic>>.from(
                 await q.order('created_at', ascending: false).limit(200));
@@ -671,7 +683,10 @@ class OrderTile extends StatelessWidget {
                 decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .22),
                     borderRadius: BorderRadius.circular(999)),
-                child: Text(statusOf(o),
+                child: Text(
+                    o['held'] == true
+                        ? '${tr('موقوف')} · ${statusOf(o)}'
+                        : statusOf(o),
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,

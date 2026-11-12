@@ -8,6 +8,13 @@ import 'i18n.dart';
 SupabaseClient get sb => Supabase.instance.client;
 String? get myId => sb.auth.currentUser?.id;
 
+/// Records a sign-in or sign-out in the activity log. Never throws.
+Future<void> logEvent(String action) async {
+  try {
+    await sb.rpc('log_client_event', params: {'p_action': action});
+  } catch (_) {}
+}
+
 final _money = NumberFormat('#,##0.000', 'en');
 String bhd(dynamic v) =>
     '${_money.format(num.tryParse('${v ?? 0}') ?? 0)} ${tr('د.ب')}';
