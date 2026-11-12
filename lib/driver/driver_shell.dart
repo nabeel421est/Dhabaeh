@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' hide Text;
 import 'package:latlong2/latlong.dart';
 
 import '../auth/gate.dart';
+import '../core/driver_chat.dart';
 import '../core/address_map.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
@@ -46,34 +47,41 @@ class _DriverShellState extends State<DriverShell> {
                   builder: (_) => DriverOrderPage(
                       orderId: id, available: row?['driver_id'] == null)));
         },
-        child: Scaffold(
-          appBar: GradientAppBar(
-            logo: true,
-            title:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(tab == 0 ? 'الطلبات المتاحة' : 'طلباتي'),
-              Text(widget.profile['full_name'] ?? '',
-                  style: const TextStyle(fontSize: 12, color: Colors.white70)),
-            ]),
-            actions: commonActions(context, widget.switcher),
-          ),
-          body: IndexedStack(index: tab, children: [
-            DriverList(
-                available: true, onClaimed: () => setState(() => tab = 1)),
-            const DriverList(available: false)
-          ]),
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: tab,
-            onDestinationSelected: (i) => setState(() => tab = i),
-            destinations: [
-              NavigationDestination(
-                  icon: Icon(Icons.inbox_outlined), label: tr('المتاحة')),
-              NavigationDestination(
-                  icon: Icon(Icons.local_shipping_outlined),
-                  label: tr('طلباتي')),
-            ],
-          ),
-        ));
+        child: NudgeWatcher(
+            driverId: myId!,
+            child: Scaffold(
+              appBar: GradientAppBar(
+                logo: true,
+                title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(tab == 0 ? 'الطلبات المتاحة' : 'طلباتي'),
+                      Text(widget.profile['full_name'] ?? '',
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.white70)),
+                    ]),
+                actions: [
+                  DriverChatButton(driverId: myId!),
+                  ...commonActions(context, widget.switcher),
+                ],
+              ),
+              body: IndexedStack(index: tab, children: [
+                DriverList(
+                    available: true, onClaimed: () => setState(() => tab = 1)),
+                const DriverList(available: false)
+              ]),
+              bottomNavigationBar: NavigationBar(
+                selectedIndex: tab,
+                onDestinationSelected: (i) => setState(() => tab = i),
+                destinations: [
+                  NavigationDestination(
+                      icon: Icon(Icons.inbox_outlined), label: tr('المتاحة')),
+                  NavigationDestination(
+                      icon: Icon(Icons.local_shipping_outlined),
+                      label: tr('طلباتي')),
+                ],
+              ),
+            )));
   }
 }
 

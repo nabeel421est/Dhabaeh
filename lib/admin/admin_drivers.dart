@@ -3,12 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart' hide Text;
 import 'package:latlong2/latlong.dart';
 
-import '../core/address_map.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
 import '../core/i18n.dart';
 import '../core/ttext.dart';
 import '../customer/order_details.dart';
+import 'admin_driver_map.dart';
 import 'admin_people.dart' show AdminUsers;
 
 /// Drivers section: live map, delivery orders with timers and assignment, and accounts.
@@ -48,7 +48,8 @@ class AdminDriversHub extends StatelessWidget {
 typedef _DispatchData = (
   List<Map<String, dynamic>> drivers,
   List<Map<String, dynamic>> orders,
-  List<Map<String, dynamic>> stores
+  List<Map<String, dynamic>> stores,
+  Map<String, int> unread
 );
 
 /// Is the driver sharing location and recently seen?
@@ -97,46 +98,29 @@ class AdminDispatch extends StatelessWidget {
         .from('merchants')
         .select('id, name, lat, lng')
         .not('lat', 'is', null));
-    return (drivers, orders, stores);
+    final unread = <String, int>{};
+    try {
+      for (final r in await sb.rpc('admin_chat_overview') as List) {
+        unread['${r['driver_id']}'] = toNum(r['unread']).toInt();
+      }
+    } catch (_) {}
+    return (drivers, orders, stores, unread);
   }
 
   @override
   Widget build(BuildContext context) {
     return Loader<_DispatchData>(
-      realtimeTables: const ['driver_locations', 'orders'],
+      realtimeTables: const ['driver_locations', 'orders', 'driver_chat'],
       refreshEvery: const Duration(seconds: 30),
       load: load,
       builder: (context, data, reload) {
-        final (drivers, orders, stores) = data;
+        final (drivers, orders, stores, unread) = data;
         final live = drivers.where((d) => driverLive(d['loc'])).toList();
         final busy = {
           for (final o in orders)
             if (o['driver_id'] != null) o['driver_id']
         };
         final waiting = orders.where((o) => o['driver_id'] == null).toList();
-        final pins = <MapPin>[
-          for (final d in drivers)
-            if (d['loc'] != null)
-              (
-                at: LatLng(toNum(d['loc']['lat']).toDouble(),
-                    toNum(d['loc']['lng']).toDouble()),
-                color: !driverLive(d['loc'])
-                    ? Colors.blueGrey
-                    : busy.contains(d['id'])
-                        ? G.amber.first
-                        : G.emerald.first,
-                icon: Icons.delivery_dining,
-                label: '${d['name']}',
-              ),
-          for (final s in stores)
-            (
-              at: LatLng(
-                  toNum(s['lat']).toDouble(), toNum(s['lng']).toDouble()),
-              color: G.ruby.first,
-              icon: Icons.storefront,
-              label: '${s['name']}',
-            ),
-        ];
         return ListView(padding: const EdgeInsets.all(18), children: [
           PageHero(
             icon: Icons.delivery_dining_outlined,
@@ -153,27 +137,27 @@ class AdminDispatch extends StatelessWidget {
           const SizedBox(height: 16),
           GradientHeaderCard(
             title: 'خريطة المناديب',
-            subtitle: 'تتحدث تلقائياً',
+            subtitle:
+                'تتحدث تلقائياً · كبّر وصغّر واضغط على المندوب للنكز أو الدردشة',
             icon: Icons.map_outlined,
             colors: G.sapphire,
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (pins.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Text(
-                          'لا توجد مواقع بعد. تظهر المواقع عندما يفعّل المندوب "متاح لاستلام الطلبات" في تطبيقه.',
-                          style: TextStyle(color: Colors.black54)),
-                    )
-                  else
-                    PinsMap(pins: pins, height: 380),
+                  DriversLiveMap(
+                    drivers: drivers,
+                    stores: stores,
+                    busy: busy,
+                    isLive: driverLive,
+                    unread: unread,
+                  ),
                   const SizedBox(height: 10),
                   Wrap(spacing: 14, runSpacing: 6, children: [
                     _legend(G.emerald.first, 'متاح'),
                     _legend(G.amber.first, 'في طلب'),
                     _legend(Colors.blueGrey, 'غير متاح'),
                     _legend(G.ruby.first, 'متجر'),
+                    _legend(G.violet.first, 'المسافة لأقرب مندوب'),
                   ]),
                 ]),
           ),
