@@ -211,7 +211,7 @@ class MerchantOrderTile extends StatelessWidget {
                   '${o['fulfillment'] == 'pickup' ? 'استلام من المحل' : 'التوصيل'} ${dateText(o['delivery_date'])} · ${o['delivery_slot']}'),
               const SizedBox(height: 4),
               Row(children: [
-                Text(paymentLabels[o['payment_method']] ?? '',
+                Text(payLabel(o),
                     style:
                         const TextStyle(fontSize: 12, color: Colors.black54)),
                 const Spacer(),

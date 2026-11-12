@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Text;
+import '../core/search_pick.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -1853,7 +1854,28 @@ Future<bool> showZoneEditor(
                           onChanged: (_) => set(() {}),
                           onFieldSubmitted: (_) => locate(),
                           decoration:
-                              deco('المدينة *', Icons.apartment_outlined),
+                              deco('المدينة *', Icons.apartment_outlined)
+                                  .copyWith(
+                            suffixIcon: IconButton(
+                              tooltip: tr('بحث عن مدينة'),
+                              icon: const Icon(Icons.search),
+                              onPressed: () async {
+                                final t = await showSearchPick(c,
+                                    title: tr('اختر المدينة'),
+                                    current: city.text.trim(),
+                                    options: [
+                                      for (final x in {
+                                        ...cities,
+                                        ...bahrainGovernorates.values
+                                            .expand((m) => m.keys),
+                                        ...bahrainCities
+                                      })
+                                        (x, x)
+                                    ]);
+                                if (t != null) pickCity(t);
+                              },
+                            ),
+                          ),
                           validator: (v) => (v ?? '').trim().isEmpty
                               ? tr('اختر أو اكتب المدينة')
                               : null,

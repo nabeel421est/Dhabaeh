@@ -514,8 +514,7 @@ class _DriverStatementPageState extends State<DriverStatementPage> {
                   children: [
                     Text('#${o['code']} · ${o['merchants']?['name'] ?? ''}',
                         style: const TextStyle(fontWeight: FontWeight.w700)),
-                    Text(
-                        '${o['customer_name'] ?? ''} · ${paymentLabels[o['payment_method']] ?? ''}',
+                    Text('${o['customer_name'] ?? ''} · ${payLabel(o)}',
                         style: const TextStyle(
                             fontSize: 12.5, color: Colors.black54)),
                   ]),

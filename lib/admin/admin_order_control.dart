@@ -1089,8 +1089,8 @@ class ControlOrderCard extends StatelessWidget {
             if (delivery)
               line(Icons.two_wheeler_outlined,
                   '${tr('المندوب')}: ${o['driver_name'] ?? tr('غير معيّن')}'),
-            line(Icons.payments_outlined,
-                '${bhd(o['total'])} · ${paymentLabels[o['payment_method']] ?? ''}'),
+            line(
+                Icons.payments_outlined, '${bhd(o['total'])} · ${payLabel(o)}'),
             if (held && '${o['held_reason'] ?? ''}'.isNotEmpty)
               line(Icons.info_outline,
                   '${tr('سبب الإيقاف')}: ${o['held_reason']}'),

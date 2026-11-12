@@ -254,7 +254,7 @@ class OrderView extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                  '${paymentLabels[o['payment_method']] ?? ''} · ${paymentStatusLabels[o['payment_status']] ?? ''}',
+                  '${payLabel(o)} · ${paymentStatusLabels[o['payment_status']] ?? ''}',
                   style: const TextStyle(color: Colors.white)),
             ),
             Text(bhd(o['total']),

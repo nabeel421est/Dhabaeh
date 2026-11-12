@@ -342,7 +342,7 @@ class CustomerOrderCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                      '${paymentLabels[o['payment_method']] ?? ''} · ${paymentStatusLabels[o['payment_status']] ?? ''}',
+                      '${payLabel(o)} · ${paymentStatusLabels[o['payment_status']] ?? ''}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style:

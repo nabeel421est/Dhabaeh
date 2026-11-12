@@ -61,6 +61,11 @@ const paymentLabels = {
   'bank_transfer': 'تحويل بنكي',
   'cash': 'نقداً عند الاستلام'
 };
+
+/// The payment method an order used: the admin's method name, else the built-in label.
+String payLabel(Map o) =>
+    '${o['payment_method_name'] ?? paymentLabels[o['payment_method']] ?? ''}';
+
 const paymentStatusLabels = {
   'pending': 'بانتظار الدفع',
   'awaiting_review': 'بانتظار مراجعة التحويل',

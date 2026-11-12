@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Text;
+import '../core/search_pick.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../core/address_map.dart';
@@ -260,19 +261,15 @@ class _SignupPageState extends State<SignupPage> {
                         subtitle: 'يُستخدم للتوصيل ويتعبأ تلقائياً عند الطلب'),
                     const SizedBox(height: 18),
                     _pair(
-                      DropdownButtonFormField<String>(
-                        initialValue: city,
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                            labelText: tr('المدينة *'),
-                            prefixIcon: Icon(Icons.location_city_outlined)),
-                        items: [
-                          for (final c in bahrainCities)
-                            DropdownMenuItem(value: c, child: Text(c)),
-                        ],
-                        onChanged: (v) => setState(() => city = v),
-                        validator: (v) => req(v, tr('المدينة')),
-                      ),
+                      SearchPickField.strings(
+                          value: city,
+                          items: bahrainCities,
+                          decoration: InputDecoration(
+                              labelText: tr('المدينة *'),
+                              prefixIcon: Icon(Icons.location_city_outlined)),
+                          onChanged: (v) => setState(() => city = v),
+                          validator: (v) => req(v, tr('المدينة')),
+                          icon: Icons.location_city_outlined),
                       zones.isEmpty
                           ? TextFormField(
                               controller: areaText,
@@ -281,19 +278,15 @@ class _SignupPageState extends State<SignupPage> {
                                   prefixIcon: Icon(Icons.map_outlined)),
                               validator: (v) => req(v, tr('المنطقة')),
                             )
-                          : DropdownButtonFormField<String>(
-                              initialValue: area,
-                              isExpanded: true,
+                          : SearchPickField.strings(
+                              value: area,
+                              items: zones,
                               decoration: InputDecoration(
                                   labelText: tr('المنطقة *'),
                                   prefixIcon: Icon(Icons.map_outlined)),
-                              items: [
-                                for (final z in zones)
-                                  DropdownMenuItem(value: z, child: Text(z)),
-                              ],
                               onChanged: (v) => setState(() => area = v),
                               validator: (v) => req(v, tr('المنطقة')),
-                            ),
+                              icon: Icons.map_outlined),
                     ),
                     const SizedBox(height: 12),
                     _pair(

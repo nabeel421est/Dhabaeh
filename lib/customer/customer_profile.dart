@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide Text;
 
+import '../core/search_pick.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../core/address_map.dart';
@@ -295,29 +296,22 @@ class _ProfileFormState extends State<_ProfileForm> {
                                   labelText: tr('البريد الإلكتروني')),
                             ),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
-                              initialValue:
-                                  bahrainCities.contains(city) ? city : null,
-                              isExpanded: true,
-                              decoration:
-                                  InputDecoration(labelText: tr('المدينة')),
-                              items: [
-                                for (final c in bahrainCities)
-                                  DropdownMenuItem(value: c, child: Text(c)),
-                              ],
-                              onChanged: (v) => setState(() => city = v),
-                            ),
+                            SearchPickField.strings(
+                                value:
+                                    bahrainCities.contains(city) ? city : null,
+                                items: bahrainCities,
+                                decoration:
+                                    InputDecoration(labelText: tr('المدينة')),
+                                onChanged: (v) => setState(() => city = v),
+                                icon: Icons.location_city_outlined),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
-                              initialValue: zones.contains(area) ? area : null,
-                              decoration:
-                                  InputDecoration(labelText: tr('المنطقة')),
-                              items: [
-                                for (final z in zones)
-                                  DropdownMenuItem(value: z, child: Text(z)),
-                              ],
-                              onChanged: (v) => setState(() => area = v),
-                            ),
+                            SearchPickField.strings(
+                                value: zones.contains(area) ? area : null,
+                                items: zones,
+                                decoration:
+                                    InputDecoration(labelText: tr('المنطقة')),
+                                onChanged: (v) => setState(() => area = v),
+                                icon: Icons.map_outlined),
                           ])
                         : Column(children: [
                             _row(Icons.person_outline, 'الاسم',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Text;
+import 'search_pick.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'address_map.dart';
@@ -287,22 +288,17 @@ class _StoreLocatorState extends State<StoreLocator> {
         return Wrap(spacing: 12, runSpacing: 12, children: [
           SizedBox(
             width: w,
-            child: DropdownButtonFormField<String>(
-              initialValue:
-                  bahrainCities.contains(widget.city) ? widget.city : null,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: tr('1. المدينة'),
-                prefixIcon: Icon(Icons.location_city_outlined, color: tone),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              items: [
-                for (final c in bahrainCities)
-                  DropdownMenuItem(value: c, child: Text(c)),
-              ],
-              onChanged: widget.onCity,
-            ),
+            child: SearchPickField.strings(
+                value: bahrainCities.contains(widget.city) ? widget.city : null,
+                items: bahrainCities,
+                decoration: InputDecoration(
+                  labelText: tr('1. المدينة'),
+                  prefixIcon: Icon(Icons.location_city_outlined, color: tone),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                onChanged: widget.onCity,
+                icon: Icons.location_city_outlined),
           ),
           SizedBox(
             width: w,

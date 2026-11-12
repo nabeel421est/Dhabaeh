@@ -1,4 +1,6 @@
 import 'package:file_picker/file_picker.dart';
+import '../admin/admin_payment_methods.dart' show payIcon;
+import '../core/search_pick.dart';
 import 'package:flutter/material.dart' hide Text;
 
 import '../core/brand.dart';
@@ -36,6 +38,12 @@ const paymentLook = <String, (IconData, String)>{
   'bank_transfer': (Icons.account_balance_outlined, 'حوّل وارفع الإيصال'),
   'cash': (Icons.payments_outlined, 'ادفع للمندوب عند الاستلام'),
 };
+
+/// The payment method row the customer picked.
+Map<String, dynamic>? selectedMethod(Map settings, String? code) =>
+    List<Map<String, dynamic>>.from(settings['methods'] ?? const [])
+        .where((m) => m['code'] == code)
+        .firstOrNull;
 
 num calcValue(num base, String type, num v, bool enabled) {
   if (!enabled) return 0;
@@ -77,6 +85,9 @@ class OrderDraft {
   String? zoneId;
   String payment = 'benefitpay';
 
+  /// The admin-defined method picked (its kind is [payment]).
+  String? method;
+
   /// 'delivery' (a driver brings it) or 'pickup' (collected from the store).
   String fulfillment = 'delivery';
   bool get pickup => fulfillment == 'pickup';
@@ -107,7 +118,14 @@ typedef OrderSetup = (
 );
 
 Future<OrderSetup> loadOrderSetup() async {
-  final s = await sb.from('platform_settings').select().eq('id', 1).single();
+  final s0 = await sb.from('platform_settings').select().eq('id', 1).single();
+  final pm = await sb
+      .from('payment_methods')
+      .select()
+      .eq('active', true)
+      .eq('archived', false)
+      .order('sort');
+  final s = {...s0, 'methods': pm};
   final z =
       await sb.from('delivery_zones').select().eq('active', true).order('name');
   final a = await sb
@@ -791,6 +809,10 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
         'p_notes': null,
         'p_fulfillment': 'delivery',
       });
+      if (d.method != null) {
+        await sb.rpc('set_order_method',
+            params: {'p_order': o['id'], 'p_code': d.method});
+      }
       if (d.receipt != null && d.receipt!.bytes != null) {
         final safe =
             d.receipt!.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
@@ -862,6 +884,10 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
         'p_notes': d.note.text.trim().isEmpty ? null : d.note.text.trim(),
         'p_fulfillment': 'pickup',
       });
+      if (d.method != null) {
+        await sb.rpc('set_order_method',
+            params: {'p_order': o['id'], 'p_code': d.method});
+      }
       if (d.receipt != null && d.receipt!.bytes != null) {
         final safe =
             d.receipt!.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
@@ -1003,14 +1029,16 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
           colors: cs,
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            DropdownButtonFormField<String>(
-              initialValue: d.zoneId,
+            SearchPickField(
+              value: d.zoneId,
+              icon: Icons.map_outlined,
               decoration: InputDecoration(labelText: tr('المنطقة *')),
-              items: [
+              options: [
                 for (final z in zones)
-                  DropdownMenuItem(
-                      value: z['id'] as String,
-                      child: Text('${z['name']} · توصيل ${bhd(z['fee'])}'))
+                  (
+                    z['id'] as String,
+                    '${z['name']} · ${tr('توصيل')} ${bhd(z['fee'])}'
+                  )
               ],
               onChanged: (v) {
                 d.zoneId = v;
@@ -1045,40 +1073,46 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
           LayoutBuilder(builder: (context, c) {
             final cols = c.maxWidth >= 480 ? 3 : 1;
             final w = (c.maxWidth - 8 * (cols - 1)) / cols;
-            // Methods the admin turned off in Settings are not offered.
-            final allowed = {
-              'benefitpay': settings['allow_benefitpay'] != false,
-              'bank_transfer': settings['allow_bank_transfer'] != false,
-              'cash': settings['allow_cod'] != false,
-            };
-            final methods = paymentLabels.entries
-                .where((m) => allowed[m.key] ?? true)
-                .toList();
-            if (methods.isNotEmpty && !methods.any((m) => m.key == d.payment)) {
-              d.payment = methods.first.key;
+            // Methods the admin set up in «وسائل الدفع», active and fit for this order.
+            final methods = [
+              for (final m in List<Map<String, dynamic>>.from(
+                  settings['methods'] ?? const []))
+                if (d.pickup
+                    ? m['for_pickup'] != false
+                    : m['for_delivery'] != false)
+                  m
+            ];
+            if (methods.isNotEmpty &&
+                !methods.any((m) => m['code'] == d.method)) {
+              d.method = methods.first['code'];
+              d.payment = '${methods.first['kind']}';
             }
             return Wrap(spacing: 8, runSpacing: 8, children: [
               for (final m in methods)
                 SizedBox(
                   width: w,
                   child: _PayTile(
-                    title: d.pickup && m.key == 'cash'
+                    title: d.pickup && m['code'] == 'cash'
                         ? 'الدفع عند الاستلام من المحل'
-                        : m.value,
-                    sub: d.pickup && m.key == 'cash'
+                        : '${m['name']}',
+                    sub: d.pickup && m['code'] == 'cash'
                         ? 'تدفع للمحل نقداً عند الاستلام'
-                        : paymentLook[m.key]?.$2 ?? '',
-                    icon: paymentLook[m.key]?.$1 ?? Icons.payments_outlined,
+                        : '${m['description'] ?? paymentLook[m['kind']]?.$2 ?? ''}',
+                    icon: payIcon(m['icon']),
                     colors: cs,
-                    selected: d.payment == m.key,
+                    selected: d.method == m['code'],
                     onTap: () {
-                      d.payment = m.key;
+                      d.method = m['code'];
+                      d.payment = '${m['kind']}';
                       changed();
                     },
                   ),
                 ),
             ]);
           }),
+          if ((settings['methods'] as List? ?? const []).isEmpty)
+            const Text('لا توجد طريقة دفع متاحة حالياً',
+                style: TextStyle(color: Colors.black54)),
           if (d.payment == 'bank_transfer') ...[
             const SizedBox(height: 12),
             Container(
@@ -1092,7 +1126,7 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
                     const Text('حوّل المبلغ إلى حساب المنصة',
                         style: TextStyle(fontSize: 12, color: Colors.black54)),
                     SelectableText(
-                        '${settings['platform_iban'] ?? 'يُضاف من الإدارة'}',
+                        '${selectedMethod(settings, d.method)?['account'] ?? settings['platform_iban'] ?? 'يُضاف من الإدارة'}',
                         textDirection: TextDirection.ltr,
                         style: const TextStyle(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 8),
@@ -1115,11 +1149,32 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
                   ]),
             ),
           ],
+          if (d.payment == 'benefitpay' &&
+              selectedMethod(settings, d.method)?['account'] != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(children: [
+                Text('${tr('ادفع على')}: ',
+                    style: const TextStyle(color: Colors.black54)),
+                SelectableText(
+                    '${selectedMethod(settings, d.method)!['account']}',
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          if ('${selectedMethod(settings, d.method)?['instructions'] ?? ''}'
+              .isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                  '${selectedMethod(settings, d.method)!['instructions']}',
+                  style: const TextStyle(fontSize: 12.5)),
+            ),
           if (d.payment == 'benefitpay')
             const Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
-                  'في نسخة الاختبار يُسجّل الطلب بانتظار الدفع، والربط الفعلي مع BenefitPay لاحقاً.',
+                  'في نسخة الاختبار يُسجّل الطلب بانتظار الدفع، والربط الفعلي مع بوابة الدفع لاحقاً.',
                   style: TextStyle(color: Colors.black54, fontSize: 12)),
             ),
         ]),
@@ -1163,7 +1218,8 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
                   if (d.purchase)
                     line('التقطيع والتغليف',
                         '${d.cutting} · ${d.packing}${d.keepHead ? ' · مع الرأس' : ''}'),
-                  line('الدفع', paymentLabels[d.payment] ?? d.payment),
+                  line('الدفع',
+                      '${selectedMethod(settings, d.method)?['name'] ?? paymentLabels[d.payment] ?? d.payment}'),
                   const Divider(height: 20),
                   line(
                       '${widget.product['name']} (${d.unitNameFor(widget.product)}) × ${d.qty}',

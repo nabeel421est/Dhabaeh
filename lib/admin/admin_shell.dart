@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide Text;
 
+import 'admin_payment_methods.dart';
 import '../auth/gate.dart';
 import '../core/brand.dart';
 import '../core/i18n.dart';
@@ -48,6 +49,7 @@ class _AdminShellState extends State<AdminShell> {
     ('رسوم المناديب', Icons.delivery_dining_outlined, 'الإدارة العامة'),
     ('الاشتراكات', Icons.workspace_premium_outlined, 'الإدارة العامة'),
     ('العمولات', Icons.percent, 'الإدارة العامة'),
+    ('وسائل الدفع', Icons.account_balance_wallet_outlined, 'الإدارة العامة'),
     ('التوصيل', Icons.map_outlined, 'الإدارة العامة'),
     ('مستخدمو المنصة', Icons.admin_panel_settings_outlined, 'الإدارة العامة'),
     ('الإعدادات', Icons.settings_outlined, 'الإدارة العامة'),
@@ -73,6 +75,7 @@ class _AdminShellState extends State<AdminShell> {
         'رسوم المناديب' => const AdminDriverMoney(fees: true),
         'الاشتراكات' => const AdminPlans(),
         'العمولات' => const AdminCommissions(),
+        'وسائل الدفع' => const AdminPaymentMethods(),
         'التوصيل' => const AdminZones(),
         'الإعدادات' => const AdminSettings(),
         _ => const AdminUsers(group: UserGroup.platform),
@@ -713,7 +716,7 @@ class OrderTile extends StatelessWidget {
                             : Icons.local_shipping_outlined,
                         '${o['fulfillment'] == 'pickup' ? 'استلام من المحل' : 'التوصيل'} ${dateText(o['delivery_date'])} ${o['delivery_slot'] ?? ''}'),
                     line(Icons.payments_outlined,
-                        '${paymentLabels[o['payment_method']]} · ${paymentStatusLabels[o['payment_status']]}'),
+                        '${payLabel(o)} · ${paymentStatusLabels[o['payment_status']]}'),
                     if (o['fulfillment'] != 'pickup')
                       line(Icons.two_wheeler_outlined,
                           'المندوب: ${o['driver_name'] ?? 'غير معيّن'}'),
