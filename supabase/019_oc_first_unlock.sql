@@ -1,0 +1,6 @@
+-- Order control first entry (2026-11-12): until any section password exists, a super admin
+-- opens order control with their own account password. Applied as migrations
+-- oc_first_unlock_with_account_password, admin_access_list_any_key, oc_set_password_keep_own_session.
+-- oc_unlock: when private.oc_keys has no active row, a super admin's password is checked against
+-- auth.users.encrypted_password; otherwise only the master or personal section passwords work.
+-- admin_access_list: adds 'any_key'. oc_set_password: no longer ends the caller's own session.

@@ -118,6 +118,7 @@ class _AdminOrderControlState extends State<AdminOrderControl> {
       onLock: () => lock(),
       act: act,
       isSuper: access!['me']?['super'] == true,
+      sectionSet: access!['any_key'] == true,
       onAccess: () => openAccessPanel(context).then((_) => refreshAccess()),
     );
   }
@@ -126,7 +127,7 @@ class _AdminOrderControlState extends State<AdminOrderControl> {
     final b = brandOf(context);
     final me = Map<String, dynamic>.from(access!['me'] ?? {});
     final isSuper = me['super'] == true;
-    final anyKey = access!['master_set'] == true || me['has_key'] == true;
+    final anyKey = access!['any_key'] == true;
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -162,7 +163,12 @@ class _AdminOrderControlState extends State<AdminOrderControl> {
                         fontSize: 22,
                         fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                const Text('قسم محمي. أدخل كلمة المرور التي حددها المدير العام',
+                Text(
+                    anyKey
+                        ? 'قسم محمي. أدخل كلمة مرور القسم'
+                        : isSuper
+                            ? 'أول دخول: استخدم كلمة مرور حسابك كمدير عام'
+                            : 'قسم محمي. أدخل كلمة المرور التي حددها المدير العام',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white70, fontSize: 13)),
               ]),
@@ -175,12 +181,12 @@ class _AdminOrderControlState extends State<AdminOrderControl> {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (!anyKey && access!['master_set'] != true)
+                      if (!anyKey)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Text(
                               isSuper
-                                  ? 'لم تحدد كلمة مرور لهذا القسم بعد. اضغط «الصلاحيات وكلمات المرور» لتحديدها.'
+                                  ? 'لم تُحدد كلمة مرور خاصة للقسم بعد، فادخل بكلمة مرور حسابك، ثم خصّص كلمة مرور للقسم من «الصلاحيات وكلمات المرور» داخله.'
                                   : 'لم يحدد المدير العام كلمة مرور لهذا القسم بعد.',
                               style: TextStyle(color: G.amber.first)),
                         ),
@@ -190,7 +196,9 @@ class _AdminOrderControlState extends State<AdminOrderControl> {
                         textDirection: TextDirection.ltr,
                         onSubmitted: (_) => unlock(),
                         decoration: InputDecoration(
-                          labelText: tr('كلمة مرور القسم'),
+                          labelText: tr(anyKey || !isSuper
+                              ? 'كلمة مرور القسم'
+                              : 'كلمة مرور حسابك'),
                           prefixIcon: const Icon(Icons.key_outlined),
                           suffixIcon: IconButton(
                               onPressed: () => setState(() => hide = !hide),
@@ -217,15 +225,6 @@ class _AdminOrderControlState extends State<AdminOrderControl> {
                           textAlign: TextAlign.center,
                           style:
                               TextStyle(color: Colors.black45, fontSize: 12)),
-                      if (isSuper) ...[
-                        const Divider(height: 26),
-                        OutlinedButton.icon(
-                          onPressed: () => openAccessPanel(context)
-                              .then((_) => refreshAccess()),
-                          icon: const Icon(Icons.admin_panel_settings_outlined),
-                          label: const Text('الصلاحيات وكلمات المرور'),
-                        ),
-                      ],
                     ]),
               ),
             ),
@@ -245,7 +244,9 @@ class _ControlBoard extends StatefulWidget {
       required this.onLock,
       required this.act,
       required this.isSuper,
+      required this.sectionSet,
       required this.onAccess});
+  final bool sectionSet;
   final DateTime until;
   final VoidCallback onLock;
   final VoidCallback onAccess;
@@ -682,7 +683,7 @@ class _ControlBoardState extends State<_ControlBoard> {
               if (widget.isSuper)
                 HeroButton(
                     icon: Icons.admin_panel_settings_outlined,
-                    label: 'الصلاحيات',
+                    label: 'الصلاحيات وكلمات المرور',
                     onPressed: widget.onAccess),
               HeroButton(
                   icon: Icons.lock_outline,
@@ -691,6 +692,37 @@ class _ControlBoardState extends State<_ControlBoard> {
             ]),
           ),
           const SizedBox(height: 16),
+          if (widget.isSuper && !widget.sectionSet) ...[
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(colors: [
+                  G.amber.last.withValues(alpha: .18),
+                  G.gold.last.withValues(alpha: .10)
+                ]),
+                border: Border.all(color: G.amber.first.withValues(alpha: .35)),
+              ),
+              child: Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Icon(Icons.key_outlined, color: G.amber.first),
+                    const Text(
+                        'دخلت بكلمة مرور حسابك. خصّص كلمة مرور خاصة لهذا القسم.',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                          backgroundColor: G.amber.first),
+                      onPressed: widget.onAccess,
+                      icon: const Icon(Icons.password_outlined),
+                      label: const Text('تحديد كلمة مرور القسم'),
+                    ),
+                  ]),
+            ),
+            const SizedBox(height: 16),
+          ],
           TextField(
             controller: q,
             onChanged: (_) => setState(() {}),

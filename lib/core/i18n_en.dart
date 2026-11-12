@@ -1296,4 +1296,10 @@ const Map<String, String> enStrings = {
   'د': 'min ago',
   'س': 'h ago',
   'محاولة دخول خاطئة لقسم التحكم في الطلبات': 'Wrong password attempt for order control',
+  'قسم محمي. أدخل كلمة مرور القسم': 'Protected section. Enter the section password',
+  'أول دخول: استخدم كلمة مرور حسابك كمدير عام': 'First entry: use your super admin account password',
+  'لم تُحدد كلمة مرور خاصة للقسم بعد، فادخل بكلمة مرور حسابك، ثم خصّص كلمة مرور للقسم من «الصلاحيات وكلمات المرور» داخله.': 'No section password yet, so enter with your account password, then set a section password from "Permissions and passwords" inside.',
+  'كلمة مرور حسابك': 'Your account password',
+  'دخلت بكلمة مرور حسابك. خصّص كلمة مرور خاصة لهذا القسم.': 'You entered with your account password. Set a dedicated password for this section.',
+  'تحديد كلمة مرور القسم': 'Set section password',
 };
