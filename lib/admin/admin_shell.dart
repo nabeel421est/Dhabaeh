@@ -230,7 +230,11 @@ class AdminHome extends StatelessWidget {
             if (r['role'] == 'customer' && !nonCustomer.contains(r['user_id']))
               r['user_id']
         };
-        final ledger = await sb.from('platform_ledger').select('amount');
+        final ledger = await sb
+            .from('platform_ledger')
+            .select('amount')
+            .isFilter('deleted_at', null)
+            .eq('frozen', false);
         final summary = List<Map<String, dynamic>>.from(
             await sb.rpc('admin_merchant_summary'))
           ..sort((a, b) => toNum(b['sales']).compareTo(toNum(a['sales'])));

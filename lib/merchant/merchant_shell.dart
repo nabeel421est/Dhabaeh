@@ -277,6 +277,7 @@ class MerchantWallet extends StatelessWidget {
             .from('payout_requests')
             .select()
             .eq('merchant_id', mid)
+            .isFilter('deleted_at', null)
             .order('created_at', ascending: false);
         final ids = [for (final r in reqs) r['id']];
         final evs = ids.isEmpty

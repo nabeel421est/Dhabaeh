@@ -193,6 +193,8 @@ class _DriverWalletState extends State<DriverWallet> {
             .select()
             .eq('driver_id', myId!)
             .eq('status', 'pending')
+            .eq('frozen', false)
+            .isFilter('deleted_at', null)
             .order('created_at');
         final row = (b is List && b.isNotEmpty)
             ? Map<String, dynamic>.from(b.first)
@@ -304,6 +306,7 @@ class DriverWalletPage extends StatelessWidget {
               .from('driver_settlements')
               .select()
               .eq('driver_id', myId!)
+              .isFilter('deleted_at', null)
               .order('created_at', ascending: false);
           return (
             List<Map<String, dynamic>>.from(l),

@@ -8,6 +8,7 @@ import '../core/common.dart';
 import '../customer/customer_shell.dart' show StoreLogo;
 import 'admin_plan_requests.dart';
 import '../core/ttext.dart';
+import 'admin_txn_control.dart';
 import '../core/i18n.dart';
 
 /// Gradient pairs used to tell merchants apart in the reports, in rank order.
@@ -462,116 +463,131 @@ class _MerchantDetail extends StatelessWidget {
         ]);
       }),
       const SizedBox(height: 14),
-      Loader<List<Map<String, dynamic>>>(
-        key: ValueKey(r['merchant_id']),
-        load: () async => List<Map<String, dynamic>>.from(await sb
-            .from('orders')
-            .select(
-                'id, code, created_at, subtotal, discount, total, merchant_net, merchant_commission, status, customer_name')
-            .eq('merchant_id', r['merchant_id'])
-            .order('created_at', ascending: false)
-            .limit(30)),
-        builder: (context, orders, _) {
-          final byStatus = <String, int>{};
-          for (final o in orders) {
-            byStatus['${o['status']}'] = (byStatus['${o['status']}'] ?? 0) + 1;
-          }
-          return GradientHeaderCard(
-            title: 'آخر طلبات المتجر',
-            subtitle: '${orders.length} طلب، كل الحالات',
-            icon: Icons.history,
-            colors: colors,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (byStatus.isNotEmpty)
-                      Wrap(spacing: 6, runSpacing: 6, children: [
-                        for (final e in byStatus.entries)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(99),
-                              gradient: LinearGradient(
-                                  colors: toneOf(statusColor(e.key))),
-                            ),
-                            child: Text(
-                                '${statusLabels[e.key] ?? e.key} · ${e.value}',
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700)),
-                          ),
-                      ]),
-                    const SizedBox(height: 10),
-                    if (orders.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text('لا توجد طلبات لهذا المتجر بعد',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.black45)),
-                      ),
-                    for (final o in orders)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          color: statusColor('${o['status']}')
-                              .withValues(alpha: .06),
-                          border: Border.all(
-                              color: statusColor('${o['status']}')
-                                  .withValues(alpha: .18)),
-                        ),
-                        child: Row(children: [
-                          Container(
-                            width: 6,
-                            height: 38,
-                            decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(9),
+      if (ControlScope.of(context) case final ctl?)
+        GradientHeaderCard(
+          title: 'آخر طلبات المتجر',
+          subtitle: 'تحكم كامل: عرض، تعديل، نقل، إيقاف، حذف',
+          icon: Icons.tune_outlined,
+          colors: colors,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: ctl.storeOrders('${r['merchant_id']}'),
+          ),
+        )
+      else
+        Loader<List<Map<String, dynamic>>>(
+          key: ValueKey(r['merchant_id']),
+          load: () async => List<Map<String, dynamic>>.from(await sb
+              .from('orders')
+              .select(
+                  'id, code, created_at, subtotal, discount, total, merchant_net, merchant_commission, status, customer_name')
+              .eq('merchant_id', r['merchant_id'])
+              .order('created_at', ascending: false)
+              .limit(30)),
+          builder: (context, orders, _) {
+            final byStatus = <String, int>{};
+            for (final o in orders) {
+              byStatus['${o['status']}'] =
+                  (byStatus['${o['status']}'] ?? 0) + 1;
+            }
+            return GradientHeaderCard(
+              title: 'آخر طلبات المتجر',
+              subtitle: '${orders.length} طلب، كل الحالات',
+              icon: Icons.history,
+              colors: colors,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (byStatus.isNotEmpty)
+                        Wrap(spacing: 6, runSpacing: 6, children: [
+                          for (final e in byStatus.entries)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(99),
                                 gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors:
-                                        toneOf(statusColor('${o['status']}')))),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                      'طلب #${o['code'] ?? ''} · ${o['customer_name'] ?? ''}',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w800)),
-                                  Text(
-                                      '${dateTimeText(o['created_at'])} · ${statusOf(o)}',
-                                      style: const TextStyle(
-                                          fontSize: 12, color: Colors.black54)),
-                                ]),
-                          ),
-                          Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(bhd(o['total']),
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w900,
-                                        color: colors.first)),
-                                Text('صافي ${bhd(o['merchant_net'])}',
-                                    style: const TextStyle(
-                                        fontSize: 11.5, color: Colors.black54)),
-                              ]),
+                                    colors: toneOf(statusColor(e.key))),
+                              ),
+                              child: Text(
+                                  '${statusLabels[e.key] ?? e.key} · ${e.value}',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700)),
+                            ),
                         ]),
-                      ),
-                  ]),
-            ),
-          );
-        },
-      ),
+                      const SizedBox(height: 10),
+                      if (orders.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text('لا توجد طلبات لهذا المتجر بعد',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.black45)),
+                        ),
+                      for (final o in orders)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            color: statusColor('${o['status']}')
+                                .withValues(alpha: .06),
+                            border: Border.all(
+                                color: statusColor('${o['status']}')
+                                    .withValues(alpha: .18)),
+                          ),
+                          child: Row(children: [
+                            Container(
+                              width: 6,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(9),
+                                  gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: toneOf(
+                                          statusColor('${o['status']}')))),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                        'طلب #${o['code'] ?? ''} · ${o['customer_name'] ?? ''}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w800)),
+                                    Text(
+                                        '${dateTimeText(o['created_at'])} · ${statusOf(o)}',
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.black54)),
+                                  ]),
+                            ),
+                            Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(bhd(o['total']),
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                          color: colors.first)),
+                                  Text('صافي ${bhd(o['merchant_net'])}',
+                                      style: const TextStyle(
+                                          fontSize: 11.5,
+                                          color: Colors.black54)),
+                                ]),
+                          ]),
+                        ),
+                    ]),
+              ),
+            );
+          },
+        ),
     ]);
   }
 }
@@ -789,13 +805,20 @@ class PlatformWallet extends StatelessWidget {
   };
   @override
   Widget build(BuildContext context) {
+    final ctl = ControlScope.of(context) != null;
     return Loader<List<Map<String, dynamic>>>(
+      key: ValueKey(ctl),
       realtimeTables: const ['platform_ledger'],
-      load: () async => List<Map<String, dynamic>>.from(await sb
-          .from('platform_ledger')
-          .select('*, merchants(name), orders(code)')
-          .order('created_at', ascending: false)),
-      builder: (context, rows, _) {
+      load: () async {
+        var q = sb
+            .from('platform_ledger')
+            .select('*, merchants(name), orders(code)');
+        if (!ctl) q = q.isFilter('deleted_at', null);
+        return List<Map<String, dynamic>>.from(
+            await q.order('created_at', ascending: false));
+      },
+      builder: (context, all, reload) {
+        final rows = activeOnly(all).toList();
         final total = rows.fold<num>(0, (a, r) => a + toNum(r['amount']));
         num of(String k) => rows
             .where((r) => r['kind'] == k)
@@ -842,44 +865,97 @@ class PlatformWallet extends StatelessWidget {
           const SizedBox(height: 16),
           SectionCard(
             title: 'تقرير المبالغ المحصّلة',
-            child: Column(children: [
-              if (rows.isEmpty) const Text('لا توجد مبالغ محصّلة بعد'),
-              for (final r in rows.take(200))
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(children: [
-                    GradientBadge(
-                        colors:
-                            (kindLook[r['kind']] ?? kindLook['subscription']!)
-                                .$2,
-                        icon: (kindLook[r['kind']] ?? kindLook['subscription']!)
-                            .$1,
-                        size: 40),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                                '${kinds[r['kind']] ?? r['kind']} · ${r['merchants']?['name'] ?? ''}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
-                            Text(
-                                '${r['orders'] != null ? 'طلب #${r['orders']['code']} · ' : ''}${dateTimeText(r['created_at'])}',
-                                style: const TextStyle(
-                                    color: Colors.black54, fontSize: 12)),
-                          ]),
-                    ),
-                    Text('+ ${bhd(r['amount'])}',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: (kindLook[r['kind']] ??
-                                    kindLook['subscription']!)
-                                .$2
-                                .first)),
-                  ]),
-                ),
-            ]),
+            child: all.isEmpty
+                ? const Text('لا توجد مبالغ محصّلة بعد')
+                : TxnSection(
+                    rows: all,
+                    text: (r) =>
+                        '${kinds[r['kind']] ?? ''} ${r['merchants']?['name'] ?? ''} ${r['orders']?['code'] ?? ''} ${r['amount']} ${r['note'] ?? ''}',
+                    groups: {
+                      for (final k in kinds.entries)
+                        k.key: (
+                          k.value,
+                          kindLook[k.key]!.$1,
+                          kindLook[k.key]!.$2
+                        )
+                    },
+                    groupOf: (r) => '${r['kind']}',
+                    builder: (context, list) => Column(children: [
+                      for (final r in list.take(300))
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color: (kindLook[r['kind']] ??
+                                        kindLook['subscription']!)
+                                    .$2
+                                    .first
+                                    .withValues(alpha: .15)),
+                          ),
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Row(children: [
+                                  GradientBadge(
+                                      colors: (kindLook[r['kind']] ??
+                                              kindLook['subscription']!)
+                                          .$2,
+                                      icon: (kindLook[r['kind']] ??
+                                              kindLook['subscription']!)
+                                          .$1,
+                                      size: 40),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                              '${kinds[r['kind']] ?? r['kind']} · ${r['merchants']?['name'] ?? ''}',
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.w600)),
+                                          Text(
+                                              '${r['orders'] != null ? 'طلب #${r['orders']['code']} · ' : ''}${dateTimeText(r['created_at'])}${r['note'] == null ? '' : ' · ${r['note']}'}',
+                                              style: const TextStyle(
+                                                  color: Colors.black54,
+                                                  fontSize: 12)),
+                                        ]),
+                                  ),
+                                  Text('+ ${bhd(r['amount'])}',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          decoration: txnDeleted(r)
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                          color: txnActive(r)
+                                              ? (kindLook[r['kind']] ??
+                                                      kindLook['subscription']!)
+                                                  .$2
+                                                  .first
+                                              : Colors.black38)),
+                                ]),
+                                TxnActions(
+                                  type: 'platform',
+                                  row: r,
+                                  title:
+                                      '${kinds[r['kind']] ?? ''} #${r['id']}',
+                                  party: '${r['merchants']?['name'] ?? ''}',
+                                  reload: reload,
+                                  transfer: r['merchant_id'] == null
+                                      ? null
+                                      : 'merchant',
+                                  fields: const [
+                                    TxnField('amount', 'المبلغ (د.ب)',
+                                        kind: 'amount'),
+                                    TxnField('note', 'ملاحظة'),
+                                  ],
+                                ),
+                              ]),
+                        ),
+                    ]),
+                  ),
           ),
         ]);
       },
@@ -896,19 +972,21 @@ class AdminPlans extends StatelessWidget {
   };
   @override
   Widget build(BuildContext context) {
+    final ctl = ControlScope.of(context) != null;
     return Loader<(Map<String, dynamic>, List<Map<String, dynamic>>)>(
+      key: ValueKey(ctl),
       realtimeTables: const ['subscriptions'],
       load: () async {
         final s =
             await sb.from('platform_settings').select().eq('id', 1).single();
-        final subs = await sb
-            .from('subscriptions')
-            .select('*, merchants(name)')
-            .order('created_at', ascending: false);
+        var q = sb.from('subscriptions').select('*, merchants(name)');
+        if (!ctl) q = q.isFilter('deleted_at', null);
+        final subs = await q.order('created_at', ascending: false);
         return (s, List<Map<String, dynamic>>.from(subs));
       },
       builder: (context, data, reload) {
-        final (s, subs) = data;
+        final (s, allSubs) = data;
+        final subs = activeOnly(allSubs).toList();
         final trial = TextEditingController(text: '${s['trial_days']}');
         final monthly = TextEditingController(text: '${s['monthly_price']}');
         final yearly = TextEditingController(text: '${s['yearly_price']}');
@@ -985,37 +1063,95 @@ class AdminPlans extends StatelessWidget {
           const SizedBox(height: 18),
           SectionCard(
             title: 'تقرير الاشتراكات',
-            child: Column(children: [
-              if (subs.isEmpty) const Text('لا توجد اشتراكات بعد'),
-              for (final r in subs)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(children: [
-                    GradientBadge(
-                        colors:
-                            (planLook[r['plan']] ?? planLook['monthly']!).$2,
-                        icon: (planLook[r['plan']] ?? planLook['monthly']!).$1,
-                        size: 40),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                                '${r['merchants']?['name'] ?? ''} · ${planLabels[r['plan']]}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
-                            Text(
-                                '${dateText(r['starts'])} إلى ${dateText(r['ends'])}',
-                                style: const TextStyle(
-                                    color: Colors.black54, fontSize: 12)),
-                          ]),
-                    ),
-                    Text(bhd(r['amount']),
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                  ]),
-                ),
-            ]),
+            child: allSubs.isEmpty
+                ? const Text('لا توجد اشتراكات بعد')
+                : TxnSection(
+                    rows: allSubs,
+                    text: (r) =>
+                        '${r['merchants']?['name'] ?? ''} ${planLabels[r['plan']] ?? ''} ${r['amount']} ${r['ctl_note'] ?? ''}',
+                    groups: {
+                      for (final p in planLook.entries)
+                        p.key: (
+                          planLabels[p.key] ?? p.key,
+                          p.value.$1,
+                          p.value.$2
+                        )
+                    },
+                    groupOf: (r) => '${r['plan']}',
+                    builder: (context, list) => Column(children: [
+                      for (final r in list)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color: (planLook[r['plan']] ??
+                                        planLook['monthly']!)
+                                    .$2
+                                    .first
+                                    .withValues(alpha: .15)),
+                          ),
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Row(children: [
+                                  GradientBadge(
+                                      colors: (planLook[r['plan']] ??
+                                              planLook['monthly']!)
+                                          .$2,
+                                      icon: (planLook[r['plan']] ??
+                                              planLook['monthly']!)
+                                          .$1,
+                                      size: 40),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                              '${r['merchants']?['name'] ?? ''} · ${planLabels[r['plan']]}',
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.w600)),
+                                          Text(
+                                              '${dateText(r['starts'])} إلى ${dateText(r['ends'])}${r['ctl_note'] == null ? '' : ' · ${r['ctl_note']}'}',
+                                              style: const TextStyle(
+                                                  color: Colors.black54,
+                                                  fontSize: 12)),
+                                        ]),
+                                  ),
+                                  Text(bhd(r['amount']),
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          decoration: txnDeleted(r)
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                          color: txnActive(r)
+                                              ? null
+                                              : Colors.black38)),
+                                ]),
+                                TxnActions(
+                                  type: 'subscription',
+                                  row: r,
+                                  title:
+                                      '${tr('اشتراك')} · ${r['merchants']?['name'] ?? ''}',
+                                  party: '${r['merchants']?['name'] ?? ''}',
+                                  reload: reload,
+                                  transfer: 'merchant',
+                                  fields: const [
+                                    TxnField('plan', 'الباقة', kind: 'plan'),
+                                    TxnField('starts', 'من', kind: 'date'),
+                                    TxnField('ends', 'إلى', kind: 'date'),
+                                    TxnField('amount', 'المبلغ (د.ب)',
+                                        kind: 'amount'),
+                                    TxnField('note', 'ملاحظة', src: 'ctl_note'),
+                                  ],
+                                ),
+                              ]),
+                        ),
+                    ]),
+                  ),
           ),
         ]);
       },

@@ -8,6 +8,7 @@ import '../core/i18n.dart';
 import '../core/ttext.dart';
 import '../customer/order_details.dart';
 import 'admin_control_hub.dart';
+import 'admin_txn_control.dart';
 
 /// The order-control buttons a super admin can switch on or off per admin.
 const ocActions = <String, (String, IconData)>{
@@ -129,21 +130,40 @@ class _AdminOrderControlState extends State<AdminOrderControl> {
     }
     if (token == null) return lockScreen(context);
     void onAccess() => openAccessPanel(context).then((_) => refreshAccess());
-    return ControlHub(
-      minutesLeft: until!.difference(DateTime.now()).inMinutes.clamp(0, 30),
-      isSuper: access!['me']?['super'] == true,
-      myPerms: access!['me']?['perms'],
-      sectionSet: access!['any_key'] == true,
-      onAccess: onAccess,
-      onLock: () => lock(),
-      ordersBoard: _ControlBoard(
+    final isSuper = access!['me']?['super'] == true;
+    final can = permsOf(access!['me']?['perms']);
+    return ControlScope(
+      act: act,
+      can: can,
+      isSuper: isSuper,
+      storeOrders: (id) => _ControlBoard(
+        key: ValueKey('store-$id'),
         until: until!,
         onLock: () => lock(),
         act: act,
-        isSuper: access!['me']?['super'] == true,
+        isSuper: isSuper,
         sectionSet: true,
-        can: permsOf(access!['me']?['perms']),
+        can: can,
         onAccess: onAccess,
+        merchantId: id,
+        embedded: true,
+      ),
+      child: ControlHub(
+        minutesLeft: until!.difference(DateTime.now()).inMinutes.clamp(0, 30),
+        isSuper: access!['me']?['super'] == true,
+        myPerms: access!['me']?['perms'],
+        sectionSet: access!['any_key'] == true,
+        onAccess: onAccess,
+        onLock: () => lock(),
+        ordersBoard: _ControlBoard(
+          until: until!,
+          onLock: () => lock(),
+          act: act,
+          isSuper: access!['me']?['super'] == true,
+          sectionSet: true,
+          can: permsOf(access!['me']?['perms']),
+          onAccess: onAccess,
+        ),
       ),
     );
   }
@@ -265,13 +285,20 @@ const _deletedTone = G.ruby;
 
 class _ControlBoard extends StatefulWidget {
   const _ControlBoard(
-      {required this.until,
+      {super.key,
+      required this.until,
       required this.onLock,
       required this.act,
       required this.isSuper,
       required this.sectionSet,
       required this.can,
-      required this.onAccess});
+      required this.onAccess,
+      this.merchantId,
+      this.embedded = false});
+
+  /// Embedded in a store report: only that store's orders, no page header.
+  final String? merchantId;
+  final bool embedded;
   final bool sectionSet;
   final Map<String, bool> can;
   final DateTime until;
@@ -714,7 +741,12 @@ class _ControlBoardState extends State<_ControlBoard> {
       realtimeTables: const ['orders'],
       load: load,
       builder: (context, data, reload) {
-        final (orders, stores, drivers) = data;
+        final (allOrders, stores, drivers) = data;
+        final orders = widget.merchantId == null
+            ? allOrders
+            : allOrders
+                .where((o) => o['merchant_id'] == widget.merchantId)
+                .toList();
         final counts = {
           for (final f in filters.keys)
             f: orders.where((o) => match(o, f)).length
@@ -728,6 +760,67 @@ class _ControlBoardState extends State<_ControlBoard> {
               .toLowerCase()
               .contains(text);
         }).toList();
+        Widget cards() => LayoutBuilder(builder: (context, c) {
+              final cols = (c.maxWidth / 380).floor().clamp(1, 3);
+              final w = (c.maxWidth - 14 * (cols - 1)) / cols;
+              return Wrap(spacing: 14, runSpacing: 14, children: [
+                for (final o in list)
+                  SizedBox(
+                    width: w,
+                    child: ControlOrderCard(
+                      o: o,
+                      can: widget.can,
+                      isSuper: widget.isSuper,
+                      onEdit: () => editOrder(context, o, reload),
+                      onStatus: () => changeStatus(context, o, reload),
+                      onHold: () => hold(context, o, reload),
+                      onDelete: () => remove(context, o, reload),
+                      onTransfer: () => transfer(context, o, stores, reload),
+                      onDriver: () => driver(context, o, drivers, reload),
+                    ),
+                  ),
+              ]);
+            });
+        Widget pills() => SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: [
+                for (final f in filters.entries)
+                  TonePill(
+                    label: f.value.$1,
+                    icon: f.value.$2,
+                    colors: f.value.$3,
+                    selected: filter == f.key,
+                    count: counts[f.key] ?? 0,
+                    onTap: () => setState(() => filter = f.key),
+                  ),
+              ]),
+            );
+        if (widget.embedded) {
+          return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: q,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                      isDense: true,
+                      prefixIcon: const Icon(Icons.search),
+                      hintText: tr('ابحث برقم الطلب أو العميل أو الجوال')),
+                ),
+                const SizedBox(height: 10),
+                pills(),
+                const SizedBox(height: 12),
+                if (list.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('لا توجد طلبات بهذا التصنيف',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.black45)),
+                  )
+                else
+                  cards(),
+              ]);
+        }
         return ListView(padding: const EdgeInsets.all(16), children: [
           PageHero(
             icon: Icons.tune_outlined,

@@ -3,7 +3,9 @@ import 'package:flutter/material.dart' hide Text;
 import '../core/brand.dart';
 import '../core/common.dart';
 import '../core/payouts.dart';
+import '../core/i18n.dart';
 import '../core/ttext.dart';
+import 'admin_txn_control.dart';
 
 /// Merchants' withdrawal requests: review, approve with a transfer date, mark transferred, or reject.
 class AdminPayouts extends StatefulWidget {
@@ -17,13 +19,14 @@ class _AdminPayoutsState extends State<AdminPayouts> {
 
   @override
   Widget build(BuildContext context) {
+    final ctl = ControlScope.of(context) != null;
     return Loader<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)>(
+      key: ValueKey(ctl),
       realtimeTables: const ['payout_requests', 'payout_events'],
       load: () async {
-        final reqs = await sb
-            .from('payout_requests')
-            .select('*, merchants(name, frozen)')
-            .order('created_at', ascending: false);
+        var q = sb.from('payout_requests').select('*, merchants(name, frozen)');
+        if (!ctl) q = q.isFilter('deleted_at', null);
+        final reqs = await q.order('created_at', ascending: false);
         final evs = await sb.from('payout_events').select().order('created_at');
         return (
           List<Map<String, dynamic>>.from(reqs),
@@ -31,17 +34,27 @@ class _AdminPayoutsState extends State<AdminPayouts> {
         );
       },
       builder: (context, data, reload) {
-        final (reqs, evs) = data;
+        final (all, evs) = data;
+        final reqs = all.where((r) => !txnDeleted(r)).toList();
         bool open(Map r) =>
             ['requested', 'under_review', 'approved'].contains(r['status']);
+        bool inFilter(Map r, String f) => switch (f) {
+              'deleted' => txnDeleted(r),
+              'frozen' => txnFrozen(r),
+              'all' => !txnDeleted(r),
+              'open' => !txnDeleted(r) && open(r),
+              _ => !txnDeleted(r) && r['status'] == f,
+            };
         num sumOf(Iterable<Map> rs) =>
             rs.fold<num>(0, (a, r) => a + toNum(r['amount']));
-        final shown = reqs
-            .where((r) =>
-                filter == 'all' ||
-                (filter == 'open' ? open(r) : r['status'] == filter))
-            .toList();
-        final filters = {'open': 'المفتوحة', ...payoutLabels, 'all': 'الكل'};
+        final shown = all.where((r) => inFilter(r, filter)).toList();
+        final filters = {
+          'open': 'المفتوحة',
+          ...payoutLabels,
+          'all': 'الكل',
+          if (ctl) 'frozen': 'مجمّدة',
+          if (ctl) 'deleted': 'محذوفة',
+        };
         return ListView(padding: const EdgeInsets.all(18), children: [
           PageHero(
             icon: Icons.outbox_outlined,
@@ -73,14 +86,14 @@ class _AdminPayoutsState extends State<AdminPayouts> {
                   padding: const EdgeInsetsDirectional.only(end: 8),
                   child: _FilterPill(
                     label: f.value,
-                    count: f.key == 'all'
-                        ? reqs.length
-                        : f.key == 'open'
-                            ? reqs.where(open).length
-                            : reqs.where((r) => r['status'] == f.key).length,
+                    count: all.where((r) => inFilter(r, f.key)).length,
                     colors: f.key == 'open' || f.key == 'all'
                         ? brandOf(context).stops.sublist(1)
-                        : payoutColors(f.key),
+                        : f.key == 'frozen'
+                            ? G.sky
+                            : f.key == 'deleted'
+                                ? G.ruby
+                                : payoutColors(f.key),
                     selected: filter == f.key,
                     onTap: () => setState(() => filter = f.key),
                   ),
@@ -102,19 +115,42 @@ class _AdminPayoutsState extends State<AdminPayouts> {
                     merchantName: r['merchants']?['name'],
                     events:
                         evs.where((e) => e['request_id'] == r['id']).toList(),
-                    action: open(r)
-                        ? FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                                backgroundColor:
-                                    payoutColors('${r['status']}').first),
-                            onPressed: () async {
-                              await processPayout(context, r);
-                              await reload();
-                            },
-                            icon: const Icon(Icons.task_alt, size: 18),
-                            label: const Text('معالجة الطلب'),
-                          )
-                        : null,
+                    action: !ctl && !(open(r) && txnActive(r)) && txnActive(r)
+                        ? null
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                                if (open(r) && txnActive(r))
+                                  FilledButton.icon(
+                                    style: FilledButton.styleFrom(
+                                        backgroundColor:
+                                            payoutColors('${r['status']}')
+                                                .first),
+                                    onPressed: () async {
+                                      await processPayout(context, r);
+                                      await reload();
+                                    },
+                                    icon: const Icon(Icons.task_alt, size: 18),
+                                    label: const Text('معالجة الطلب'),
+                                  ),
+                                TxnActions(
+                                  type: 'payout',
+                                  row: r,
+                                  title: '${tr('طلب سحب')} #${r['code']}',
+                                  party: '${r['merchants']?['name'] ?? ''}',
+                                  reload: reload,
+                                  transfer: 'merchant',
+                                  fields: const [
+                                    TxnField('amount', 'المبلغ (د.ب)',
+                                        kind: 'amount'),
+                                    TxnField('scheduled_date', 'موعد التحويل',
+                                        kind: 'date'),
+                                    TxnField('transfer_ref', 'رقم الحوالة'),
+                                    TxnField('note', 'ملاحظة الإدارة',
+                                        src: 'admin_note'),
+                                  ],
+                                ),
+                              ]),
                   ),
                 ),
             ]);

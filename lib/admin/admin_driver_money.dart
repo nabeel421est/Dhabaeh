@@ -2,7 +2,9 @@ import 'package:flutter/material.dart' hide Text;
 
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/i18n.dart';
 import '../core/ttext.dart';
+import 'admin_txn_control.dart';
 
 /// Shared page for the two driver settlements:
 /// cash: the admin receives cash-on-delivery money a driver collected (effective at once);
@@ -99,17 +101,18 @@ class AdminDriverMoney extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ctl = ControlScope.of(context) != null;
     return Loader<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)>(
-      key: ValueKey(fees),
+      key: ValueKey('$fees$ctl'),
       realtimeTables: const ['driver_ledger', 'driver_settlements'],
       load: () async {
         final b = await sb.rpc('admin_driver_balances');
-        final s = await sb
+        var q = sb
             .from('driver_settlements')
             .select('*, profiles(full_name)')
-            .eq('kind', fees ? 'fee_payout' : 'cash_receipt')
-            .order('created_at', ascending: false)
-            .limit(100);
+            .eq('kind', fees ? 'fee_payout' : 'cash_receipt');
+        if (!ctl) q = q.isFilter('deleted_at', null);
+        final s = await q.order('created_at', ascending: false).limit(300);
         return (
           List<Map<String, dynamic>>.from(b ?? []),
           List<Map<String, dynamic>>.from(s)
@@ -121,8 +124,9 @@ class AdminDriverMoney extends StatelessWidget {
             ? toNum(d['fees_due']) - toNum(d['pending_payout'])
             : toNum(d['cash_held']);
         final total = drivers.fold<num>(0, (a, d) => a + avail(d));
-        final pending = sets.where((s) => s['status'] == 'pending');
-        final done = sets.fold<num>(
+        final pending =
+            sets.where((s) => s['status'] == 'pending' && !txnDeleted(s));
+        final done = activeOnly(sets).fold<num>(
             0,
             (a, s) =>
                 a + (s['status'] == 'confirmed' ? toNum(s['amount']) : 0));
@@ -180,30 +184,72 @@ class AdminDriverMoney extends StatelessWidget {
                   child: Text('لا توجد عمليات بعد',
                       style: TextStyle(color: Colors.black54))),
             ),
-          for (final s in sets)
-            Card(
-              child: ListTile(
-                leading: GradientBadge(
-                    colors: s['status'] == 'pending' ? G.amber : tone,
-                    icon: s['status'] == 'pending'
-                        ? Icons.hourglass_bottom
-                        : Icons.task_alt,
-                    size: 40),
-                title: Text(
-                    '#${s['code']} · ${s['profiles']?['full_name'] ?? ''}',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text([
-                  dateTimeText(s['created_at']),
-                  if (s['status'] == 'pending')
-                    'بانتظار تأكيد المندوب'
-                  else if (fees)
-                    'أكّد الاستلام ${dateTimeText(s['confirmed_at'])}',
-                  if ('${s['note'] ?? ''}'.isNotEmpty) '${s['note']}',
-                ].join(' · ')),
-                trailing: Text(bhd(s['amount']),
-                    style: TextStyle(
-                        fontWeight: FontWeight.w800, color: tone.first)),
-              ),
+          if (sets.isNotEmpty)
+            TxnSection(
+              rows: sets,
+              text: (s) =>
+                  '${s['code']} ${s['profiles']?['full_name'] ?? ''} ${s['amount']} ${s['note'] ?? ''}',
+              builder: (context, rows) => Column(children: [
+                for (final s in rows)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 4, 4, 10),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ListTile(
+                              leading: GradientBadge(
+                                  colors:
+                                      s['status'] == 'pending' ? G.amber : tone,
+                                  icon: s['status'] == 'pending'
+                                      ? Icons.hourglass_bottom
+                                      : Icons.task_alt,
+                                  size: 40),
+                              title: Text(
+                                  '#${s['code']} · ${s['profiles']?['full_name'] ?? ''}',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600)),
+                              subtitle: Text([
+                                dateTimeText(s['created_at']),
+                                if (s['status'] == 'pending')
+                                  'بانتظار تأكيد المندوب'
+                                else if (fees)
+                                  'أكّد الاستلام ${dateTimeText(s['confirmed_at'])}',
+                                if ('${s['note'] ?? ''}'.isNotEmpty)
+                                  '${s['note']}',
+                              ].join(' · ')),
+                              trailing: Text(bhd(s['amount']),
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: txnActive(s)
+                                          ? tone.first
+                                          : Colors.black38,
+                                      decoration: txnDeleted(s)
+                                          ? TextDecoration.lineThrough
+                                          : null)),
+                            ),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              child: TxnActions(
+                                type: 'settlement',
+                                row: s,
+                                title:
+                                    '${fees ? tr('تسليم رسوم') : tr('استلام نقد')} #${s['code']}',
+                                party: '${s['profiles']?['full_name'] ?? ''}',
+                                reload: reload,
+                                transfer: 'driver',
+                                fields: const [
+                                  TxnField('amount', 'المبلغ (د.ب)',
+                                      kind: 'amount'),
+                                  TxnField('note', 'ملاحظة'),
+                                ],
+                              ),
+                            ),
+                          ]),
+                    ),
+                  ),
+              ]),
             ),
         ]);
       },
