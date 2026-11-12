@@ -4,10 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 
 import 'package:latlong2/latlong.dart';
 
-import '../core/address_map.dart';
 import '../core/bg_remove.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/merchant_extras.dart';
 import '../customer/customer_shell.dart' show StoreLogo;
 import '../merchant/merchant_store.dart' show planLook;
 import '../core/ttext.dart';
@@ -19,11 +19,12 @@ class AdminMerchants extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Loader<(List<Map<String, dynamic>>, Map<String, num>)>(
-      realtimeTables: const ['merchants', 'wallet_ledger'],
+      realtimeTables: const ['merchants', 'wallet_ledger', 'merchant_details'],
       load: () async {
         final m = await sb
             .from('merchants')
-            .select('*, merchant_details(owner_name, owner_phone)')
+            .select(
+                '*, merchant_details(owner_name, owner_phone, cr_expiry, health_expiry, cpr_expiry)')
             .order('created_at');
         final w = await sb.from('wallet_ledger').select('merchant_id, amount');
         final bal = <String, num>{};
@@ -78,7 +79,9 @@ class AdminMerchants extends StatelessWidget {
               ),
             ]),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          const _ExpiringDocs(),
+          const SizedBox(height: 4),
           if (list.isEmpty) const Empty('لا يوجد تجار بعد'),
           LayoutBuilder(builder: (context, c) {
             final cols = (c.maxWidth / 360).floor().clamp(1, 3);
@@ -107,6 +110,21 @@ class AdminMerchants extends StatelessWidget {
   Widget _merchantCard(BuildContext context, Map<String, dynamic> m,
       num balance, Future<void> Function() reload) {
     final (label, colors) = _state(m);
+    // Worst document state: red flag when one expired, amber within 10 days.
+    final det = Map<String, dynamic>.from(m['merchant_details'] ?? {});
+    int? worst;
+    for (final k in ['cr_expiry', 'health_expiry', 'cpr_expiry']) {
+      final dt = DateTime.tryParse('${det[k] ?? ''}');
+      if (dt == null) continue;
+      final now = DateTime.now();
+      final left = dt.difference(DateTime(now.year, now.month, now.day)).inDays;
+      if (worst == null || left < worst) worst = left;
+    }
+    final flag = worst == null || worst > 10
+        ? null
+        : worst < 0
+            ? (G.ruby.first, 'وثيقة منتهية')
+            : (G.amber.first, 'وثيقة قربت تنتهي');
     Widget info(IconData i, String k, String v) => Expanded(
           child: Row(children: [
             Icon(i, size: 18, color: colors.first),
@@ -170,6 +188,22 @@ class AdminMerchants extends StatelessWidget {
                             color: Colors.white70, fontSize: 12)),
                   ]),
             ),
+            if (flag != null)
+              Tooltip(
+                message: tr(flag.$2),
+                child: Container(
+                  margin: const EdgeInsetsDirectional.only(end: 6),
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                            color: flag.$1.withValues(alpha: .5), blurRadius: 8)
+                      ]),
+                  child: Icon(Icons.flag, size: 18, color: flag.$1),
+                ),
+              ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
@@ -287,8 +321,10 @@ class AdminMerchants extends StatelessWidget {
     final name = TextEditingController(text: m['name']);
     final phone = TextEditingController(text: m['store_phone']);
     final area = TextEditingController(text: m['area']);
+    final block = TextEditingController();
+    String? city = m['address_city'];
     PlatformFile? logo, original;
-    bool cut = true, busy = false, locating = false;
+    bool cut = true, busy = false;
     LatLng? pin = m['lat'] == null
         ? null
         : LatLng(toNum(m['lat']).toDouble(), toNum(m['lng']).toDouble());
@@ -398,39 +434,20 @@ class AdminMerchants extends StatelessWidget {
                 const SizedBox(height: 10),
                 Field('المنطقة', area, required: true),
                 const SizedBox(height: 12),
-                Row(children: [
-                  const Icon(Icons.storefront, size: 18, color: Colors.black54),
-                  const SizedBox(width: 6),
-                  const Expanded(
-                    child: Text(
-                        'موقع المتجر: اضغط على الخريطة لتحديده. يُستخدم لعرض الطلب على أقرب مندوب.',
-                        style:
-                            TextStyle(fontSize: 12.5, color: Colors.black54)),
-                  ),
-                  TextButton.icon(
-                    onPressed: locating
-                        ? null
-                        : () async {
-                            set(() => locating = true);
-                            final p = await guard(c, () => currentLocation());
-                            if (!c.mounted) return;
-                            set(() {
-                              locating = false;
-                              if (p != null) pin = p;
-                            });
-                          },
-                    icon: locating
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.my_location, size: 18),
-                    label: const Text('موقعي الحالي'),
-                  ),
-                ]),
-                const SizedBox(height: 6),
-                AddressMap(
-                    point: pin, height: 220, onPick: (p) => set(() => pin = p)),
+                const Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                      'موقع المتجر: اختر المدينة ثم المجمع، ثم اضغط على الخريطة لضبطه. يُستخدم لعرض الطلب على أقرب مندوب.',
+                      style: TextStyle(fontSize: 12.5, color: Colors.black54)),
+                ),
+                const SizedBox(height: 8),
+                StoreLocator(
+                  city: city,
+                  block: block,
+                  pin: pin,
+                  onCity: (v) => set(() => city = v),
+                  onPin: (p) => set(() => pin = p),
+                ),
               ]),
             ),
           ),
@@ -458,6 +475,7 @@ class AdminMerchants extends StatelessWidget {
           'name': name.text.trim(),
           'store_phone': normPhone(phone.text),
           'area': area.text.trim(),
+          'address_city': city,
           if (url != null) 'logo_url': url,
           if (pin != null) 'lat': pin!.latitude,
           if (pin != null) 'lng': pin!.longitude,
@@ -520,6 +538,15 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
   String plan = 'trial';
   bool tried = false;
   bool busy = false;
+  // Expiry dates of the official documents.
+  final expiry = <String, DateTime?>{
+    'cpr_expiry': null,
+    'cr_expiry': null,
+    'health_expiry': null
+  };
+  Map<String, dynamic> hours = defaultHours();
+  String? city;
+  LatLng? pin;
 
   Future<PlatformFile?> pick(List<String> ext) async {
     final r = await FilePicker.platform.pickFiles(
@@ -546,7 +573,12 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
     setState(() => tried = true);
     final okForm = form.currentState!.validate();
     final missingDocs = docRequired.any((k) => docs[k] == null);
-    if (!okForm || logo == null || missingDocs) {
+    final missingDates = expiry.values.any((d) => d == null);
+    if (!okForm ||
+        logo == null ||
+        missingDocs ||
+        missingDates ||
+        city == null) {
       toast(context, 'أكمل الحقول والمستندات الإجبارية', error: true);
       return;
     }
@@ -569,11 +601,26 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
         payload[e.key] = path;
       }
       payload.remove('owner_password');
-      return usersFn({
+      if ('${payload['address_area']}'.isEmpty) payload['address_area'] = city;
+      final res = await usersFn({
         'action': 'admin_create_merchant',
         'merchant': payload,
         'owner_password': c['owner_password']!.text
       });
+      final mid = res['merchant_id'];
+      if (mid != null) {
+        await sb.from('merchants').update({
+          'work_hours': hours,
+          'address_city': city,
+          if (pin != null) 'lat': pin!.latitude,
+          if (pin != null) 'lng': pin!.longitude,
+        }).eq('id', mid);
+        await sb.from('merchant_details').update({
+          for (final e in expiry.entries)
+            e.key: e.value == null ? null : isoDate(e.value!),
+        }).eq('merchant_id', mid);
+      }
+      return res;
     }, ok: 'تمت إضافة التاجر');
     if (!mounted) return;
     setState(() => busy = false);
@@ -649,6 +696,17 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
       ),
     );
   }
+
+  /// An expiry date field for one official document.
+  Widget date(String k, String label, List<Color> tone) => _Cell(
+        child: DateField(
+          label: label,
+          value: expiry[k],
+          color: tone.first,
+          showError: tried,
+          onPick: (d) => setState(() => expiry[k] = d),
+        ),
+      );
 
   /// A section card: gradient band on top, two-column fields below.
   Widget section(String title, String sub, IconData icon, List<Color> tone,
@@ -821,27 +879,74 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
                           ltr: true,
                           kb: TextInputType.phone,
                           note: 'يدخل به المالك للتطبيق'),
-                      f('owner_password', 'كلمة مرور مبدئية للمالك', G.emerald,
-                          note: 'إذا كان الرقم غير مسجّل'),
                       f('owner_cpr', 'الرقم الشخصي للتاجر', G.emerald,
                           kb: TextInputType.number),
+                      date(
+                          'cpr_expiry', 'تاريخ انتهاء الرقم الشخصي', G.emerald),
+                      f('owner_password', 'كلمة مرور مبدئية للمالك', G.emerald,
+                          note: 'إذا كان الرقم غير مسجّل'),
                     ]),
-                    section('السجلات الرسمية', 'السجل التجاري والترخيص الصحي',
-                        Icons.verified_outlined, G.teal, [
+                    section(
+                        'السجلات الرسمية',
+                        'السجل التجاري والترخيص الصحي وتواريخ انتهائها',
+                        Icons.verified_outlined,
+                        G.teal, [
                       f('cr_number', 'رقم السجل التجاري', G.teal),
+                      date('cr_expiry', 'تاريخ انتهاء السجل التجاري', G.teal),
                       f('health_license', 'رقم الترخيص الصحي', G.teal),
+                      date('health_expiry', 'تاريخ انتهاء الترخيص الصحي',
+                          G.teal),
                       f('vat_number', 'الرقم الضريبي', G.teal,
                           req: false, note: 'اختياري'),
+                      _Cell(
+                        full: true,
+                        child: Text(
+                            'تُنبَّه الإدارة قبل 10 أيام من انتهاء أي وثيقة، ويظهر علم أحمر في تطبيق التاجر عند الانتهاء.',
+                            style:
+                                TextStyle(fontSize: 12.5, color: G.teal.first)),
+                      ),
                     ]),
-                    section('عنوان المتجر', 'المحل والمبنى والطريق والمجمع',
-                        Icons.place_outlined, G.amber, [
+                    section(
+                        'أوقات العمل الرسمية',
+                        'مواعيد فتح وإغلاق المحل لكل يوم',
+                        Icons.schedule_outlined,
+                        G.sapphire, [
+                      _Cell(
+                        full: true,
+                        child: WorkHoursEditor(
+                            value: hours,
+                            onChanged: (v) => setState(() => hours = v)),
+                      ),
+                    ]),
+                    section(
+                        'عنوان المتجر',
+                        'اختر المدينة ثم المجمع، وحدد المحل على الخريطة',
+                        Icons.place_outlined,
+                        G.amber, [
+                      _Cell(
+                        full: true,
+                        child: StoreLocator(
+                          city: city,
+                          block: c['block']!,
+                          road: c['road'],
+                          building: c['building'],
+                          pin: pin,
+                          onCity: (v) => setState(() => city = v),
+                          onPin: (p) => setState(() => pin = p),
+                        ),
+                      ),
+                      if (tried && city == null)
+                        _Cell(
+                            full: true,
+                            child: Text('اختر المدينة',
+                                style: TextStyle(color: G.ruby.first))),
                       f('shop_no', 'رقم المحل', G.amber),
                       f('building', 'المبنى', G.amber),
                       f('road', 'الطريق', G.amber),
-                      f('block', 'المجمع', G.amber),
-                      f('address_area', 'المنطقة', G.amber),
-                      f('address_note', 'وصف إضافي للعنوان', G.amber,
+                      f('address_area', 'المنطقة أو الحي', G.amber,
                           req: false, note: 'اختياري'),
+                      f('address_note', 'وصف إضافي للعنوان', G.amber,
+                          req: false, note: 'اختياري', full: true),
                     ]),
                     section(
                         'البيانات البنكية',
@@ -971,6 +1076,95 @@ class _AddMerchantDialogState extends State<AddMerchantDialog> {
                   fontWeight: FontWeight.w600)),
         ]),
       );
+}
+
+/// Admin list: documents that expired or expire within 10 days, with a
+/// button to ask the store for the renewed copy.
+class _ExpiringDocs extends StatelessWidget {
+  const _ExpiringDocs();
+  @override
+  Widget build(BuildContext context) => Loader<List<Map<String, dynamic>>>(
+        realtimeTables: const ['merchant_details'],
+        load: () async => List<Map<String, dynamic>>.from(
+            await sb.rpc('admin_expiring_docs') ?? []),
+        builder: (context, rows, reload) {
+          if (rows.isEmpty) return const SizedBox.shrink();
+          final expired = rows.where((r) => toNum(r['days_left']) < 0).length;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: GradientHeaderCard(
+              title: 'وثائق تحتاج تجديد',
+              subtitle: expired > 0
+                  ? '${tr('منتهية')}: $expired · ${tr('تنتهي خلال 10 أيام')}: ${rows.length - expired}'
+                  : '${tr('تنتهي خلال 10 أيام')}: ${rows.length}',
+              icon: Icons.flag,
+              colors: expired > 0 ? G.ruby : G.amber,
+              child: Column(children: [
+                for (final r in rows)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(children: [
+                      Icon(Icons.flag,
+                          color: toNum(r['days_left']) < 0
+                              ? G.ruby.first
+                              : G.amber.first),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                  '${r['merchant_name']} · ${tr('${r['label']}')}',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700)),
+                              Text(
+                                  '${expiryState(r['expiry']).$1} (${dateText(r['expiry'])})',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.black54)),
+                            ]),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => guard(
+                            context,
+                            () => sb.rpc('admin_request_doc_renewal', params: {
+                                  'p_merchant': r['merchant_id'],
+                                  'p_doc': r['doc']
+                                }),
+                            ok: 'تم إرسال طلب التجديد للتاجر'),
+                        icon: const Icon(Icons.send_outlined, size: 18),
+                        label: const Text('طلب التجديد'),
+                      ),
+                    ]),
+                  ),
+              ]),
+            ),
+          );
+        },
+      );
+}
+
+/// Coloured pill with a document's expiry state.
+class _ExpiryPill extends StatelessWidget {
+  const _ExpiryPill(this.date);
+  final dynamic date;
+  @override
+  Widget build(BuildContext context) {
+    final st = expiryState(date);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+          color: st.$2.withValues(alpha: .12),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: st.$2.withValues(alpha: .35))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.flag, size: 14, color: st.$2),
+        const SizedBox(width: 4),
+        Text(st.$1,
+            style: TextStyle(
+                color: st.$2, fontSize: 11.5, fontWeight: FontWeight.w700)),
+      ]),
+    );
+  }
 }
 
 /// Marks a field that spans both columns of a section.
@@ -1138,6 +1332,7 @@ class MerchantAdminPage extends StatelessWidget {
                                   fontSize: 14.5, fontWeight: FontWeight.w600)),
                         ]),
                   ),
+                  if (_expKey(k) != null) _ExpiryPill(d[_expKey(k)]),
                 ]),
               );
 
@@ -1510,15 +1705,87 @@ class MerchantAdminPage extends StatelessWidget {
             ]),
           );
 
+          // ------------------------------------------------ documents & hours
+          final soon = [
+            for (final e in _expDocs)
+              if (d[e.$2] != null &&
+                  DateTime.parse('${d[e.$2]}')
+                          .difference(DateTime.now())
+                          .inDays <
+                      10)
+                e
+          ];
+          final hoursCard = GradientHeaderCard(
+            title: 'أوقات العمل وصلاحية الوثائق',
+            subtitle: 'تنبيه الإدارة قبل 10 أيام من انتهاء أي وثيقة',
+            icon: Icons.schedule_outlined,
+            colors: G.teal,
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final e in _expDocs)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(children: [
+                        Icon(e.$3, size: 18, color: G.teal.first),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(e.$1)),
+                        _ExpiryPill(d[e.$2]),
+                      ]),
+                    ),
+                  for (final e in soon)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                            foregroundColor: G.ruby.first),
+                        onPressed: () => guard(
+                            context,
+                            () => sb.rpc('admin_request_doc_renewal', params: {
+                                  'p_merchant': merchantId,
+                                  'p_doc': e.$4
+                                }),
+                            ok: 'تم إرسال طلب التجديد للتاجر'),
+                        icon: const Icon(Icons.send_outlined, size: 18),
+                        label:
+                            Text('${tr('اطلب من التاجر تجديد')} ${tr(e.$1)}'),
+                      ),
+                    ),
+                  const Divider(height: 20),
+                  const Text('أوقات العمل الرسمية',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  WorkHoursView(hours: m['work_hours']),
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    style:
+                        FilledButton.styleFrom(backgroundColor: G.teal.first),
+                    onPressed: () async {
+                      if (await _editDocsHours(context, m, d) == true) {
+                        reload();
+                      }
+                    },
+                    icon: const Icon(Icons.edit_calendar_outlined, size: 18),
+                    label: const Text('تعديل التواريخ وأوقات العمل'),
+                  ),
+                ]),
+          );
+
           return LayoutBuilder(builder: (context, c) {
             final wide = c.maxWidth >= 900;
             const gap = SizedBox(height: 14);
             return ListView(padding: const EdgeInsets.all(16), children: [
               hero,
               gap,
+              DocAlertsBanner(
+                  key: ValueKey(
+                      '${d['cr_expiry']}${d['health_expiry']}${d['cpr_expiry']}'),
+                  merchantId: merchantId),
               if (wide)
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Expanded(child: Column(children: [info, gap, staffCard])),
+                  Expanded(
+                      child: Column(
+                          children: [info, gap, hoursCard, gap, staffCard])),
                   const SizedBox(width: 14),
                   Expanded(
                       child: Column(
@@ -1531,6 +1798,8 @@ class MerchantAdminPage extends StatelessWidget {
                 gap,
                 info,
                 gap,
+                hoursCard,
+                gap,
                 permsCard,
                 gap,
                 staffCard,
@@ -1538,6 +1807,86 @@ class MerchantAdminPage extends StatelessWidget {
             ]);
           });
         },
+      ),
+    );
+  }
+
+  /// Official documents: label, expiry column, icon, doc code.
+  static const _expDocs = [
+    ('السجل التجاري', 'cr_expiry', Icons.assignment_outlined, 'cr'),
+    (
+      'الترخيص الصحي',
+      'health_expiry',
+      Icons.health_and_safety_outlined,
+      'health'
+    ),
+    ('الرقم الشخصي للتاجر', 'cpr_expiry', Icons.credit_card_outlined, 'cpr'),
+  ];
+  static String? _expKey(String rowLabel) => switch (rowLabel) {
+        'الرقم الشخصي' => 'cpr_expiry',
+        'السجل التجاري' => 'cr_expiry',
+        'الترخيص الصحي' => 'health_expiry',
+        _ => null,
+      };
+
+  /// Edit the three expiry dates and the official working hours.
+  static Future<bool?> _editDocsHours(
+      BuildContext context, Map<String, dynamic> m, Map<String, dynamic> d) {
+    final dates = {
+      for (final e in _expDocs) e.$2: DateTime.tryParse('${d[e.$2] ?? ''}')
+    };
+    var hours = hoursOf(m['work_hours']);
+    return showDialog<bool>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => AlertDialog(
+          title: const Text('تواريخ الوثائق وأوقات العمل'),
+          content: SizedBox(
+            width: 520,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                for (final e in _expDocs)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: DateField(
+                      label: '${tr('تاريخ انتهاء')} ${tr(e.$1)}',
+                      value: dates[e.$2],
+                      color: G.teal.first,
+                      onPick: (v) => set(() => dates[e.$2] = v),
+                    ),
+                  ),
+                const Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text('أوقات العمل الرسمية',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+                WorkHoursEditor(
+                    value: hours, onChanged: (v) => set(() => hours = v)),
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(c, false),
+                child: const Text('إلغاء')),
+            FilledButton(
+              onPressed: () async {
+                final ok = await guard(c, () async {
+                  await sb.from('merchant_details').update({
+                    for (final e in dates.entries)
+                      e.key: e.value == null ? null : isoDate(e.value!),
+                  }).eq('merchant_id', m['id']);
+                  await sb
+                      .from('merchants')
+                      .update({'work_hours': hours}).eq('id', m['id']);
+                  return true;
+                }, ok: 'تم الحفظ');
+                if (ok == true && c.mounted) Navigator.pop(c, true);
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' hide Text;
 import '../auth/gate.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/merchant_extras.dart';
 import '../core/payouts.dart';
 import '../admin/admin_money.dart' show Kpi;
 import 'merchant_pages.dart';
@@ -155,6 +156,10 @@ class _MerchantShellState extends State<MerchantShell> {
                     backgroundColor: const Color(0xFFFBE9E7),
                     actions: const [SizedBox.shrink()],
                   ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                  child: DocAlertsBanner(merchantId: mid),
+                ),
                 Expanded(
                     child: IndexedStack(
                         index: tab, children: [for (final t in tabs) t.$3])),
