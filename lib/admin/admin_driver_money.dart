@@ -4,6 +4,7 @@ import '../core/brand.dart';
 import '../core/common.dart';
 import '../core/i18n.dart';
 import '../core/ttext.dart';
+import 'admin_driver_statement.dart';
 import 'admin_txn_control.dart';
 
 /// Shared page for the two driver settlements:
@@ -276,47 +277,55 @@ class _DriverCard extends StatelessWidget {
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-              gradient: LinearGradient(
-                  begin: AlignmentDirectional.topStart,
-                  end: AlignmentDirectional.bottomEnd,
-                  colors: colors)),
-          child: Row(children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: Colors.white.withValues(alpha: .2),
-              child: Text(name.isEmpty ? '?' : name.characters.first,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700)),
-                    Text('${d['phone'] ?? ''}',
-                        style: const TextStyle(color: Colors.white70)),
-                  ]),
-            ),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(fees ? 'المستحق' : 'بحوزته',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
-              Text(bhd(available),
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800)),
+        InkWell(
+          onTap: () => openDriverStatement(context, {
+            'id': d['driver_id'],
+            'full_name': d['full_name'],
+            'phone': d['phone']
+          }),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+                gradient: LinearGradient(
+                    begin: AlignmentDirectional.topStart,
+                    end: AlignmentDirectional.bottomEnd,
+                    colors: colors)),
+            child: Row(children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.white.withValues(alpha: .2),
+                child: Text(name.isEmpty ? '?' : name.characters.first,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700)),
+                      Text('${d['phone'] ?? ''}',
+                          style: const TextStyle(color: Colors.white70)),
+                    ]),
+              ),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text(fees ? 'المستحق' : 'بحوزته',
+                    style:
+                        const TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(bhd(available),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800)),
+              ]),
             ]),
-          ]),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.all(14),

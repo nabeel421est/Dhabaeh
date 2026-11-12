@@ -309,6 +309,7 @@ class DriverWalletPage extends StatelessWidget {
               .from('driver_ledger')
               .select()
               .eq('driver_id', myId!)
+              .eq('voided', false)
               .order('created_at', ascending: false);
           final s = await sb
               .from('driver_settlements')

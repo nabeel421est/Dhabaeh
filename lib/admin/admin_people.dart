@@ -6,6 +6,7 @@ import '../core/brand.dart';
 import '../core/common.dart';
 import '../core/ttext.dart';
 import '../core/i18n.dart';
+import 'admin_driver_statement.dart';
 
 /// Which accounts a list shows: customers only, platform staff (admin, store owners and their employees), or one role.
 enum UserGroup { customers, platform }
@@ -125,6 +126,9 @@ class _AdminUsersState extends State<AdminUsers> {
                   child: _PersonCard(
                     p: p,
                     mName: mName,
+                    onOpen: widget.onlyRole == 'driver'
+                        ? () => openDriverStatement(context, p)
+                        : null,
                     onToggle: p['id'] == myId
                         ? null
                         : (v) async {
@@ -160,8 +164,12 @@ class _PersonCard extends StatelessWidget {
       required this.mName,
       required this.onToggle,
       required this.onRoles,
-      required this.onDelete});
+      required this.onDelete,
+      this.onOpen});
   final Map<String, dynamic> p;
+
+  /// Drivers: opens the account statement.
+  final VoidCallback? onOpen;
   final Map<dynamic, dynamic> mName;
   final void Function(bool)? onToggle;
   final VoidCallback onRoles;
@@ -183,101 +191,119 @@ class _PersonCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Container(
-            height: 5,
-            decoration:
-                BoxDecoration(gradient: LinearGradient(colors: colors))),
-        Padding(
-          padding: const EdgeInsets.all(14),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Row(children: [
-              GradientBadge(
-                  colors: colors,
-                  text: name.isEmpty ? '?' : name.characters.first),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
-                      Text(
-                          '${p['phone'] ?? ''}${p['area'] == null ? '' : ' · ${p['area']}'}',
-                          style: const TextStyle(
-                              color: Colors.black54, fontSize: 13)),
-                    ]),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: (active
-                          ? const Color(0xFF1E8A5F)
-                          : const Color(0xFFB83250))
-                      .withValues(alpha: .1),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(active ? 'فعّال' : 'موقوف',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: active
-                            ? const Color(0xFF1E8A5F)
-                            : const Color(0xFFB83250))),
-              ),
-            ]),
-            const SizedBox(height: 12),
-            Wrap(spacing: 6, runSpacing: 6, children: [
-              for (final r in roles)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    gradient: LinearGradient(colors: [
-                      for (final c in roleGradients[r['role']] ?? colors)
-                        c.withValues(alpha: .14),
-                    ]),
-                  ),
-                  child: Text(
-                    '${roleLabels[r['role']]}${r['merchant_id'] != null ? ' · ${mName[r['merchant_id']] ?? ''}' : ''}',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: (roleGradients[r['role']] ?? colors).first),
-                  ),
-                ),
-            ]),
-            const Divider(height: 22),
-            Row(children: [
-              Switch(value: active, onChanged: onToggle),
-              const SizedBox(width: 6),
-              Text(active ? 'الحساب مفعّل' : 'الحساب موقوف',
-                  style: const TextStyle(fontSize: 13, color: Colors.black54)),
-              const Spacer(),
-              TextButton.icon(
-                  onPressed: onRoles,
-                  icon: const Icon(Icons.manage_accounts_outlined, size: 18),
-                  label: const Text('تعديل')),
-              if (onDelete != null)
-                IconButton(
-                  tooltip: tr('حذف المستخدم'),
-                  onPressed: onDelete,
-                  style: IconButton.styleFrom(
-                      backgroundColor:
-                          const Color(0xFFB83250).withValues(alpha: .08)),
-                  icon: const Icon(Icons.delete_outline,
-                      color: Color(0xFFB83250), size: 20),
-                ),
-            ]),
-          ]),
-        ),
-      ]),
+      child: InkWell(
+        onTap: onOpen,
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Container(
+              height: 5,
+              decoration:
+                  BoxDecoration(gradient: LinearGradient(colors: colors))),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(children: [
+                    GradientBadge(
+                        colors: colors,
+                        text: name.isEmpty ? '?' : name.characters.first),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w700)),
+                            Text(
+                                '${p['phone'] ?? ''}${p['area'] == null ? '' : ' · ${p['area']}'}',
+                                style: const TextStyle(
+                                    color: Colors.black54, fontSize: 13)),
+                          ]),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: (active
+                                ? const Color(0xFF1E8A5F)
+                                : const Color(0xFFB83250))
+                            .withValues(alpha: .1),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(active ? 'فعّال' : 'موقوف',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: active
+                                  ? const Color(0xFF1E8A5F)
+                                  : const Color(0xFFB83250))),
+                    ),
+                  ]),
+                  const SizedBox(height: 12),
+                  Wrap(spacing: 6, runSpacing: 6, children: [
+                    for (final r in roles)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          gradient: LinearGradient(colors: [
+                            for (final c in roleGradients[r['role']] ?? colors)
+                              c.withValues(alpha: .14),
+                          ]),
+                        ),
+                        child: Text(
+                          '${roleLabels[r['role']]}${r['merchant_id'] != null ? ' · ${mName[r['merchant_id']] ?? ''}' : ''}',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color:
+                                  (roleGradients[r['role']] ?? colors).first),
+                        ),
+                      ),
+                  ]),
+                  const Divider(height: 22),
+                  Row(children: [
+                    Switch(value: active, onChanged: onToggle),
+                    const SizedBox(width: 6),
+                    Text(active ? 'الحساب مفعّل' : 'الحساب موقوف',
+                        style: const TextStyle(
+                            fontSize: 13, color: Colors.black54)),
+                    const Spacer(),
+                    TextButton.icon(
+                        onPressed: onRoles,
+                        icon: const Icon(Icons.manage_accounts_outlined,
+                            size: 18),
+                        label: const Text('تعديل')),
+                    if (onDelete != null)
+                      IconButton(
+                        tooltip: tr('حذف المستخدم'),
+                        onPressed: onDelete,
+                        style: IconButton.styleFrom(
+                            backgroundColor:
+                                const Color(0xFFB83250).withValues(alpha: .08)),
+                        icon: const Icon(Icons.delete_outline,
+                            color: Color(0xFFB83250), size: 20),
+                      ),
+                  ]),
+                  if (onOpen != null) ...[
+                    const SizedBox(height: 4),
+                    FilledButton.icon(
+                      style:
+                          FilledButton.styleFrom(backgroundColor: colors.first),
+                      onPressed: onOpen,
+                      icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                      label: const Text('كشف الحساب وكل الحركات'),
+                    ),
+                  ],
+                ]),
+          ),
+        ]),
+      ),
     );
   }
 }

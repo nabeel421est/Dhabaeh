@@ -7,6 +7,7 @@ import '../core/common.dart';
 import '../core/i18n.dart';
 import '../core/ttext.dart';
 import '../customer/order_details.dart';
+import 'admin_driver_statement.dart' show orderMoneyDialog;
 import 'admin_control_hub.dart';
 import 'admin_txn_control.dart';
 
@@ -415,6 +416,7 @@ class _ControlBoardState extends State<_ControlBoard> {
       ])
         k: TextEditingController(text: '${o[k] ?? ''}'),
     };
+    var money = <String, dynamic>{};
     DateTime? sd = DateTime.tryParse('${o['slaughter_date'] ?? ''}');
     DateTime? dd = DateTime.tryParse('${o['delivery_date'] ?? ''}');
     Widget dateBtn(BuildContext c, String label, DateTime? v,
@@ -473,9 +475,20 @@ class _ControlBoardState extends State<_ControlBoard> {
                 Field('العنوان', f['address']!, maxLines: 2),
                 const SizedBox(height: 10),
                 Field('ملاحظات', f['notes']!, maxLines: 3),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final m = await orderMoneyDialog(c, o);
+                    if (m != null) set(() => money = m);
+                  },
+                  icon: const Icon(Icons.payments_outlined),
+                  label: Text(money.isEmpty
+                      ? tr('تعديل المبالغ والعمولات وطريقة الدفع')
+                      : '${tr('سيتم تعديل')} ${money.length} ${tr('من المبالغ')}'),
+                ),
+                const SizedBox(height: 6),
                 const Text(
-                    'الأسعار والأصناف لا تُعدّل من هنا حفاظاً على صحة المحافظ والعمولات.',
+                    'تعديل المبالغ يعدّل معه محفظة التاجر وعمولات المنصة ومبالغ المندوب والتقارير في كل التطبيقات.',
                     style: TextStyle(color: Colors.black45, fontSize: 12)),
               ]),
             ),
@@ -496,6 +509,7 @@ class _ControlBoardState extends State<_ControlBoard> {
       for (final e in f.entries) e.key: e.value.text.trim(),
       'slaughter_date': sd == null ? '' : isoDate(sd!),
       'delivery_date': dd == null ? '' : isoDate(dd!),
+      ...money,
     };
     if (await widget.act(
         (t) => sb.rpc('oc_update_order',
@@ -516,7 +530,7 @@ class _ControlBoardState extends State<_ControlBoard> {
               color: G.amber.first, size: 34),
           title: Text('${tr('الطلب')} #${o['code']} ${tr('مسلَّم')}'),
           content: const Text(
-              'ستُعكس مبالغه من محفظة التاجر وعمولات المنصة ومستحقات المندوب، وتُحسب من جديد إذا سُلِّم مرة أخرى.'),
+              'تُلغى كل حركاته من محفظة التاجر وعمولات المنصة ومبالغ المندوب وتقاريره، وتعود إذا سُلِّم مرة أخرى أو استُرجع.'),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(c, false),
@@ -639,7 +653,7 @@ class _ControlBoardState extends State<_ControlBoard> {
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
             child: Text(
-                'يعود الطلب «جديد» لدى المتجر الجديد ليقبله، ويُلغى إسناد المندوب.',
+                'الطلب الجاري يعود «جديد» لدى المتجر الجديد ويُلغى إسناد المندوب. الطلب المسلَّم ينتقل بمبالغه وتقاريره للمتجر الجديد ويبقى مسلَّماً.',
                 style: TextStyle(color: Colors.black54, fontSize: 12.5)),
           ),
           for (final m in stores)
@@ -666,9 +680,6 @@ class _ControlBoardState extends State<_ControlBoard> {
       ),
     );
     if (to == null || !context.mounted) return;
-    if (o['status'] == 'delivered') {
-      if (!await moneyWarning(context, o) || !context.mounted) return;
-    }
     final reason = await askReason(context, 'سبب التحويل',
         action: 'تحويل', tone: G.violet);
     if (reason == null || !context.mounted) return;

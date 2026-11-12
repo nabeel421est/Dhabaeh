@@ -277,6 +277,7 @@ class MerchantWallet extends StatelessWidget {
             .from('wallet_ledger')
             .select()
             .eq('merchant_id', mid)
+            .eq('voided', false)
             .order('created_at', ascending: false);
         final reqs = await sb
             .from('payout_requests')

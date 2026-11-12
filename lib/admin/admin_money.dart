@@ -812,7 +812,8 @@ class PlatformWallet extends StatelessWidget {
       load: () async {
         var q = sb
             .from('platform_ledger')
-            .select('*, merchants(name), orders(code)');
+            .select('*, merchants(name), orders(code)')
+            .eq('voided', false);
         if (!ctl) q = q.isFilter('deleted_at', null);
         return List<Map<String, dynamic>>.from(
             await q.order('created_at', ascending: false));

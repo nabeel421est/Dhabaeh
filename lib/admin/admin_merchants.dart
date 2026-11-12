@@ -1283,6 +1283,7 @@ class MerchantAdminPage extends StatelessWidget {
               .from('wallet_ledger')
               .select()
               .eq('merchant_id', merchantId)
+              .eq('voided', false)
               .order('created_at', ascending: false);
           final staff = await sb
               .from('merchant_staff')
