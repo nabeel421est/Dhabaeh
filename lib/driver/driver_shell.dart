@@ -7,6 +7,7 @@ import '../core/driver_chat.dart';
 import '../core/address_map.dart';
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/driver_payout.dart';
 import '../core/ttext.dart';
 import '../core/i18n.dart';
 import '../core/order_alerts.dart';
@@ -192,8 +193,18 @@ class _DriverWalletState extends State<DriverWallet> {
 
   @override
   Widget build(BuildContext context) {
-    return Loader<(Map<String, dynamic>, List<Map<String, dynamic>>)>(
-      realtimeTables: const ['driver_ledger', 'driver_settlements', 'orders'],
+    return Loader<
+        (
+          Map<String, dynamic>,
+          List<Map<String, dynamic>>,
+          Map<String, dynamic>?
+        )>(
+      realtimeTables: const [
+        'driver_ledger',
+        'driver_settlements',
+        'orders',
+        'driver_payout_requests'
+      ],
       load: () async {
         final b = await sb.rpc('driver_balance', params: {'p_driver': myId});
         final pending = await sb
@@ -207,10 +218,17 @@ class _DriverWalletState extends State<DriverWallet> {
         final row = (b is List && b.isNotEmpty)
             ? Map<String, dynamic>.from(b.first)
             : <String, dynamic>{};
-        return (row, List<Map<String, dynamic>>.from(pending));
+        final last = await sb
+            .from('driver_payout_requests')
+            .select()
+            .eq('driver_id', myId!)
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+        return (row, List<Map<String, dynamic>>.from(pending), last);
       },
-      builder: (context, data, _) {
-        final (bal, pending) = data;
+      builder: (context, data, reload) {
+        final (bal, pending, last) = data;
         if (pending.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) confirmPopup(pending.first);
@@ -288,6 +306,12 @@ class _DriverWalletState extends State<DriverWallet> {
                             ? 'بانتظار تأكيدك ${bhd(bal['pending_payout'])}'
                             : 'تستلمها من الإدارة'),
                   ]),
+                  const SizedBox(height: 12),
+                  DriverPayoutAsk(
+                      open:
+                          toNum(bal['fees_due']) - toNum(bal['pending_payout']),
+                      last: last,
+                      reload: reload),
                 ]),
           ),
         );

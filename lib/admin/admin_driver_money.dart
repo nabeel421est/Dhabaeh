@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide Text;
 
 import '../core/brand.dart';
 import '../core/common.dart';
+import '../core/driver_payout.dart';
 import '../core/i18n.dart';
 import '../core/ttext.dart';
 import 'admin_driver_statement.dart';
@@ -103,9 +104,18 @@ class AdminDriverMoney extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ctl = ControlScope.of(context) != null;
-    return Loader<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)>(
+    return Loader<
+        (
+          List<Map<String, dynamic>>,
+          List<Map<String, dynamic>>,
+          List<Map<String, dynamic>>
+        )>(
       key: ValueKey('$fees$ctl'),
-      realtimeTables: const ['driver_ledger', 'driver_settlements'],
+      realtimeTables: const [
+        'driver_ledger',
+        'driver_settlements',
+        'driver_payout_requests'
+      ],
       load: () async {
         final b = await sb.rpc('admin_driver_balances');
         var q = sb
@@ -114,13 +124,21 @@ class AdminDriverMoney extends StatelessWidget {
             .eq('kind', fees ? 'fee_payout' : 'cash_receipt');
         if (!ctl) q = q.isFilter('deleted_at', null);
         final s = await q.order('created_at', ascending: false).limit(300);
+        final reqs = fees
+            ? await sb
+                .from('driver_payout_requests')
+                .select('*, profiles(full_name, phone)')
+                .eq('status', 'requested')
+                .order('created_at')
+            : const [];
         return (
           List<Map<String, dynamic>>.from(b ?? []),
-          List<Map<String, dynamic>>.from(s)
+          List<Map<String, dynamic>>.from(s),
+          List<Map<String, dynamic>>.from(reqs)
         );
       },
       builder: (context, data, reload) {
-        final (drivers, sets) = data;
+        final (drivers, sets, reqs) = data;
         num avail(Map d) => fees
             ? toNum(d['fees_due']) - toNum(d['pending_payout'])
             : toNum(d['cash_held']);
@@ -141,12 +159,14 @@ class AdminDriverMoney extends StatelessWidget {
                 : 'استلم من المناديب المبالغ التي حصّلوها نقداً من العملاء',
             stats: [
               (fees ? 'مستحق للمناديب' : 'بحوزة المناديب', bhd(total)),
+              if (fees) ('طلبات صرف', '${reqs.length}'),
               if (fees) ('بانتظار التأكيد', '${pending.length}'),
               (fees ? 'تم تسليمه' : 'تم استلامه', bhd(done)),
               ('المناديب', '${drivers.length}'),
             ],
           ),
           const SizedBox(height: 16),
+          DriverPayoutRequestsAdmin(requests: reqs, reload: reload),
           if (drivers.isEmpty)
             const Empty('لا يوجد مناديب', icon: Icons.delivery_dining_outlined),
           LayoutBuilder(builder: (context, c) {
