@@ -66,6 +66,15 @@ const paymentLabels = {
 String payLabel(Map o) =>
     '${o['payment_method_name'] ?? paymentLabels[o['payment_method']] ?? ''}';
 
+/// Payment status, plus the card approval code once an online payment is accepted.
+String payStatusText(Map o) {
+  final s = tr(paymentStatusLabels[o['payment_status']] ?? '');
+  final auth = o['payment_auth'];
+  return o['payment_status'] == 'paid' && auth != null && '$auth'.isNotEmpty
+      ? '$s · ${tr('رقم التفويض')} $auth'
+      : s;
+}
+
 const paymentStatusLabels = {
   'pending': 'بانتظار الدفع',
   'awaiting_review': 'بانتظار مراجعة التحويل',

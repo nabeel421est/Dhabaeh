@@ -716,7 +716,7 @@ class OrderTile extends StatelessWidget {
                             : Icons.local_shipping_outlined,
                         '${o['fulfillment'] == 'pickup' ? 'استلام من المحل' : 'التوصيل'} ${dateText(o['delivery_date'])} ${o['delivery_slot'] ?? ''}'),
                     line(Icons.payments_outlined,
-                        '${payLabel(o)} · ${paymentStatusLabels[o['payment_status']]}'),
+                        '${payLabel(o)} · ${payStatusText(o)}'),
                     if (o['fulfillment'] != 'pickup')
                       line(Icons.two_wheeler_outlined,
                           'المندوب: ${o['driver_name'] ?? 'غير معيّن'}'),

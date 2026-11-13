@@ -22,3 +22,4 @@ do $$ declare d text; begin
     execute d;
   end if;
 end $$;
+alter table public.orders add column if not exists payment_auth text, add column if not exists payment_ref text;

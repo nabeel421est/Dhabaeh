@@ -254,8 +254,7 @@ class OrderView extends StatelessWidget {
             const Icon(Icons.payments_outlined, color: Colors.white, size: 20),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                  '${payLabel(o)} · ${paymentStatusLabels[o['payment_status']] ?? ''}',
+              child: Text('${payLabel(o)} · ${payStatusText(o)}',
                   style: const TextStyle(color: Colors.white)),
             ),
             Text(bhd(o['total']),

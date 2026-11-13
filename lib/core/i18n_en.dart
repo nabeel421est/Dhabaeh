@@ -1578,16 +1578,22 @@ const Map<String, String> enStrings = {
   'يُضاف من الإدارة': 'Added by admins',
   'ادفع الآن': "Pay now",
   'تم الدفع بنجاح، شكراً لك': "Payment successful, thank you",
-  'لم تكتمل عملية الدفع، تقدر تعيد المحاولة من الطلب': "The payment was not completed. You can try again from the order",
-  'الدفع عبر بوابة Tap (Apple Pay والبطاقات)': "Pay through the Tap gateway (Apple Pay and cards)",
-  'ينتقل العميل لصفحة الدفع، ويتأكد الطلب مدفوعاً تلقائياً': "The customer goes to the payment page and the order is confirmed as paid automatically",
+  'لم تكتمل عملية الدفع، تقدر تعيد المحاولة من الطلب':
+      "The payment was not completed. You can try again from the order",
+  'الدفع عبر بوابة Tap (Apple Pay والبطاقات)':
+      "Pay through the Tap gateway (Apple Pay and cards)",
+  'ينتقل العميل لصفحة الدفع، ويتأكد الطلب مدفوعاً تلقائياً':
+      "The customer goes to the payment page and the order is confirmed as paid automatically",
   'بوابة Tap مربوطة (حساب فعلي)': "Tap gateway connected (live account)",
   'بوابة Tap مربوطة على البيئة التجريبية': "Tap gateway connected in test mode",
-  'بوابة Tap غير مربوطة بعد، العميل ما يقدر يدفع بها حالياً': "Tap gateway is not connected yet; customers cannot pay with it for now",
+  'بوابة Tap غير مربوطة بعد، العميل ما يقدر يدفع بها حالياً':
+      "Tap gateway is not connected yet; customers cannot pay with it for now",
   'بوابة الدفع غير مربوطة بعد': "The payment gateway is not connected yet",
-  'وسيلة الدفع لا تدعم الدفع الإلكتروني': "This payment method does not support online payment",
+  'وسيلة الدفع لا تدعم الدفع الإلكتروني':
+      "This payment method does not support online payment",
   'الطلب ملغي': "The order is cancelled",
   'رابط الرجوع غير مسموح': "Return link not allowed",
   'سجّل دخولك أولاً': "Please sign in first",
   'رقم عملية غير صالح': "Invalid transaction number",
+  'رقم التفويض': "Approval code",
 };

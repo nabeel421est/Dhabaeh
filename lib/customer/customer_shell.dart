@@ -359,8 +359,7 @@ class CustomerOrderCard extends StatelessWidget {
                     size: 16, color: Colors.black45),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(
-                      '${payLabel(o)} · ${paymentStatusLabels[o['payment_status']] ?? ''}',
+                  child: Text('${payLabel(o)} · ${payStatusText(o)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style:

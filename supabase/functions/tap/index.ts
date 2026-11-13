@@ -37,17 +37,23 @@ async function settle(chargeId: string) {
   const { data: o } = await admin.from("orders").select("id, code, total, payment_status").eq("id", orderId).maybeSingle();
   if (!o) throw new Error("الطلب غير موجود");
   const paid = c.status === "CAPTURED" && c.currency === "BHD" && Number(c.amount) + 0.0005 >= Number(o.total);
+  // Approval code from the card network, and Tap's payment reference.
+  const auth = c?.transaction?.authorization_id ?? c?.reference?.acquirer ?? null;
+  const ref = c?.reference?.payment ?? c?.reference?.track ?? null;
   if (paid && o.payment_status !== "paid") {
     await admin.from("orders").update({
       payment_status: "paid", gateway_charge: c.id, paid_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      payment_auth: auth, payment_ref: ref,
     }).eq("id", o.id);
+  } else if (paid) {
+    await admin.from("orders").update({ payment_auth: auth, payment_ref: ref }).eq("id", o.id);
   } else if (!paid) {
     await admin.from("orders").update({ gateway_charge: c.id }).eq("id", o.id);
   }
   return {
     order_id: o.id, code: o.code, status: c.status, paid: paid || o.payment_status === "paid",
     reason: c?.response?.message ?? null, reason_code: c?.response?.code ?? null,
-    gateway_reason: c?.gateway?.response?.message ?? null, method: c?.source?.payment_method ?? c?.source?.id ?? null,
+    gateway_reason: c?.gateway?.response?.message ?? null, method: c?.source?.payment_method ?? c?.source?.id ?? null, auth, ref,
   };
 }
 
