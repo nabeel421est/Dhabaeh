@@ -44,7 +44,11 @@ async function settle(chargeId: string) {
   } else if (!paid) {
     await admin.from("orders").update({ gateway_charge: c.id }).eq("id", o.id);
   }
-  return { order_id: o.id, code: o.code, status: c.status, paid: paid || o.payment_status === "paid" };
+  return {
+    order_id: o.id, code: o.code, status: c.status, paid: paid || o.payment_status === "paid",
+    reason: c?.response?.message ?? null, reason_code: c?.response?.code ?? null,
+    gateway_reason: c?.gateway?.response?.message ?? null, method: c?.source?.payment_method ?? c?.source?.id ?? null,
+  };
 }
 
 Deno.serve(async (req) => {
