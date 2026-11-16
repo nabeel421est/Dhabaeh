@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import '../admin/admin_payment_methods.dart' show payIcon;
 import '../core/search_pick.dart';
 import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/services.dart';
 
 import '../core/brand.dart';
 import '../core/common.dart';
@@ -1167,10 +1168,28 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
               child: Row(children: [
                 Text('${tr('ادفع على')}: ',
                     style: const TextStyle(color: Colors.black54)),
-                SelectableText(
-                    '${selectedMethod(settings, d.method)!['account']}',
-                    textDirection: TextDirection.ltr,
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                Flexible(
+                  child: SelectableText(
+                      '${selectedMethod(settings, d.method)!['account']}',
+                      textDirection: TextDirection.ltr,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(width: 6),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 34),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      visualDensity: VisualDensity.compact),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(
+                        text:
+                            '${selectedMethod(settings, d.method)!['account']}'
+                                .replaceAll(' ', '')));
+                    toast(context, tr('تم نسخ رقم الحساب'));
+                  },
+                  icon: const Icon(Icons.copy_rounded, size: 16),
+                  label: const Text('نسخ'),
+                ),
               ]),
             ),
           if ('${selectedMethod(settings, d.method)?['instructions'] ?? ''}'
