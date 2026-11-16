@@ -1722,4 +1722,7 @@ const Map<String, String> enStrings = {
   "يدوية": "Manual",
   "يشير الآن إلى": "Points now to",
   "يومياً 3:00 ص": "Daily 3:00 AM",
+  "إرفاق إيصال التحويل (إجباري)": "Attach the transfer receipt (required)",
+  "حوّل المبلغ من تطبيق بنفت، ثم أرفق صورة الإيصال. لن يُرسل الطلب بدون الإيصال.":
+      "Pay from the Benefit app, then attach the receipt. The order can't be sent without it.",
 };

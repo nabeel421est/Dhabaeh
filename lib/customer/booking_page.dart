@@ -47,6 +47,13 @@ Map<String, dynamic>? selectedMethod(Map settings, String? code) =>
         .where((m) => m['code'] == code)
         .firstOrNull;
 
+/// Bank transfer and BenefitPay (paid by hand, not through the Tap page) need the
+/// customer's transfer receipt before the order can be placed.
+bool needsReceipt(Map settings, String payment, String? code) =>
+    payment == 'bank_transfer' ||
+    (payment == 'benefitpay' &&
+        selectedMethod(settings, code)?['gateway'] != 'tap');
+
 num calcValue(num base, String type, num v, bool enabled) {
   if (!enabled) return 0;
   return type == 'percent' ? (base * v / 100) : v;
@@ -782,7 +789,8 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
       return toast(context, 'أكمل العنوان: المنزل والطريق والمجمع',
           error: true);
     }
-    if (d.payment == 'bank_transfer' && d.receipt == null) {
+    if (needsReceipt(widget.setup.$1, d.payment, d.method) &&
+        d.receipt == null) {
       return toast(context, 'أرفق إيصال التحويل', error: true);
     }
     final zone = zones.firstWhere((z) => z['id'] == d.zoneId);
@@ -866,7 +874,8 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
 
   /// Collect from the store: no zone, address or delivery fee.
   Future<void> submitPickup() async {
-    if (d.payment == 'bank_transfer' && d.receipt == null) {
+    if (needsReceipt(widget.setup.$1, d.payment, d.method) &&
+        d.receipt == null) {
       return toast(context, 'أرفق إيصال التحويل', error: true);
     }
     setState(() => busy = true);
@@ -1200,12 +1209,40 @@ class _CheckoutSectionsState extends State<CheckoutSections> {
                   '${selectedMethod(settings, d.method)!['instructions']}',
                   style: const TextStyle(fontSize: 12.5)),
             ),
-          if (d.payment == 'benefitpay')
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                  'في نسخة الاختبار يُسجّل الطلب بانتظار الدفع، والربط الفعلي مع بوابة الدفع لاحقاً.',
-                  style: TextStyle(color: Colors.black54, fontSize: 12)),
+          if (d.payment == 'benefitpay' &&
+              needsReceipt(settings, d.payment, d.method))
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    OutlinedButton.icon(
+                      style: d.receipt == null
+                          ? OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFB3261E),
+                              side: const BorderSide(color: Color(0xFFB3261E)))
+                          : null,
+                      icon: Icon(d.receipt == null
+                          ? Icons.cloud_upload_outlined
+                          : Icons.task_alt),
+                      label: Text(d.receipt?.name ??
+                          tr('إرفاق إيصال التحويل (إجباري)')),
+                      onPressed: () async {
+                        final r = await FilePicker.platform.pickFiles(
+                            withData: true,
+                            type: FileType.custom,
+                            allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf']);
+                        if (r != null) {
+                          d.receipt = r.files.first;
+                          changed();
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                        'حوّل المبلغ من تطبيق بنفت، ثم أرفق صورة الإيصال. لن يُرسل الطلب بدون الإيصال.',
+                        style: TextStyle(color: Colors.black54, fontSize: 12)),
+                  ]),
             ),
         ]),
       ),
