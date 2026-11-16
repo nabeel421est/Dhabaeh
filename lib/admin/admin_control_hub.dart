@@ -4,6 +4,8 @@ import '../core/brand.dart';
 import '../core/i18n.dart';
 import '../core/ttext.dart';
 import 'admin_activity.dart';
+import 'admin_backups.dart';
+import 'admin_domain.dart';
 import 'admin_driver_money.dart';
 import 'admin_drivers.dart';
 import 'admin_merchants.dart';
@@ -19,6 +21,27 @@ class HubSection {
   const HubSection(this.key, this.title, this.line, this.icon, this.stops,
       [this.accent = const Color(0xFFF4C752)]);
   final String key, title, line;
+
+  /// Which group of the hub the tile sits in.
+  String get group => switch (key) {
+        'orders' ||
+        'customers' ||
+        'merchants' ||
+        'products' ||
+        'offers' ||
+        'drivers' ||
+        'zones' =>
+          'ops',
+        'wallet' ||
+        'payouts' ||
+        'cod' ||
+        'driver_fees' ||
+        'plans' ||
+        'commissions' ||
+        'reports' =>
+          'money',
+        _ => 'system',
+      };
   final IconData icon;
   final List<Color> stops;
   final Color accent;
@@ -135,6 +158,27 @@ const hubSections = <HubSection>[
       'الحسابات والأدوار',
       Icons.admin_panel_settings_outlined,
       [Color(0xFF1C2533), Color(0xFF3D4F6B), Color(0xFF8AA0C0)]),
+  HubSection(
+      'domain',
+      'الدومين',
+      'عنوان التطبيق وربط دومين خاص',
+      Icons.language,
+      [Color(0xFF071A3A), Color(0xFF1A4C8C), Color(0xFF5BC6EE)],
+      Color(0xFFB8F0FF)),
+  HubSection(
+      'backups',
+      'النسخ الاحتياطية',
+      'نسخ يومية وتنزيل كامل للبيانات',
+      Icons.cloud_sync_outlined,
+      [Color(0xFF062B26), Color(0xFF0F6A5C), Color(0xFF7CDCC0)],
+      Color(0xFFF6D98A)),
+];
+
+/// The three groups of the hub, in order: key, title, icon.
+const hubGroups = <(String, String, IconData)>[
+  ('ops', 'العمليات اليومية', Icons.bolt_outlined),
+  ('money', 'المال والحسابات', Icons.account_balance_wallet_outlined),
+  ('system', 'النظام والإعدادات', Icons.tune),
 ];
 
 /// Whether an admin may open a hub section (all on unless switched off).
@@ -158,6 +202,8 @@ Widget hubPage(String key, Widget ordersBoard) => switch (key) {
       'plans' => const AdminPlans(),
       'commissions' => const AdminCommissions(),
       'zones' => const AdminZones(),
+      'domain' => const AdminDomain(),
+      'backups' => const AdminBackups(),
       _ => const AdminUsers(group: UserGroup.platform),
     };
 
@@ -200,155 +246,500 @@ class _ControlHubState extends State<ControlHub> {
       for (final x in hubSections)
         if (widget.isSuper || secAllowed(widget.myPerms, x.key)) x
     ];
-    return ListView(padding: const EdgeInsets.all(16), children: [
-      PageHero(
-        icon: Icons.admin_panel_settings_outlined,
-        title: 'التحكم الإداري',
-        subtitle:
-            '${tr('الجلسة مفتوحة')} · ${tr('تُقفل بعد')} ${widget.minutesLeft} ${tr('دقيقة')}',
-        stats: [('الأقسام', '${visible.length}')],
-        action: Wrap(spacing: 8, runSpacing: 8, children: [
-          if (widget.isSuper)
-            HeroButton(
-                icon: Icons.admin_panel_settings_outlined,
-                label: 'الصلاحيات وكلمات المرور',
-                onPressed: widget.onAccess),
-          HeroButton(
-              icon: Icons.lock_outline,
-              label: 'قفل القسم',
-              onPressed: widget.onLock),
-        ]),
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF060A18), Color(0xFF0B1531), Color(0xFF101A3C)]),
       ),
-      const SizedBox(height: 16),
-      if (widget.isSuper && !widget.sectionSet) ...[
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(colors: [
-              G.amber.last.withValues(alpha: .18),
-              G.gold.last.withValues(alpha: .10)
-            ]),
-            border: Border.all(color: G.amber.first.withValues(alpha: .35)),
+      child: Stack(children: [
+        // Soft light pools behind the content.
+        const PositionedDirectional(
+            top: -140, end: -120, child: _Glow(Color(0xFFE7C077), 420, .16)),
+        const PositionedDirectional(
+            top: 380, start: -160, child: _Glow(Color(0xFF6C5CE7), 460, .14)),
+        const PositionedDirectional(
+            bottom: -180, end: 40, child: _Glow(Color(0xFF2EC4B6), 420, .10)),
+        ListView(padding: const EdgeInsets.fromLTRB(18, 18, 18, 28), children: [
+          _HubHero(
+            minutesLeft: widget.minutesLeft,
+            sections: visible.length,
+            isSuper: widget.isSuper,
+            onAccess: widget.onAccess,
+            onLock: widget.onLock,
           ),
-          child: Wrap(
-              spacing: 12,
-              runSpacing: 10,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Icon(Icons.key_outlined, color: G.amber.first),
-                const Text(
-                    'دخلت بكلمة مرور حسابك. خصّص كلمة مرور خاصة لهذا القسم.',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                FilledButton.icon(
-                  style: FilledButton.styleFrom(backgroundColor: G.amber.first),
-                  onPressed: widget.onAccess,
-                  icon: const Icon(Icons.password_outlined),
-                  label: const Text('تحديد كلمة مرور القسم'),
-                ),
-              ]),
-        ),
-        const SizedBox(height: 16),
-      ],
-      LayoutBuilder(builder: (context, c) {
-        final cols = (c.maxWidth / 250).floor().clamp(2, 5);
-        final w = (c.maxWidth - 14 * (cols - 1)) / cols;
-        return Wrap(spacing: 14, runSpacing: 14, children: [
-          for (final x in visible)
-            SizedBox(
-                width: w,
-                child: _HubTile(
-                    section: x, onTap: () => setState(() => open = x))),
-        ]);
-      }),
-    ]);
+          const SizedBox(height: 18),
+          if (widget.isSuper && !widget.sectionSet) ...[
+            _Glass(
+              padding: const EdgeInsets.all(14),
+              border: const Color(0xFFE7C077),
+              child: Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    const Icon(Icons.key_outlined, color: Color(0xFFE7C077)),
+                    const Text(
+                        'دخلت بكلمة مرور حسابك. خصّص كلمة مرور خاصة لهذا القسم.',
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w600)),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFFE7C077),
+                          foregroundColor: const Color(0xFF2A1A05)),
+                      onPressed: widget.onAccess,
+                      icon: const Icon(Icons.password_outlined),
+                      label: const Text('تحديد كلمة مرور القسم'),
+                    ),
+                  ]),
+            ),
+            const SizedBox(height: 18),
+          ],
+          for (final g in hubGroups)
+            if (visible.any((x) => x.group == g.$1)) ...[
+              _GroupHeader(
+                  title: g.$2,
+                  icon: g.$3,
+                  count: visible.where((x) => x.group == g.$1).length),
+              const SizedBox(height: 12),
+              LayoutBuilder(builder: (context, c) {
+                final cols = (c.maxWidth / 250).floor().clamp(2, 5);
+                final w = (c.maxWidth - 14 * (cols - 1)) / cols;
+                return Wrap(spacing: 14, runSpacing: 14, children: [
+                  for (final x in visible.where((x) => x.group == g.$1))
+                    SizedBox(
+                        width: w,
+                        child: _HubTile(
+                            section: x, onTap: () => setState(() => open = x))),
+                ]);
+              }),
+              const SizedBox(height: 24),
+            ],
+        ]),
+      ]),
+    );
   }
 }
 
-class _HubTile extends StatelessWidget {
+const _gold = [Color(0xFFF8E3A8), Color(0xFFE7C077), Color(0xFFB8893A)];
+
+/// A soft radial light.
+class _Glow extends StatelessWidget {
+  const _Glow(this.color, this.size, this.alpha);
+  final Color color;
+  final double size, alpha;
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(colors: [
+                color.withValues(alpha: alpha),
+                color.withValues(alpha: 0)
+              ])),
+        ),
+      );
+}
+
+/// Frosted glass panel with a thin luminous border.
+class _Glass extends StatelessWidget {
+  const _Glass(
+      {required this.child,
+      this.padding = const EdgeInsets.all(18),
+      this.border = Colors.white});
+  final Widget child;
+  final EdgeInsets padding;
+  final Color border;
+  static const double radius = 26;
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: padding,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          gradient: LinearGradient(
+              begin: AlignmentDirectional.topStart,
+              end: AlignmentDirectional.bottomEnd,
+              colors: [
+                Colors.white.withValues(alpha: .10),
+                Colors.white.withValues(alpha: .03),
+              ]),
+          border: Border.all(color: border.withValues(alpha: .28)),
+        ),
+        child: child,
+      );
+}
+
+class _HubHero extends StatelessWidget {
+  const _HubHero(
+      {required this.minutesLeft,
+      required this.sections,
+      required this.isSuper,
+      required this.onAccess,
+      required this.onLock});
+  final int minutesLeft, sections;
+  final bool isSuper;
+  final VoidCallback onAccess, onLock;
+
+  Widget _chip(IconData i, String t, Color c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            color: c.withValues(alpha: .14),
+            border: Border.all(color: c.withValues(alpha: .45))),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(i, size: 15, color: c),
+          const SizedBox(width: 6),
+          Text(t,
+              style: TextStyle(
+                  color: c, fontSize: 12.5, fontWeight: FontWeight.w600)),
+        ]),
+      );
+
+  Widget _btn(IconData i, String t, VoidCallback f, {bool gold = false}) =>
+      Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: f,
+          child: Ink(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: gold
+                  ? const LinearGradient(colors: _gold)
+                  : LinearGradient(colors: [
+                      Colors.white.withValues(alpha: .14),
+                      Colors.white.withValues(alpha: .06)
+                    ]),
+              border: Border.all(
+                  color: gold
+                      ? const Color(0xFFF8E3A8)
+                      : Colors.white.withValues(alpha: .25)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(i,
+                  size: 18,
+                  color: gold ? const Color(0xFF3A2606) : Colors.white),
+              const SizedBox(width: 8),
+              Text(t,
+                  style: TextStyle(
+                      color: gold ? const Color(0xFF3A2606) : Colors.white,
+                      fontWeight: FontWeight.w700)),
+            ]),
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        gradient: const LinearGradient(
+            begin: AlignmentDirectional.topStart,
+            end: AlignmentDirectional.bottomEnd,
+            colors: [Color(0xFF14204A), Color(0xFF1F2C66), Color(0xFF3B2F6E)]),
+        border:
+            Border.all(color: const Color(0xFFE7C077).withValues(alpha: .4)),
+        boxShadow: [
+          BoxShadow(
+              color: const Color(0xFF000000).withValues(alpha: .45),
+              blurRadius: 30,
+              offset: const Offset(0, 14)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: Stack(children: [
+          PositionedDirectional(
+              end: -60,
+              top: -80,
+              child: _Glow(const Color(0xFFE7C077), 280, .22)),
+          PositionedDirectional(
+              start: -40,
+              bottom: -90,
+              child: _Glow(const Color(0xFF7C6CF0), 240, .2)),
+          // Thin gold rule along the top edge.
+          Positioned(
+              top: 0,
+              left: 40,
+              right: 40,
+              child: Container(
+                  height: 1.4,
+                  decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [
+                    const Color(0xFFE7C077).withValues(alpha: 0),
+                    const Color(0xFFF8E3A8),
+                    const Color(0xFFE7C077).withValues(alpha: 0),
+                  ])))),
+          Padding(
+            padding: const EdgeInsets.all(22),
+            child: Wrap(
+              spacing: 20,
+              runSpacing: 18,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: _gold),
+                      boxShadow: [
+                        BoxShadow(
+                            color:
+                                const Color(0xFFE7C077).withValues(alpha: .45),
+                            blurRadius: 22)
+                      ],
+                    ),
+                    child: const Icon(Icons.shield_moon_outlined,
+                        color: Color(0xFF3A2606), size: 32),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ShaderMask(
+                          shaderCallback: (r) => const LinearGradient(colors: [
+                            Colors.white,
+                            Color(0xFFF8E3A8),
+                          ]).createShader(r),
+                          child: const Text('التحكم الإداري',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text('مركز التحكم الكامل في المنصة',
+                            style: TextStyle(
+                                color: Colors.white70, fontSize: 13.5)),
+                        const SizedBox(height: 10),
+                        Wrap(spacing: 8, runSpacing: 8, children: [
+                          _chip(Icons.lock_open_rounded, tr('الجلسة مفتوحة'),
+                              const Color(0xFF7CE0B5)),
+                          _chip(
+                              Icons.timer_outlined,
+                              '${tr('تُقفل بعد')} $minutesLeft ${tr('دقيقة')}',
+                              const Color(0xFFF8E3A8)),
+                          _chip(
+                              Icons.grid_view_rounded,
+                              '$sections ${tr('قسم')}',
+                              const Color(0xFFB9C6FF)),
+                        ]),
+                      ]),
+                ]),
+                Wrap(spacing: 10, runSpacing: 10, children: [
+                  if (isSuper)
+                    _btn(Icons.admin_panel_settings_outlined,
+                        tr('الصلاحيات وكلمات المرور'), onAccess,
+                        gold: true),
+                  _btn(Icons.lock_outline, tr('قفل القسم'), onLock),
+                ]),
+              ],
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _GroupHeader extends StatelessWidget {
+  const _GroupHeader(
+      {required this.title, required this.icon, required this.count});
+  final String title;
+  final IconData icon;
+  final int count;
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(11),
+              gradient: const LinearGradient(colors: _gold)),
+          child: Icon(icon, size: 19, color: const Color(0xFF3A2606)),
+        ),
+        const SizedBox(width: 10),
+        Text(title,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w700)),
+        const SizedBox(width: 8),
+        Text('$count',
+            style: const TextStyle(color: Color(0xFFE7C077), fontSize: 13)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [
+                const Color(0xFFE7C077).withValues(alpha: .6),
+                const Color(0xFFE7C077).withValues(alpha: 0),
+              ]))),
+        ),
+      ]);
+}
+
+class _HubTile extends StatefulWidget {
   const _HubTile({required this.section, required this.onTap});
   final HubSection section;
   final VoidCallback onTap;
   @override
+  State<_HubTile> createState() => _HubTileState();
+}
+
+class _HubTileState extends State<_HubTile> {
+  bool hover = false;
+  @override
   Widget build(BuildContext context) {
+    final section = widget.section;
     final st = section.stops;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: Ink(
-          height: 148,
+    return MouseRegion(
+      onEnter: (_) => setState(() => hover = true),
+      onExit: (_) => setState(() => hover = false),
+      child: AnimatedScale(
+        scale: hover ? 1.03 : 1,
+        duration: const Duration(milliseconds: 180),
+        child: Container(
+          // Luminous gradient border.
+          padding: const EdgeInsets.all(1.3),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(24),
             gradient: LinearGradient(
                 begin: AlignmentDirectional.topStart,
                 end: AlignmentDirectional.bottomEnd,
-                colors: st),
-            border: Border.all(color: section.accent.withValues(alpha: .45)),
+                colors: [
+                  section.accent.withValues(alpha: .9),
+                  st.last.withValues(alpha: .25),
+                  section.accent.withValues(alpha: .5),
+                ]),
             boxShadow: [
               BoxShadow(
-                  color: st[1].withValues(alpha: .32),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8))
+                  color: st[1].withValues(alpha: hover ? .55 : .35),
+                  blurRadius: hover ? 28 : 18,
+                  offset: const Offset(0, 10)),
             ],
           ),
-          child: Stack(children: [
-            PositionedDirectional(
-                end: -34,
-                top: -34,
-                child: Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(colors: [
-                          Colors.white.withValues(alpha: .24),
-                          Colors.white.withValues(alpha: 0)
-                        ])))),
-            PositionedDirectional(
-                start: -26,
-                bottom: -40,
-                child: Container(
-                    width: 96,
-                    height: 96,
-                    decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: .07)))),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        color: Colors.white.withValues(alpha: .16),
-                        border: Border.all(
-                            color: section.accent.withValues(alpha: .7)),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onTap,
+              borderRadius: BorderRadius.circular(23),
+              child: Ink(
+                height: 156,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(23),
+                  gradient: LinearGradient(
+                      begin: AlignmentDirectional.topStart,
+                      end: AlignmentDirectional.bottomEnd,
+                      colors: st),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(23),
+                  child: Stack(children: [
+                    // Diagonal sheen.
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              stops: const [
+                                0,
+                                .45,
+                                .46,
+                                1
+                              ],
+                              colors: [
+                                Colors.white.withValues(alpha: .16),
+                                Colors.white.withValues(alpha: .02),
+                                Colors.white.withValues(alpha: 0),
+                                Colors.black.withValues(alpha: .12),
+                              ]),
+                        ),
                       ),
-                      child:
-                          Icon(section.icon, color: section.accent, size: 24),
                     ),
-                    const Spacer(),
-                    Text(section.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 2),
-                    Text(section.line,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 12)),
+                    PositionedDirectional(
+                        end: -40,
+                        top: -40,
+                        child: _Glow(section.accent, 150, .32)),
+                    // Large faint icon as a watermark.
+                    PositionedDirectional(
+                      end: -14,
+                      bottom: -18,
+                      child: Icon(section.icon,
+                          size: 110,
+                          color: Colors.white.withValues(alpha: .07)),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: LinearGradient(colors: [
+                                    Colors.white.withValues(alpha: .28),
+                                    Colors.white.withValues(alpha: .08),
+                                  ]),
+                                  border: Border.all(
+                                      color:
+                                          section.accent.withValues(alpha: .85),
+                                      width: 1.3),
+                                ),
+                                child: Icon(section.icon,
+                                    color: section.accent, size: 24),
+                              ),
+                              const Spacer(),
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white
+                                        .withValues(alpha: hover ? .26 : .12)),
+                                child: const Icon(Icons.arrow_back_ios_new,
+                                    size: 14, color: Colors.white),
+                              ),
+                            ]),
+                            const Spacer(),
+                            Text(section.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16.5,
+                                    fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 3),
+                            Text(section.line,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    color: Colors.white.withValues(alpha: .78),
+                                    fontSize: 12)),
+                          ]),
+                    ),
                   ]),
+                ),
+              ),
             ),
-          ]),
+          ),
         ),
       ),
     );
@@ -361,29 +752,62 @@ class _SectionBar extends StatelessWidget {
   final VoidCallback onBack;
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
+        padding: const EdgeInsets.fromLTRB(10, 10, 16, 10),
         decoration: BoxDecoration(
-            gradient: LinearGradient(
-                begin: AlignmentDirectional.centerStart,
-                end: AlignmentDirectional.centerEnd,
-                colors: section.stops)),
+          gradient: LinearGradient(
+              begin: AlignmentDirectional.centerStart,
+              end: AlignmentDirectional.centerEnd,
+              colors: section.stops),
+          border: Border(
+              bottom: BorderSide(
+                  color: section.accent.withValues(alpha: .6), width: 1.2)),
+          boxShadow: [
+            BoxShadow(
+                color: section.stops.first.withValues(alpha: .4),
+                blurRadius: 14,
+                offset: const Offset(0, 4))
+          ],
+        ),
         child: Row(children: [
-          TextButton.icon(
-            style: TextButton.styleFrom(foregroundColor: Colors.white),
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('التحكم الإداري'),
+          Material(
+            color: Colors.white.withValues(alpha: .14),
+            shape: StadiumBorder(
+                side: BorderSide(color: Colors.white.withValues(alpha: .3))),
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: onBack,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.grid_view_rounded, size: 18, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('التحكم الإداري',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w700)),
+                ]),
+              ),
+            ),
           ),
-          const Icon(Icons.chevron_left, color: Colors.white54),
-          Icon(section.icon, color: section.accent, size: 20),
           const SizedBox(width: 6),
+          const Icon(Icons.chevron_left, color: Colors.white54),
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: .14),
+                border:
+                    Border.all(color: section.accent.withValues(alpha: .7))),
+            child: Icon(section.icon, color: section.accent, size: 18),
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(section.title,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700)),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800)),
           ),
         ]),
       );

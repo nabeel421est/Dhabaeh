@@ -21,7 +21,8 @@ jobs:
           cache: true
       - uses: actions/configure-pages@v5
       - run: flutter pub get
-      - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/" --no-web-resources-cdn
+      # With a custom domain (repo variable PAGES_DOMAIN, set from التحكم الإداري → الدومين) the app is served at the root.
+      - run: flutter build web --release --base-href "${{ vars.PAGES_DOMAIN != '' && '/' || format('/{0}/', github.event.repository.name) }}" --no-web-resources-cdn
       - run: cp build/web/index.html build/web/404.html
       - uses: actions/upload-pages-artifact@v3
         with:

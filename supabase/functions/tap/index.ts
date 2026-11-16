@@ -79,7 +79,11 @@ Deno.serve(async (req) => {
       const { data: u } = await admin.auth.getUser(token);
       if (!u?.user) return json({ error: "سجّل دخولك أولاً" }, 401);
       const ret = String(b.return_url ?? "");
-      if (!ALLOWED_RETURN.some((r) => r.test(ret))) return json({ error: "رابط الرجوع غير مسموح" }, 400);
+      const { data: st } = await admin.from("platform_settings").select("custom_domain").eq("id", 1).maybeSingle();
+      const own = st?.custom_domain ? [`https://${st.custom_domain}/`, `https://www.${st.custom_domain}/`] : [];
+      if (!ALLOWED_RETURN.some((r) => r.test(ret)) && !own.some((o) => ret.startsWith(o))) {
+        return json({ error: "رابط الرجوع غير مسموح" }, 400);
+      }
       const { data: o } = await admin.from("orders")
         .select("id, code, total, customer_id, customer_name, customer_phone, payment_status, payment_method_code, status")
         .eq("id", b.order_id).maybeSingle();
