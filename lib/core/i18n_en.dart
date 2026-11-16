@@ -1738,4 +1738,11 @@ const Map<String, String> enStrings = {
   "متوقفة للعملاء": "Hidden from customers",
   "هذا الشهر": "This month",
   "دخل المنصة": "Platform income",
+  "الأسبوع": "Week",
+  "الشهر": "Month",
+  "تاريخ محدد": "Custom date",
+  "اختر الفترة من - إلى": "Pick the period from - to",
+  "تطبيق": "Apply",
+  "المحصّل في الفترة": "Collected in period",
+  "لا توجد حركات في هذه الفترة": "No transactions in this period",
 };

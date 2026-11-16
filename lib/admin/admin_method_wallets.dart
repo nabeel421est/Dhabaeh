@@ -336,112 +336,345 @@ Future<void> _openWallet(BuildContext context, Map m, List<Color> t) =>
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640, maxHeight: 760),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 18, 10, 18),
-              decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                      begin: AlignmentDirectional.topStart,
-                      end: AlignmentDirectional.bottomEnd,
-                      colors: t)),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      Icon(payIcon(m['icon']),
-                          color: const Color(0xFFF4D58A), size: 28),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text('${tr('محفظة')} ${m['name']}',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800)),
-                      ),
-                      IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.close, color: Colors.white)),
-                    ]),
-                    const SizedBox(height: 12),
-                    Wrap(spacing: 10, runSpacing: 10, children: [
-                      for (final s in [
-                        (tr('الرصيد المحصّل'), bhd(m['paid_total'])),
-                        (tr('اليوم'), bhd(m['today_total'])),
-                        (tr('هذا الشهر'), bhd(m['month_total'])),
-                        (tr('بانتظار الدفع'), bhd(m['pending_total'])),
-                        (tr('بانتظار مراجعة الإيصال'), bhd(m['review_total'])),
-                        (tr('عدد الطلبات'), '${m['orders_count']}'),
-                      ])
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              color: Colors.white.withValues(alpha: .14),
-                              border: Border.all(
-                                  color: Colors.white.withValues(alpha: .3))),
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(s.$1,
-                                    style: TextStyle(
-                                        color:
-                                            Colors.white.withValues(alpha: .75),
-                                        fontSize: 11.5)),
-                                Text(s.$2,
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w800)),
-                              ]),
+          constraints: const BoxConstraints(maxWidth: 640, maxHeight: 800),
+          child: _WalletSheet(m, t),
+        ),
+      ),
+    );
+
+enum _Range { all, today, yesterday, week, month, custom }
+
+class _WalletSheet extends StatefulWidget {
+  const _WalletSheet(this.m, this.t);
+  final Map m;
+  final List<Color> t;
+  @override
+  State<_WalletSheet> createState() => _WalletSheetState();
+}
+
+class _WalletSheetState extends State<_WalletSheet> {
+  _Range range = _Range.all;
+  DateTimeRange? custom;
+  late Future<List<Map<String, dynamic>>> rows = _load();
+
+  (DateTime?, DateTime?) get _bounds {
+    final now = DateTime.now();
+    final d0 = DateTime(now.year, now.month, now.day);
+    return switch (range) {
+      _Range.all => (null, null),
+      _Range.today => (d0, d0.add(const Duration(days: 1))),
+      _Range.yesterday => (d0.subtract(const Duration(days: 1)), d0),
+      _Range.week => (
+          d0.subtract(const Duration(days: 6)),
+          d0.add(const Duration(days: 1))
+        ),
+      _Range.month => (
+          DateTime(now.year, now.month),
+          d0.add(const Duration(days: 1))
+        ),
+      _Range.custom => custom == null
+          ? (null, null)
+          : (
+              custom!.start,
+              DateTime(custom!.end.year, custom!.end.month, custom!.end.day)
+                  .add(const Duration(days: 1))
+            ),
+    };
+  }
+
+  Future<List<Map<String, dynamic>>> _load() async {
+    final (f, to) = _bounds;
+    final r = await sb.rpc('admin_method_wallet_txns', params: {
+      'p_code': widget.m['code'],
+      'p_from': f?.toUtc().toIso8601String(),
+      'p_to': to?.toUtc().toIso8601String(),
+    });
+    return [for (final x in r as List) Map<String, dynamic>.from(x)];
+  }
+
+  Future<void> _pick(_Range r) async {
+    if (r == _Range.custom) {
+      final now = DateTime.now();
+      final picked = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2025),
+        lastDate: DateTime(now.year, now.month, now.day),
+        initialDateRange: custom,
+        helpText: tr('اختر الفترة من - إلى'),
+        saveText: tr('تطبيق'),
+        builder: (c, child) => Theme(
+          data: Theme.of(c).copyWith(
+              colorScheme: Theme.of(c).colorScheme.copyWith(
+                  primary: widget.t.last,
+                  secondaryContainer: widget.t.first.withValues(alpha: .18))),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: ConstrainedBox(
+                constraints:
+                    const BoxConstraints(maxWidth: 440, maxHeight: 640),
+                child: Container(
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    border:
+                        Border.all(color: const Color(0xFFF4D58A), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                          color: widget.t.last.withValues(alpha: .35),
+                          blurRadius: 30,
+                          offset: const Offset(0, 10))
+                    ],
+                  ),
+                  child: child!,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      if (picked == null) return;
+      custom = picked;
+    }
+    setState(() {
+      range = r;
+      rows = _load();
+    });
+  }
+
+  String _d(DateTime d) => '${d.day}/${d.month}/${d.year}';
+
+  @override
+  Widget build(BuildContext context) {
+    final m = widget.m, t = widget.t;
+    final labels = {
+      _Range.all: tr('الكل'),
+      _Range.today: tr('اليوم'),
+      _Range.yesterday: tr('أمس'),
+      _Range.week: tr('الأسبوع'),
+      _Range.month: tr('الشهر'),
+      _Range.custom: range == _Range.custom && custom != null
+          ? '${_d(custom!.start)} ← ${_d(custom!.end)}'
+          : tr('تاريخ محدد'),
+    };
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: rows,
+      builder: (context, snap) {
+        final list = snap.data ?? const [];
+        final live = list.where((r) => r['status'] != 'cancelled');
+        num sum(bool Function(Map r) f) =>
+            live.where(f).fold<num>(0, (a, r) => a + toNum(r['total']));
+        final paid = sum((r) => r['payment_status'] == 'paid');
+        final pending = sum((r) => r['payment_status'] == 'pending');
+        final review = sum((r) => r['payment_status'] == 'awaiting_review');
+        final filtered = range != _Range.all;
+        return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 18, 10, 16),
+                decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                        begin: AlignmentDirectional.topStart,
+                        end: AlignmentDirectional.bottomEnd,
+                        colors: t)),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Icon(payIcon(m['icon']),
+                            color: const Color(0xFFF4D58A), size: 28),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text('${tr('محفظة')} ${m['name']}',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800)),
                         ),
+                        IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close, color: Colors.white)),
+                      ]),
+                      const SizedBox(height: 12),
+                      Wrap(spacing: 10, runSpacing: 10, children: [
+                        for (final s in [
+                          (tr('الرصيد المحصّل'), bhd(m['paid_total']), true),
+                          (
+                            filtered
+                                ? tr('المحصّل في الفترة')
+                                : tr('هذا الشهر'),
+                            filtered ? bhd(paid) : bhd(m['month_total']),
+                            filtered
+                          ),
+                          (
+                            tr('بانتظار الدفع'),
+                            filtered ? bhd(pending) : bhd(m['pending_total']),
+                            false
+                          ),
+                          (
+                            tr('بانتظار مراجعة الإيصال'),
+                            filtered ? bhd(review) : bhd(m['review_total']),
+                            false
+                          ),
+                          (
+                            tr('عدد الطلبات'),
+                            filtered
+                                ? '${live.length}'
+                                : '${m['orders_count']}',
+                            false
+                          ),
+                        ])
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                color: Colors.white
+                                    .withValues(alpha: s.$3 ? .22 : .14),
+                                border: Border.all(
+                                    color: s.$3
+                                        ? const Color(0xFFF4D58A)
+                                        : Colors.white.withValues(alpha: .3))),
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(s.$1,
+                                      style: TextStyle(
+                                          color: Colors.white
+                                              .withValues(alpha: .75),
+                                          fontSize: 11.5)),
+                                  Text(s.$2,
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800)),
+                                ]),
+                          ),
+                      ]),
                     ]),
-                  ]),
-            ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 6),
-              child: Text('حركات المحفظة',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-            ),
-            Flexible(
-              child: FutureBuilder(
-                future: sb.rpc('admin_method_wallet_orders',
-                    params: {'p_code': m['code']}),
-                builder: (context, snap) {
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+                child: Row(children: [
+                  const Expanded(
+                    child: Text('حركات المحفظة',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800, fontSize: 16)),
+                  ),
+                  Icon(Icons.filter_alt_outlined, size: 18, color: t.last),
+                ]),
+              ),
+              SizedBox(
+                height: 50,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  children: [
+                    for (final r in _Range.values)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(end: 8),
+                        child: _FilterPill(
+                          text: labels[r]!,
+                          icon: r == _Range.custom ? Icons.date_range : null,
+                          selected: range == r,
+                          tone: t,
+                          onTap: () => _pick(r),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: Builder(builder: (context) {
                   if (snap.hasError) {
                     return Padding(
                         padding: const EdgeInsets.all(20),
                         child: Text(errText(snap.error!)));
                   }
-                  if (!snap.hasData) {
+                  if (snap.connectionState != ConnectionState.done) {
                     return const Padding(
                         padding: EdgeInsets.all(30),
                         child: Center(child: CircularProgressIndicator()));
                   }
-                  final rows = [
-                    for (final x in snap.data as List)
-                      Map<String, dynamic>.from(x)
-                  ];
-                  if (rows.isEmpty) {
-                    return const Empty('لا توجد حركات في هذه المحفظة بعد',
+                  if (list.isEmpty) {
+                    return Empty(
+                        filtered
+                            ? 'لا توجد حركات في هذه الفترة'
+                            : 'لا توجد حركات في هذه المحفظة بعد',
                         icon: Icons.account_balance_wallet_outlined);
                   }
                   return ListView.separated(
                     shrinkWrap: true,
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
-                    itemCount: rows.length,
+                    itemCount: list.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) => _TxnRow(rows[i], t),
+                    itemBuilder: (_, i) => _TxnRow(list[i], t),
                   );
-                },
+                }),
               ),
-            ),
+            ]);
+      },
+    );
+  }
+}
+
+class _FilterPill extends StatelessWidget {
+  const _FilterPill(
+      {required this.text,
+      required this.selected,
+      required this.tone,
+      required this.onTap,
+      this.icon});
+  final String text;
+  final bool selected;
+  final List<Color> tone;
+  final VoidCallback onTap;
+  final IconData? icon;
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(30),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            gradient: selected ? LinearGradient(colors: tone) : null,
+            color: selected ? null : tone.last.withValues(alpha: .07),
+            border: Border.all(
+                color: selected
+                    ? const Color(0xFFF4D58A)
+                    : tone.last.withValues(alpha: .25)),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                        color: tone.last.withValues(alpha: .35),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4))
+                  ]
+                : null,
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (icon != null) ...[
+              Icon(icon, size: 16, color: selected ? Colors.white : tone.last),
+              const SizedBox(width: 6),
+            ],
+            Text(text,
+                style: TextStyle(
+                    color: selected ? Colors.white : tone.last,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13)),
           ]),
         ),
       ),
     );
+  }
+}
 
 class _TxnRow extends StatelessWidget {
   const _TxnRow(this.r, this.t);
