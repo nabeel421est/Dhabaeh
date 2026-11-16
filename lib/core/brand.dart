@@ -10,7 +10,11 @@ class Brand {
       required this.icon,
       required this.stops,
       required this.accent,
-      required this.surface});
+      required this.surface,
+      this.lux = false});
+
+  /// The deluxe look (deep layered gradients, gold rims and glows), used by the customer app.
+  final bool lux;
   final String name;
   final String tagline;
   final IconData icon;
@@ -24,6 +28,30 @@ class Brand {
       begin: AlignmentDirectional.topStart,
       end: AlignmentDirectional.bottomEnd,
       colors: stops);
+
+  /// Four-stop velvet gradient with a darker floor, for the deluxe look.
+  LinearGradient get deep => LinearGradient(
+          begin: AlignmentDirectional.topStart,
+          end: AlignmentDirectional.bottomEnd,
+          stops: const [
+            0,
+            .38,
+            .78,
+            1
+          ],
+          colors: [
+            Color.lerp(stops[0], Colors.black, .25)!,
+            stops[1],
+            stops[2],
+            Color.lerp(stops[2], accent, .35)!,
+          ]);
+
+  /// Metallic gold used for rims, rules and badges.
+  List<Color> get gold => [
+        Color.lerp(accent, Colors.white, .55)!,
+        accent,
+        Color.lerp(accent, const Color(0xFF6B4410), .45)!,
+      ];
   LinearGradient get soft => LinearGradient(
         begin: AlignmentDirectional.topStart,
         end: AlignmentDirectional.bottomEnd,
@@ -50,6 +78,7 @@ const brands = <String, Brand>{
     stops: [Color(0xFF2E0715), Color(0xFF6E1435), Color(0xFFB03C62)],
     accent: Color(0xFFE7C077),
     surface: Color(0xFFFBF7F1),
+    lux: true,
   ),
   'merchant_owner': Brand(
     name: 'تاجر ذبائح',
@@ -232,8 +261,18 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
         ]),
       ),
       flexibleSpace: DecoratedBox(
-          decoration: BoxDecoration(gradient: b.gradient),
-          child: const SizedBox.expand()),
+          decoration: BoxDecoration(gradient: b.lux ? b.deep : b.gradient),
+          child: b.lux
+              ? Stack(children: [
+                  PositionedDirectional(
+                      end: -40, top: -70, child: _Light(b.accent, 200, .22)),
+                  PositionedDirectional(
+                      start: 60,
+                      bottom: -90,
+                      child: _Light(b.stops[2], 180, .30)),
+                  const SizedBox.expand(),
+                ])
+              : const SizedBox.expand()),
     );
   }
 }
@@ -251,6 +290,7 @@ class GradientCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final b = brandOf(context);
+    if (b.lux) return _luxCard(b);
     return Container(
       decoration: BoxDecoration(
         gradient: b.gradient,
@@ -319,6 +359,144 @@ class GradientCard extends StatelessWidget {
           ]),
         ),
       ),
+    );
+  }
+}
+
+extension on GradientCard {
+  // Deluxe card: velvet gradient inside a gold gradient rim, soft gold and
+  // rose lights, a gold hairline along the top and a deep shadow.
+  Widget _luxCard(Brand b) => Container(
+        padding: const EdgeInsets.all(1.3),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(26),
+          gradient: LinearGradient(
+              begin: AlignmentDirectional.topStart,
+              end: AlignmentDirectional.bottomEnd,
+              colors: [
+                b.gold[0],
+                b.accent.withValues(alpha: .25),
+                b.gold[1].withValues(alpha: .7),
+              ]),
+          boxShadow: [
+            BoxShadow(
+                color: b.dark.withValues(alpha: .38),
+                blurRadius: 26,
+                offset: const Offset(0, 12)),
+            BoxShadow(
+                color: b.accent.withValues(alpha: .12),
+                blurRadius: 30,
+                spreadRadius: -6),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(25),
+          child: DecoratedBox(
+            decoration: BoxDecoration(gradient: b.deep),
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: onTap,
+                child: Stack(children: [
+                  PositionedDirectional(
+                      end: -70, top: -90, child: _Light(b.accent, 260, .26)),
+                  PositionedDirectional(
+                      start: -60,
+                      bottom: -110,
+                      child: _Light(b.stops[2], 260, .45)),
+                  Positioned(
+                    top: 0,
+                    left: 30,
+                    right: 30,
+                    child: Container(
+                        height: 1.2,
+                        decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [
+                          b.accent.withValues(alpha: 0),
+                          b.gold[0],
+                          b.accent.withValues(alpha: 0),
+                        ]))),
+                  ),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            stops: const [0, .35, .5, 1],
+                            colors: [
+                              Colors.white.withValues(alpha: .09),
+                              Colors.white.withValues(alpha: 0),
+                              Colors.white.withValues(alpha: 0),
+                              Colors.black.withValues(alpha: .12),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                      padding: padding,
+                      child: DefaultTextStyle.merge(
+                          style: const TextStyle(color: Colors.white),
+                          child: IconTheme.merge(
+                              data: const IconThemeData(color: Colors.white),
+                              child: child))),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+/// A soft radial pool of light.
+class _Light extends StatelessWidget {
+  const _Light(this.color, this.size, this.alpha);
+  final Color color;
+  final double size, alpha;
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(colors: [
+                color.withValues(alpha: alpha),
+                color.withValues(alpha: 0)
+              ])),
+        ),
+      );
+}
+
+/// Warm ivory backdrop with faint wine and gold lights, behind deluxe pages.
+class LuxBackdrop extends StatelessWidget {
+  const LuxBackdrop({super.key, required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) {
+    final b = brandOf(context);
+    if (!b.lux) return child;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              b.surface,
+              Color.lerp(b.surface, b.accent, .10)!,
+              Color.lerp(b.surface, b.stops[2], .06)!,
+            ]),
+      ),
+      child: Stack(children: [
+        PositionedDirectional(
+            top: 120, end: -140, child: _Light(b.accent, 360, .16)),
+        PositionedDirectional(
+            bottom: 40, start: -160, child: _Light(b.stops[2], 380, .10)),
+        Positioned.fill(child: child),
+      ]),
     );
   }
 }
@@ -400,11 +578,24 @@ class PageHero extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .14),
+                  color: b.lux ? null : Colors.white.withValues(alpha: .14),
+                  gradient: b.lux
+                      ? LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: b.gold)
+                      : null,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: b.accent.withValues(alpha: .7)),
+                  boxShadow: b.lux
+                      ? [
+                          BoxShadow(
+                              color: b.accent.withValues(alpha: .4),
+                              blurRadius: 16)
+                        ]
+                      : null,
                 ),
-                child: Icon(icon, color: b.accent, size: 26),
+                child: Icon(icon, color: b.lux ? b.dark : b.accent, size: 26),
               ),
             const SizedBox(width: 14),
             ConstrainedBox(
@@ -413,9 +604,30 @@ class PageHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(title,
-                        style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.w700)),
+                    if (b.lux)
+                      ShaderMask(
+                        shaderCallback: (r) => LinearGradient(
+                                colors: [Colors.white, b.gold[0], b.accent])
+                            .createShader(r),
+                        child: Text(title,
+                            style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white)),
+                      )
+                    else
+                      Text(title,
+                          style: const TextStyle(
+                              fontSize: 22, fontWeight: FontWeight.w700)),
+                    if (b.lux)
+                      Container(
+                        margin: const EdgeInsets.symmetric(vertical: 5),
+                        width: 54,
+                        height: 2,
+                        decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(2),
+                            gradient: LinearGradient(colors: b.gold)),
+                      ),
                     Text(subtitle,
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 13)),
@@ -432,10 +644,21 @@ class PageHero extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .14),
-                      borderRadius: BorderRadius.circular(14),
+                      color: b.lux ? null : Colors.white.withValues(alpha: .14),
+                      gradient: b.lux
+                          ? LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                  Colors.white.withValues(alpha: .16),
+                                  Colors.white.withValues(alpha: .04),
+                                ])
+                          : null,
+                      borderRadius: BorderRadius.circular(b.lux ? 16 : 14),
                       border: Border.all(
-                          color: Colors.white.withValues(alpha: .22)),
+                          color: b.lux
+                              ? b.accent.withValues(alpha: .45)
+                              : Colors.white.withValues(alpha: .22)),
                     ),
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -557,49 +780,78 @@ class GradientHeaderCard extends StatelessWidget {
   final Widget child;
   final Widget? trailing;
   @override
-  Widget build(BuildContext context) => Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-            decoration: BoxDecoration(
-                gradient: LinearGradient(
-                    begin: AlignmentDirectional.topStart,
-                    end: AlignmentDirectional.bottomEnd,
-                    colors: colors)),
-            child: Row(children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .2),
-                    borderRadius: BorderRadius.circular(11)),
-                child: Icon(icon, color: Colors.white, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title,
+  Widget build(BuildContext context) {
+    final b = brandOf(context);
+    final card = Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      shape: b.lux
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+              side: BorderSide(color: b.accent.withValues(alpha: .35)))
+          : null,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  begin: AlignmentDirectional.topStart,
+                  end: AlignmentDirectional.bottomEnd,
+                  colors: colors)),
+          child: Row(children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .2),
+                  borderRadius: BorderRadius.circular(11)),
+              child: Icon(icon, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700)),
+                    if (subtitle != null)
+                      Text(subtitle!,
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700)),
-                      if (subtitle != null)
-                        Text(subtitle!,
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 12)),
-                    ]),
-              ),
-              if (trailing != null) trailing!,
-            ]),
-          ),
-          Padding(padding: const EdgeInsets.all(16), child: child),
-        ]),
-      );
+                              color: Colors.white70, fontSize: 12)),
+                  ]),
+            ),
+            if (trailing != null) trailing!,
+          ]),
+        ),
+        if (b.lux)
+          Container(
+              height: 2,
+              decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [
+                b.accent.withValues(alpha: .1),
+                b.gold[0],
+                b.accent.withValues(alpha: .1),
+              ]))),
+        Padding(padding: const EdgeInsets.all(16), child: child),
+      ]),
+    );
+    if (!b.lux) return card;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+              color: b.dark.withValues(alpha: .10),
+              blurRadius: 22,
+              offset: const Offset(0, 10)),
+        ],
+      ),
+      child: card,
+    );
+  }
 }
 
 /// Named gradient pairs for pages that colour-code their sections.
@@ -668,62 +920,75 @@ class TonePill extends StatelessWidget {
   final int count;
   final IconData? icon;
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsetsDirectional.only(end: 8),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(999),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              gradient: selected ? LinearGradient(colors: colors) : null,
-              color: selected ? null : Colors.white,
-              border: Border.all(
-                  color: selected
-                      ? Colors.transparent
-                      : colors.first.withValues(alpha: .3)),
-              boxShadow: selected
-                  ? [
-                      BoxShadow(
-                          color: colors.first.withValues(alpha: .28),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4))
-                    ]
-                  : null,
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (icon != null) ...[
-                Icon(icon,
-                    size: 16, color: selected ? Colors.white : colors.first),
-                const SizedBox(width: 6),
-              ],
-              Text(label,
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: selected ? Colors.white : colors.first)),
-              if (count >= 0) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-                  decoration: BoxDecoration(
-                      color: selected
-                          ? Colors.white.withValues(alpha: .25)
-                          : colors.first.withValues(alpha: .1),
-                      borderRadius: BorderRadius.circular(999)),
-                  child: Text('$count',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: selected ? Colors.white : colors.first)),
-                ),
-              ],
-            ]),
+  Widget build(BuildContext context) {
+    final lux = brandOf(context).lux;
+    final gold = brandOf(context).accent;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: selected
+                ? LinearGradient(
+                    colors: lux
+                        ? [
+                            Color.lerp(colors.first, Colors.black, .3)!,
+                            ...colors
+                          ]
+                        : colors)
+                : null,
+            color: selected ? null : Colors.white,
+            border: Border.all(
+                color: selected
+                    ? (lux ? gold : Colors.transparent)
+                    : (lux
+                        ? gold.withValues(alpha: .45)
+                        : colors.first.withValues(alpha: .3))),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                        color: colors.first.withValues(alpha: .28),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4))
+                  ]
+                : null,
           ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (icon != null) ...[
+              Icon(icon,
+                  size: 16, color: selected ? Colors.white : colors.first),
+              const SizedBox(width: 6),
+            ],
+            Text(label,
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: selected ? Colors.white : colors.first)),
+            if (count >= 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+                decoration: BoxDecoration(
+                    color: selected
+                        ? Colors.white.withValues(alpha: .25)
+                        : colors.first.withValues(alpha: .1),
+                    borderRadius: BorderRadius.circular(999)),
+                child: Text('$count',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: selected ? Colors.white : colors.first)),
+              ),
+            ],
+          ]),
         ),
-      );
+      ),
+    );
+  }
 }
 
 /// Two-colour gradient derived from a single tone.

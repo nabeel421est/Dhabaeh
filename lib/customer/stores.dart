@@ -125,11 +125,30 @@ class _StoresPageState extends State<StoresPage> {
             ],
           ),
           const SizedBox(height: 14),
-          TextField(
-            decoration: InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: tr('ابحث عن ملحمة أو صنف أو منطقة')),
-            onChanged: (v) => setState(() => search = v),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                    color: b.dark.withValues(alpha: .08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6))
+              ],
+            ),
+            child: TextField(
+              decoration: InputDecoration(
+                prefixIcon: Icon(Icons.search, color: b.primary),
+                hintText: tr('ابحث عن ملحمة أو صنف أو منطقة'),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide:
+                        BorderSide(color: b.accent.withValues(alpha: .45))),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: b.accent, width: 1.6)),
+              ),
+              onChanged: (v) => setState(() => search = v),
+            ),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -178,7 +197,7 @@ class _StoresPageState extends State<StoresPage> {
                   crossAxisCount: cols,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  mainAxisExtent: 236),
+                  mainAxisExtent: 246),
               itemCount: shownStores.length,
               itemBuilder: (context, i) {
                 final m = shownStores[i];
@@ -221,9 +240,28 @@ class _Title extends StatelessWidget {
       GradientBadge(colors: b.stops.sublist(1), icon: icon, size: 32),
       const SizedBox(width: 8),
       Text(text,
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-      const SizedBox(width: 6),
-      Text(count, style: const TextStyle(color: Colors.black45)),
+          style: TextStyle(
+              fontSize: 17, fontWeight: FontWeight.w800, color: b.dark)),
+      const SizedBox(width: 8),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
+        decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: LinearGradient(colors: b.gold)),
+        child: Text(count,
+            style: TextStyle(
+                color: b.dark, fontSize: 12, fontWeight: FontWeight.w800)),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Container(
+            height: 1,
+            decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [
+              b.accent.withValues(alpha: .7),
+              b.accent.withValues(alpha: 0),
+            ]))),
+      ),
     ]);
   }
 }
@@ -251,118 +289,159 @@ class _StoreCard extends StatelessWidget {
     final open = m['is_open'] == true;
     final cs =
         open ? colors : [Colors.blueGrey.shade500, Colors.blueGrey.shade300];
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: open ? onTap : null,
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Container(
-            height: 112,
-            decoration: BoxDecoration(
-                gradient: LinearGradient(
-                    begin: AlignmentDirectional.topStart,
-                    end: AlignmentDirectional.bottomEnd,
-                    // A cut-out logo shows on a soft tint of the store
-                    // colour so dark logos stay readable.
-                    colors: _cutLogo
-                        ? [
-                            Color.lerp(cs.first, Colors.white, .9)!,
-                            Color.lerp(cs.last, Colors.white, .8)!
-                          ]
-                        : cs)),
-            child: Stack(children: [
-              PositionedDirectional(
-                  end: -24,
-                  top: -24,
-                  child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: .1)))),
-              if (_hasLogo)
-                // The logo fills the card's picture area with no frame:
-                // a cut-out logo sits whole on the gradient, a normal
-                // picture covers the area edge to edge.
-                Positioned.fill(
-                  child: Padding(
-                    padding: _cutLogo
-                        ? const EdgeInsetsDirectional.fromSTEB(10, 38, 10, 8)
-                        : EdgeInsets.zero,
-                    child: Image.network(m['logo_url'],
-                        fit: _cutLogo ? BoxFit.contain : BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Center(
-                            child: Icon(Icons.storefront,
-                                size: 44, color: Colors.white))),
-                  ),
-                )
-              else
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: const BoxDecoration(
-                        color: Colors.white, shape: BoxShape.circle),
-                    child: ClipOval(child: StoreLogo(m['logo_url'], size: 58)),
-                  ),
-                ),
-              PositionedDirectional(
-                top: 8,
-                start: 8,
-                child: _pill(open ? 'مفتوح' : 'مغلق حالياً',
-                    Colors.black.withValues(alpha: .22), Colors.white),
-              ),
-              if (hasOffer)
-                PositionedDirectional(
-                  top: 8,
-                  end: 8,
-                  child: _pill('عروض', Colors.white, cs.first,
-                      icon: Icons.local_offer),
-                ),
-            ]),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${m['name']}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15.5)),
-                    Row(children: [
-                      Icon(Icons.place_outlined, size: 14, color: cs.first),
-                      const SizedBox(width: 3),
-                      Text('${m['area'] ?? ''}',
-                          style: TextStyle(fontSize: 12, color: cs.first)),
+    final b = brandOf(context);
+    return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: b.accent.withValues(alpha: .5)),
+          boxShadow: [
+            BoxShadow(
+                color: cs.first.withValues(alpha: .18),
+                blurRadius: 18,
+                offset: const Offset(0, 8)),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: open ? onTap : null,
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    height: 112,
+                    decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                            begin: AlignmentDirectional.topStart,
+                            end: AlignmentDirectional.bottomEnd,
+                            // A cut-out logo shows on a soft tint of the store
+                            // colour so dark logos stay readable.
+                            colors: _cutLogo
+                                ? [
+                                    Color.lerp(cs.first, Colors.white, .9)!,
+                                    Color.lerp(cs.last, Colors.white, .8)!
+                                  ]
+                                : cs)),
+                    child: Stack(children: [
+                      PositionedDirectional(
+                          end: -24,
+                          top: -24,
+                          child: Container(
+                              width: 100,
+                              height: 100,
+                              decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: .1)))),
+                      if (_hasLogo)
+                        // The logo fills the card's picture area with no frame:
+                        // a cut-out logo sits whole on the gradient, a normal
+                        // picture covers the area edge to edge.
+                        Positioned.fill(
+                          child: Padding(
+                            padding: _cutLogo
+                                ? const EdgeInsetsDirectional.fromSTEB(
+                                    10, 38, 10, 8)
+                                : EdgeInsets.zero,
+                            child: Image.network(m['logo_url'],
+                                fit: _cutLogo ? BoxFit.contain : BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Center(
+                                    child: Icon(Icons.storefront,
+                                        size: 44, color: Colors.white))),
+                          ),
+                        )
+                      else
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                                color: Colors.white, shape: BoxShape.circle),
+                            child: ClipOval(
+                                child: StoreLogo(m['logo_url'], size: 58)),
+                          ),
+                        ),
+                      PositionedDirectional(
+                        top: 8,
+                        start: 8,
+                        child: _pill(open ? 'مفتوح' : 'مغلق حالياً',
+                            Colors.black.withValues(alpha: .22), Colors.white),
+                      ),
+                      if (hasOffer)
+                        PositionedDirectional(
+                          top: 8,
+                          end: 8,
+                          child: _pill('عروض', Colors.white, cs.first,
+                              icon: Icons.local_offer),
+                        ),
                     ]),
-                    if ('${m['description'] ?? ''}'.isNotEmpty)
-                      Text('${m['description']}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.black54)),
-                    const Spacer(),
-                    Text('$count صنف',
-                        style: const TextStyle(
-                            fontSize: 12, color: Colors.black45)),
-                    if (from != null)
-                      Text('يبدأ من ${bhd(from)}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: cs.first)),
-                  ]),
-            ),
+                  ),
+                  Container(
+                      height: 2,
+                      decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [
+                        b.accent.withValues(alpha: .15),
+                        b.gold[0],
+                        b.accent.withValues(alpha: .15),
+                      ]))),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${m['name']}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15.5)),
+                            Row(children: [
+                              Icon(Icons.place_outlined,
+                                  size: 14, color: cs.first),
+                              const SizedBox(width: 3),
+                              Text('${m['area'] ?? ''}',
+                                  style:
+                                      TextStyle(fontSize: 12, color: cs.first)),
+                            ]),
+                            if ('${m['description'] ?? ''}'.isNotEmpty)
+                              Text('${m['description']}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.black54)),
+                            const Spacer(),
+                            Text('$count صنف',
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.black45)),
+                            if (from != null)
+                              Container(
+                                margin: const EdgeInsets.only(top: 3),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 3),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(999),
+                                  gradient: LinearGradient(colors: [
+                                    Color.lerp(cs.first, Colors.black, .2)!,
+                                    cs.last,
+                                  ]),
+                                  border: Border.all(
+                                      color: b.accent.withValues(alpha: .7)),
+                                ),
+                                child: Text('يبدأ من ${bhd(from)}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white)),
+                              ),
+                          ]),
+                    ),
+                  ),
+                ]),
           ),
-        ]),
-      ),
-    );
+        ));
   }
 
   Widget _pill(String t, Color bg, Color fg, {IconData? icon}) => Container(
@@ -450,9 +529,17 @@ class ProductTile extends StatelessWidget {
     final img = p['image_url'];
     final price = toNum(p['price']);
     final off = offerValue(offer, price);
+    final lb = brandOf(context);
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
+      elevation: lb.lux ? 6 : null,
+      shadowColor: lb.lux ? lb.dark.withValues(alpha: .25) : null,
+      shape: lb.lux
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+              side: BorderSide(color: lb.accent.withValues(alpha: .5)))
+          : null,
       child: InkWell(
         onTap: onTap,
         child:

@@ -72,26 +72,113 @@ class _CustomerShellState extends State<CustomerShell> {
           ...commonActions(context, widget.switcher),
         ],
       ),
-      body: Column(children: [
-        const PushBanner(),
-        Expanded(
-            child: IndexedStack(index: tab, children: const [
-          StoresPage(),
-          MyOrdersPage(),
-          NotificationsPage()
-        ])),
-      ]),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: tab,
-        onDestinationSelected: (i) => setState(() => tab = i),
-        destinations: [
-          NavigationDestination(
-              icon: Icon(Icons.storefront_outlined), label: tr('الملاحم')),
-          NavigationDestination(
-              icon: Icon(Icons.receipt_long_outlined), label: tr('طلباتي')),
-          NavigationDestination(
-              icon: Icon(Icons.notifications_outlined), label: tr('الإشعارات')),
+      body: LuxBackdrop(
+        child: Column(children: [
+          const PushBanner(),
+          Expanded(
+              child: IndexedStack(index: tab, children: const [
+            StoresPage(),
+            MyOrdersPage(),
+            NotificationsPage()
+          ])),
+        ]),
+      ),
+      bottomNavigationBar: _LuxNav(
+        index: tab,
+        onTap: (i) => setState(() => tab = i),
+        items: [
+          (Icons.storefront_outlined, Icons.storefront, tr('الملاحم')),
+          (Icons.receipt_long_outlined, Icons.receipt_long, tr('طلباتي')),
+          (Icons.notifications_outlined, Icons.notifications, tr('الإشعارات')),
         ],
+      ),
+    );
+  }
+}
+
+/// Velvet bottom bar with a gold rule and a glowing gold pill for the open tab.
+class _LuxNav extends StatelessWidget {
+  const _LuxNav(
+      {required this.index, required this.onTap, required this.items});
+  final int index;
+  final ValueChanged<int> onTap;
+  final List<(IconData, IconData, String)> items;
+  @override
+  Widget build(BuildContext context) {
+    final b = brandOf(context);
+    return Container(
+      decoration: BoxDecoration(
+        gradient: b.deep,
+        boxShadow: [
+          BoxShadow(
+              color: b.dark.withValues(alpha: .35),
+              blurRadius: 20,
+              offset: const Offset(0, -4))
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+              height: 1.4,
+              decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [
+                b.accent.withValues(alpha: 0),
+                b.gold[0],
+                b.accent.withValues(alpha: 0),
+              ]))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+            child: Row(children: [
+              for (final (i, it) in items.indexed)
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: () => onTap(i),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOut,
+                        width: i == index ? 64 : 44,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          gradient: i == index
+                              ? LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: b.gold)
+                              : null,
+                          boxShadow: i == index
+                              ? [
+                                  BoxShadow(
+                                      color: b.accent.withValues(alpha: .5),
+                                      blurRadius: 14)
+                                ]
+                              : null,
+                        ),
+                        child: Icon(i == index ? it.$2 : it.$1,
+                            size: 22,
+                            color: i == index
+                                ? b.dark
+                                : Colors.white.withValues(alpha: .72)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(it.$3,
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: i == index
+                                  ? FontWeight.w800
+                                  : FontWeight.w500,
+                              color: i == index
+                                  ? b.gold[0]
+                                  : Colors.white.withValues(alpha: .72))),
+                    ]),
+                  ),
+                ),
+            ]),
+          ),
+        ]),
       ),
     );
   }
