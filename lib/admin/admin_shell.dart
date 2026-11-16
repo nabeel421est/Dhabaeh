@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart' hide Text;
 
 import 'admin_payment_methods.dart';
-import 'admin_customer_watch.dart';
 import '../auth/gate.dart';
 import '../core/brand.dart';
 import '../core/i18n.dart';
@@ -36,7 +35,6 @@ class _AdminShellState extends State<AdminShell> {
     ('الرئيسية', Icons.dashboard_outlined, null),
     ('الطلبات', Icons.receipt_long_outlined, null),
     ('العملاء', Icons.people_outline, null),
-    ('مراقبة العملاء', Icons.radar, null),
     ('التجار', Icons.storefront_outlined, null),
     ('المنتجات', Icons.inventory_2_outlined, null),
     ('العروض', Icons.local_offer_outlined, null),
@@ -63,7 +61,6 @@ class _AdminShellState extends State<AdminShell> {
                 () => idx = sections.indexWhere((x) => x.$1 == label))),
         'الطلبات' => const AdminOrders(),
         'العملاء' => const AdminUsers(group: UserGroup.customers),
-        'مراقبة العملاء' => const AdminCustomerWatch(),
         'التجار' => const AdminMerchants(),
         'المنتجات' => const AdminProducts(),
         'العروض' => const AdminOffers(),
