@@ -1725,4 +1725,17 @@ const Map<String, String> enStrings = {
   "إرفاق إيصال التحويل (إجباري)": "Attach the transfer receipt (required)",
   "حوّل المبلغ من تطبيق بنفت، ثم أرفق صورة الإيصال. لن يُرسل الطلب بدون الإيصال.":
       "Pay from the Benefit app, then attach the receipt. The order can't be sent without it.",
+  "محافظ وسائل الدفع": "Payment method wallets",
+  "كل وسيلة دفع لها محفظة تجمع ما دفعه العملاء عن طريقها. أي وسيلة تضيفها من «وسائل الدفع» تظهر لها محفظة هنا تلقائياً.":
+      "Each payment method has a wallet that collects what customers paid with it. Any method you add in «Payment methods» gets its own wallet here automatically.",
+  "حركات المحفظة": "Wallet transactions",
+  "لا توجد حركات في هذه المحفظة بعد": "No transactions in this wallet yet",
+  "الرصيد المحصّل": "Collected balance",
+  "المجموع": "Total",
+  "بانتظار مراجعة الإيصال": "Receipt under review",
+  "عدد الطلبات": "Orders",
+  "عملية مدفوعة": "paid transactions",
+  "متوقفة للعملاء": "Hidden from customers",
+  "هذا الشهر": "This month",
+  "دخل المنصة": "Platform income",
 };

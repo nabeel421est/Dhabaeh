@@ -10,6 +10,7 @@ import '../customer/customer_shell.dart' show StoreLogo;
 import 'admin_plan_requests.dart';
 import '../core/ttext.dart';
 import 'admin_txn_control.dart';
+import 'admin_method_wallets.dart';
 import '../core/i18n.dart';
 
 /// Gradient pairs used to tell merchants apart in the reports, in rank order.
@@ -832,7 +833,15 @@ class PlatformWallet extends StatelessWidget {
             subtitle: 'كل ما تحصّله المنصة من العمولات والاشتراكات والتوصيل',
             stats: [('الرصيد', bhd(total)), ('الحركات', '${rows.length}')],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 22),
+          const MethodWallets(),
+          const SizedBox(height: 26),
+          Text('دخل المنصة',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: brandOf(context).dark)),
+          const SizedBox(height: 12),
           LayoutBuilder(builder: (context, c) {
             final cols = c.maxWidth >= 1000
                 ? 4
