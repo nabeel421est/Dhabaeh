@@ -6,6 +6,7 @@ import '../core/ttext.dart';
 import 'admin_activity.dart';
 import 'admin_backups.dart';
 import 'admin_domain.dart';
+import 'admin_customer_watch.dart';
 import 'admin_driver_money.dart';
 import 'admin_drivers.dart';
 import 'admin_merchants.dart';
@@ -26,6 +27,7 @@ class HubSection {
   String get group => switch (key) {
         'orders' ||
         'customers' ||
+        'watch' ||
         'merchants' ||
         'products' ||
         'offers' ||
@@ -68,6 +70,13 @@ const hubSections = <HubSection>[
       'حسابات العملاء وبياناتهم',
       Icons.people_outline,
       [Color(0xFF3E0820), Color(0xFF8E2442), Color(0xFFE07A86)]),
+  HubSection(
+      'watch',
+      'مراقبة العملاء',
+      'المتصلون الآن وتتبع تنقلاتهم',
+      Icons.radar,
+      [Color(0xFF022C22), Color(0xFF0B7A63), Color(0xFF3FD7A6)],
+      Color(0xFFF4C752)),
   HubSection(
       'merchants',
       'التجار',
@@ -203,6 +212,7 @@ Widget hubPage(String key, Widget ordersBoard) => switch (key) {
       'commissions' => const AdminCommissions(),
       'zones' => const AdminZones(),
       'domain' => const AdminDomain(),
+      'watch' => const AdminCustomerWatch(),
       'backups' => const AdminBackups(),
       _ => const AdminUsers(group: UserGroup.platform),
     };

@@ -111,6 +111,7 @@ const brands = <String, Brand>{
     stops: [Color(0xFF06375A), Color(0xFF0B7BC0), Color(0xFF4CC3F2)],
     accent: Color(0xFFF4C752),
     surface: Color(0xFFF1F7FB),
+    lux: true,
   ),
 };
 

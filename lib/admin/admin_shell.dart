@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide Text;
 
 import 'admin_payment_methods.dart';
+import 'admin_customer_watch.dart';
 import '../auth/gate.dart';
 import '../core/brand.dart';
 import '../core/i18n.dart';
@@ -35,6 +36,7 @@ class _AdminShellState extends State<AdminShell> {
     ('الرئيسية', Icons.dashboard_outlined, null),
     ('الطلبات', Icons.receipt_long_outlined, null),
     ('العملاء', Icons.people_outline, null),
+    ('مراقبة العملاء', Icons.radar, null),
     ('التجار', Icons.storefront_outlined, null),
     ('المنتجات', Icons.inventory_2_outlined, null),
     ('العروض', Icons.local_offer_outlined, null),
@@ -61,6 +63,7 @@ class _AdminShellState extends State<AdminShell> {
                 () => idx = sections.indexWhere((x) => x.$1 == label))),
         'الطلبات' => const AdminOrders(),
         'العملاء' => const AdminUsers(group: UserGroup.customers),
+        'مراقبة العملاء' => const AdminCustomerWatch(),
         'التجار' => const AdminMerchants(),
         'المنتجات' => const AdminProducts(),
         'العروض' => const AdminOffers(),
@@ -113,19 +116,11 @@ class _AdminShellState extends State<AdminShell> {
                     fontWeight: FontWeight.w600,
                     letterSpacing: .3)),
           ),
-        ListTile(
-          dense: true,
+        _SideItem(
+          icon: sections[i].$2,
+          label: sections[i].$1,
           selected: idx == i,
-          iconColor: Colors.white60,
-          textColor: Colors.white70,
-          selectedColor: Colors.white,
-          selectedTileColor: Colors.white.withValues(alpha: .12),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          leading: Icon(sections[i].$2, color: idx == i ? b.accent : null),
-          title: Text(sections[i].$1,
-              style: TextStyle(
-                  fontWeight: idx == i ? FontWeight.w700 : FontWeight.w500)),
+          tone: luxChips[i % luxChips.length],
           onTap: () {
             setState(() => idx = i);
             if (!wide) Navigator.pop(context);
@@ -173,7 +168,7 @@ class _AdminShellState extends State<AdminShell> {
                           child: nav)),
                 ),
               ),
-            Expanded(child: page(idx)),
+            Expanded(child: LuxBackdrop(child: page(idx))),
           ]),
         ));
   }
@@ -182,7 +177,102 @@ class _AdminShellState extends State<AdminShell> {
 LinearGradient sideGradient(Brand b) => LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [b.stops[0], b.stops[1]]);
+    colors: b.lux
+        ? [
+            Color.lerp(b.stops[0], Colors.black, .35)!,
+            b.stops[0],
+            Color.lerp(b.stops[1], b.stops[0], .35)!,
+          ]
+        : [b.stops[0], b.stops[1]]);
+
+/// Sidebar entry: a small gradient icon badge, and a glowing gold-edged pill when open.
+class _SideItem extends StatelessWidget {
+  const _SideItem(
+      {required this.icon,
+      required this.label,
+      required this.selected,
+      required this.tone,
+      required this.onTap});
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final List<Color> tone;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final b = brandOf(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: selected
+                ? LinearGradient(
+                    begin: AlignmentDirectional.centerStart,
+                    end: AlignmentDirectional.centerEnd,
+                    colors: [
+                        Colors.white.withValues(alpha: .20),
+                        Colors.white.withValues(alpha: .05),
+                      ])
+                : null,
+            border: Border.all(
+                color: selected
+                    ? b.accent.withValues(alpha: .7)
+                    : Colors.transparent),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                        color: b.accent.withValues(alpha: .18), blurRadius: 14)
+                  ]
+                : null,
+          ),
+          child: Row(children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(9),
+                gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: selected
+                        ? b.gold
+                        : [
+                            tone[0].withValues(alpha: .85),
+                            tone[1].withValues(alpha: .6)
+                          ]),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                            color: b.accent.withValues(alpha: .5),
+                            blurRadius: 10)
+                      ]
+                    : null,
+              ),
+              child:
+                  Icon(icon, size: 17, color: selected ? b.dark : Colors.white),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      color: selected ? Colors.white : Colors.white70,
+                      fontWeight:
+                          selected ? FontWeight.w800 : FontWeight.w500)),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
 
 class StatTile extends StatelessWidget {
   const StatTile(this.label, this.value, {super.key, this.onTap});

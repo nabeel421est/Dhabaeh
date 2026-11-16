@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Text;
+import '../core/presence.dart';
 
 import '../core/brand.dart';
 import '../core/common.dart';
@@ -20,20 +21,25 @@ class OrderDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: GradientAppBar(title: const Text('تفاصيل الطلب')),
-      body: Loader<Map<String, dynamic>>(
-        realtimeTables: const ['orders', 'order_events'],
-        load: () async => await sb
-            .from('orders')
-            .select(
-                '*, merchants(name, store_phone), order_items(*), order_events(status, created_at), delivery_zones(name)')
-            .eq('id', orderId)
-            .single(),
-        builder: (context, o, reload) => OrderView(
-            order: o, viewer: viewer, justPlaced: justPlaced, reload: reload),
-      ),
-    );
+    return PresenceTag(
+        screen: 'تفاصيل طلب',
+        child: Scaffold(
+          appBar: GradientAppBar(title: const Text('تفاصيل الطلب')),
+          body: Loader<Map<String, dynamic>>(
+            realtimeTables: const ['orders', 'order_events'],
+            load: () async => await sb
+                .from('orders')
+                .select(
+                    '*, merchants(name, store_phone), order_items(*), order_events(status, created_at), delivery_zones(name)')
+                .eq('id', orderId)
+                .single(),
+            builder: (context, o, reload) => OrderView(
+                order: o,
+                viewer: viewer,
+                justPlaced: justPlaced,
+                reload: reload),
+          ),
+        ));
   }
 }
 

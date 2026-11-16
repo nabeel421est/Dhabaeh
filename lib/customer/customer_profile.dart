@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Text;
+import '../core/presence.dart';
 
 import '../core/search_pick.dart';
 import 'package:latlong2/latlong.dart';
@@ -23,41 +24,43 @@ class CustomerProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const GradientAppBar(title: Text('معلوماتي')),
-      body: Loader<_ProfileData>(
-        load: () async {
-          final p = await sb
-              .from('profiles')
-              .select('full_name, phone, area, cpr, email, created_at')
-              .eq('id', myId!)
-              .maybeSingle();
-          final a = await sb
-              .from('customer_addresses')
-              .select()
-              .eq('user_id', myId!)
-              .order('created_at', ascending: false)
-              .limit(1);
-          final z = await sb
-              .from('delivery_zones')
-              .select('name')
-              .eq('active', true)
-              .order('name');
-          final o = await sb
-              .from('orders')
-              .select('status, total')
-              .eq('customer_id', myId!);
-          return (
-            p,
-            (a as List).isEmpty ? null : Map<String, dynamic>.from(a.first),
-            List<Map<String, dynamic>>.from(z),
-            List<Map<String, dynamic>>.from(o),
-          );
-        },
-        builder: (context, data, reload) => _ProfileForm(
-            key: ValueKey(data.hashCode), data: data, reload: reload),
-      ),
-    );
+    return PresenceTag(
+        screen: 'معلوماتي',
+        child: Scaffold(
+          appBar: const GradientAppBar(title: Text('معلوماتي')),
+          body: Loader<_ProfileData>(
+            load: () async {
+              final p = await sb
+                  .from('profiles')
+                  .select('full_name, phone, area, cpr, email, created_at')
+                  .eq('id', myId!)
+                  .maybeSingle();
+              final a = await sb
+                  .from('customer_addresses')
+                  .select()
+                  .eq('user_id', myId!)
+                  .order('created_at', ascending: false)
+                  .limit(1);
+              final z = await sb
+                  .from('delivery_zones')
+                  .select('name')
+                  .eq('active', true)
+                  .order('name');
+              final o = await sb
+                  .from('orders')
+                  .select('status, total')
+                  .eq('customer_id', myId!);
+              return (
+                p,
+                (a as List).isEmpty ? null : Map<String, dynamic>.from(a.first),
+                List<Map<String, dynamic>>.from(z),
+                List<Map<String, dynamic>>.from(o),
+              );
+            },
+            builder: (context, data, reload) => _ProfileForm(
+                key: ValueKey(data.hashCode), data: data, reload: reload),
+          ),
+        ));
   }
 }
 

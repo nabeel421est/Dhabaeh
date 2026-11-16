@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import '../admin/admin_payment_methods.dart' show payIcon;
 import '../core/search_pick.dart';
 import 'package:flutter/material.dart' hide Text;
+import '../core/presence.dart';
 import 'package:flutter/services.dart';
 
 import '../core/brand.dart';
@@ -413,237 +414,250 @@ class _OrderPageState extends State<OrderPage> {
   Widget build(BuildContext context) {
     final cs = widget.colors;
     final purchase = d.purchase;
-    return Scaffold(
-      appBar: GradientAppBar(
-          title: Text(purchase
-              ? 'شراء ${widget.product['name']}'
-              : 'حجز ${widget.product['name']}')),
-      body: FutureBuilder<OrderSetup>(
-        future: setup,
-        builder: (context, snap) {
-          if (snap.hasError) return Center(child: Text(errText(snap.error!)));
-          if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final today = DateTime.now();
-          final first = DateTime(today.year, today.month, today.day)
-              .add(const Duration(days: 1));
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: ListView(padding: const EdgeInsets.all(16), children: [
-                _ProductBanner(
-                    store: widget.store,
-                    product: widget.product,
-                    colors: cs,
-                    kind: d.kind,
-                    unit: d.priceFor(widget.product),
-                    unitName: d.unitNameFor(widget.product),
-                    qty: d.qty,
-                    onQty: (v) => setState(() => d.qty = v)),
-                if ((widget.product['product_units'] as List? ?? [])
-                    .isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  _Section(
-                    icon: Icons.straighten_outlined,
-                    title: 'اختر الوحدة',
-                    colors: cs,
-                    child: _wrap([
-                      _Choice(
-                          label: '${widget.product['base_unit'] ?? 'ذبيحة'}',
-                          sub: bhd(widget.product['price']),
-                          width: 132,
-                          colors: cs,
-                          selected: d.unit == null,
-                          onTap: () => setState(() => d.unit = null)),
-                      for (final u in ([
-                        ...(widget.product['product_units'] as List)
-                      ]..sort((a, b) =>
-                          toNum(a['sort']).compareTo(toNum(b['sort'])))))
-                        _Choice(
-                            label: '${u['name']}',
-                            sub: bhd(u['price']),
-                            width: 132,
-                            colors: cs,
-                            selected: d.unit?['id'] == u['id'],
-                            onTap: () => setState(
-                                () => d.unit = Map<String, dynamic>.from(u))),
-                    ]),
-                  ),
-                ],
-                if (purchase &&
-                    '${widget.product['description'] ?? ''}'.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  _Section(
-                    icon: Icons.info_outline,
-                    title: 'معلومات المنتج',
-                    colors: cs,
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text('${widget.product['description']}',
-                              style: const TextStyle(height: 1.6)),
-                          const SizedBox(height: 6),
-                          Text(
-                              'التصنيف: ${widget.product['category'] ?? ''} · ذبح شرعي في ${widget.store['name']}',
-                              style: const TextStyle(
-                                  fontSize: 12.5, color: Colors.black54)),
+    return PresenceTag(
+        screen: 'اختيار الحجز والتقطيع',
+        storeId: '${widget.store['id']}',
+        product: '${widget.product['name']}',
+        child: Scaffold(
+          appBar: GradientAppBar(
+              title: Text(purchase
+                  ? 'شراء ${widget.product['name']}'
+                  : 'حجز ${widget.product['name']}')),
+          body: FutureBuilder<OrderSetup>(
+            future: setup,
+            builder: (context, snap) {
+              if (snap.hasError) {
+                return Center(child: Text(errText(snap.error!)));
+              }
+              if (!snap.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final today = DateTime.now();
+              final first = DateTime(today.year, today.month, today.day)
+                  .add(const Duration(days: 1));
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: ListView(padding: const EdgeInsets.all(16), children: [
+                    _ProductBanner(
+                        store: widget.store,
+                        product: widget.product,
+                        colors: cs,
+                        kind: d.kind,
+                        unit: d.priceFor(widget.product),
+                        unitName: d.unitNameFor(widget.product),
+                        qty: d.qty,
+                        onQty: (v) => setState(() => d.qty = v)),
+                    if ((widget.product['product_units'] as List? ?? [])
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _Section(
+                        icon: Icons.straighten_outlined,
+                        title: 'اختر الوحدة',
+                        colors: cs,
+                        child: _wrap([
+                          _Choice(
+                              label:
+                                  '${widget.product['base_unit'] ?? 'ذبيحة'}',
+                              sub: bhd(widget.product['price']),
+                              width: 132,
+                              colors: cs,
+                              selected: d.unit == null,
+                              onTap: () => setState(() => d.unit = null)),
+                          for (final u in ([
+                            ...(widget.product['product_units'] as List)
+                          ]..sort((a, b) =>
+                              toNum(a['sort']).compareTo(toNum(b['sort'])))))
+                            _Choice(
+                                label: '${u['name']}',
+                                sub: bhd(u['price']),
+                                width: 132,
+                                colors: cs,
+                                selected: d.unit?['id'] == u['id'],
+                                onTap: () => setState(() =>
+                                    d.unit = Map<String, dynamic>.from(u))),
                         ]),
-                  ),
-                ],
-                if (purchase) ...[
-                  const SizedBox(height: 12),
-                  _Section(
-                    icon: Icons.content_cut,
-                    title: 'طريقة التقطيع والتغليف',
-                    colors: cs,
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _wrap([
-                            for (var i = 0; i < cuttingOptions.length; i++)
-                              _Choice(
-                                  label: cuttingOptions[i],
-                                  icon: cuttingIcons[i],
-                                  width: 104,
-                                  colors: cs,
-                                  selected: d.cutting == cuttingOptions[i],
-                                  onTap: () => setState(
-                                      () => d.cutting = cuttingOptions[i])),
-                          ]),
-                          const SizedBox(height: 14),
-                          const Text('التغليف',
-                              style: TextStyle(fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 8),
-                          _wrap([
-                            for (final v in packingOptions)
-                              _Choice(
-                                  label: v,
-                                  colors: cs,
-                                  selected: d.packing == v,
-                                  onTap: () => setState(() => d.packing = v)),
-                          ]),
-                          const SizedBox(height: 6),
-                          SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              activeTrackColor: cs.first,
-                              value: d.keepHead,
-                              onChanged: (v) => setState(() => d.keepHead = v),
-                              title: const Text('أبي الرأس والكوارع')),
-                        ]),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                _Section(
-                  icon: Icons.schedule,
-                  title: 'موعد الذبح',
-                  colors: cs,
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          height: 66,
-                          child: ListView(
-                              scrollDirection: Axis.horizontal,
-                              children: [
-                                for (final day in _days(first, 7))
-                                  Padding(
-                                    padding: const EdgeInsetsDirectional.only(
-                                        end: 8),
-                                    child: _Choice(
-                                        sub: _weekdays[day.weekday - 1],
-                                        label: '${day.day}/${day.month}',
-                                        width: 78,
-                                        colors: cs,
-                                        selected: d.slaughterDay == day,
-                                        onTap: () => setState(() {
-                                              d.slaughterDay = day;
-                                              if (d.deliveryDay.isBefore(day)) {
-                                                d.deliveryDay = day;
-                                              }
-                                            })),
-                                  ),
+                      ),
+                    ],
+                    if (purchase &&
+                        '${widget.product['description'] ?? ''}'
+                            .isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _Section(
+                        icon: Icons.info_outline,
+                        title: 'معلومات المنتج',
+                        colors: cs,
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text('${widget.product['description']}',
+                                  style: const TextStyle(height: 1.6)),
+                              const SizedBox(height: 6),
+                              Text(
+                                  'التصنيف: ${widget.product['category'] ?? ''} · ذبح شرعي في ${widget.store['name']}',
+                                  style: const TextStyle(
+                                      fontSize: 12.5, color: Colors.black54)),
+                            ]),
+                      ),
+                    ],
+                    if (purchase) ...[
+                      const SizedBox(height: 12),
+                      _Section(
+                        icon: Icons.content_cut,
+                        title: 'طريقة التقطيع والتغليف',
+                        colors: cs,
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _wrap([
+                                for (var i = 0; i < cuttingOptions.length; i++)
+                                  _Choice(
+                                      label: cuttingOptions[i],
+                                      icon: cuttingIcons[i],
+                                      width: 104,
+                                      colors: cs,
+                                      selected: d.cutting == cuttingOptions[i],
+                                      onTap: () => setState(
+                                          () => d.cutting = cuttingOptions[i])),
                               ]),
-                        ),
-                        const SizedBox(height: 10),
-                        _wrap([
-                          for (final v in slaughterTimes)
-                            _Choice(
-                                label: v,
-                                colors: cs,
-                                selected: d.slaughterTime == v,
-                                onTap: () =>
-                                    setState(() => d.slaughterTime = v)),
-                        ]),
-                      ]),
-                ),
-                const SizedBox(height: 12),
-                _Section(
-                  icon: Icons.local_shipping_outlined,
-                  title: purchase ? 'موعد التسليم' : 'موعد التوصيل',
-                  colors: cs,
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _wrap([
-                          for (final day in _days(d.slaughterDay, 3))
-                            _Choice(
-                                sub: _weekdays[day.weekday - 1],
-                                label: '${day.day}/${day.month}',
-                                width: 78,
-                                colors: cs,
-                                selected: d.deliveryDay == day,
-                                onTap: () =>
-                                    setState(() => d.deliveryDay = day)),
-                        ]),
-                        const SizedBox(height: 10),
-                        _wrap([
-                          for (final v in deliverySlots)
-                            _Choice(
-                                label: v,
-                                colors: cs,
-                                selected: d.slot == v,
-                                onTap: () => setState(() => d.slot = v)),
-                        ]),
-                      ]),
-                ),
-                const SizedBox(height: 12),
-                if (purchase)
-                  CheckoutSections(
-                      draft: d,
-                      setup: snap.data!,
-                      store: widget.store,
-                      product: widget.product,
-                      offer: widget.offer,
+                              const SizedBox(height: 14),
+                              const Text('التغليف',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 8),
+                              _wrap([
+                                for (final v in packingOptions)
+                                  _Choice(
+                                      label: v,
+                                      colors: cs,
+                                      selected: d.packing == v,
+                                      onTap: () =>
+                                          setState(() => d.packing = v)),
+                              ]),
+                              const SizedBox(height: 6),
+                              SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  activeTrackColor: cs.first,
+                                  value: d.keepHead,
+                                  onChanged: (v) =>
+                                      setState(() => d.keepHead = v),
+                                  title: const Text('أبي الرأس والكوارع')),
+                            ]),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    _Section(
+                      icon: Icons.schedule,
+                      title: 'موعد الذبح',
                       colors: cs,
-                      onChanged: () => setState(() {}))
-                else ...[
-                  const SizedBox(height: 4),
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                        backgroundColor: cs.first,
-                        padding: const EdgeInsets.symmetric(vertical: 16)),
-                    onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => CheckoutPage(
-                                draft: d,
-                                setup: snap.data!,
-                                store: widget.store,
-                                product: widget.product,
-                                offer: widget.offer,
-                                colors: cs))),
-                    icon: const Icon(Icons.payments_outlined),
-                    label: const Text('متابعة للدفع'),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ]),
-            ),
-          );
-        },
-      ),
-    );
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(
+                              height: 66,
+                              child: ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  children: [
+                                    for (final day in _days(first, 7))
+                                      Padding(
+                                        padding:
+                                            const EdgeInsetsDirectional.only(
+                                                end: 8),
+                                        child: _Choice(
+                                            sub: _weekdays[day.weekday - 1],
+                                            label: '${day.day}/${day.month}',
+                                            width: 78,
+                                            colors: cs,
+                                            selected: d.slaughterDay == day,
+                                            onTap: () => setState(() {
+                                                  d.slaughterDay = day;
+                                                  if (d.deliveryDay
+                                                      .isBefore(day)) {
+                                                    d.deliveryDay = day;
+                                                  }
+                                                })),
+                                      ),
+                                  ]),
+                            ),
+                            const SizedBox(height: 10),
+                            _wrap([
+                              for (final v in slaughterTimes)
+                                _Choice(
+                                    label: v,
+                                    colors: cs,
+                                    selected: d.slaughterTime == v,
+                                    onTap: () =>
+                                        setState(() => d.slaughterTime = v)),
+                            ]),
+                          ]),
+                    ),
+                    const SizedBox(height: 12),
+                    _Section(
+                      icon: Icons.local_shipping_outlined,
+                      title: purchase ? 'موعد التسليم' : 'موعد التوصيل',
+                      colors: cs,
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _wrap([
+                              for (final day in _days(d.slaughterDay, 3))
+                                _Choice(
+                                    sub: _weekdays[day.weekday - 1],
+                                    label: '${day.day}/${day.month}',
+                                    width: 78,
+                                    colors: cs,
+                                    selected: d.deliveryDay == day,
+                                    onTap: () =>
+                                        setState(() => d.deliveryDay = day)),
+                            ]),
+                            const SizedBox(height: 10),
+                            _wrap([
+                              for (final v in deliverySlots)
+                                _Choice(
+                                    label: v,
+                                    colors: cs,
+                                    selected: d.slot == v,
+                                    onTap: () => setState(() => d.slot = v)),
+                            ]),
+                          ]),
+                    ),
+                    const SizedBox(height: 12),
+                    if (purchase)
+                      CheckoutSections(
+                          draft: d,
+                          setup: snap.data!,
+                          store: widget.store,
+                          product: widget.product,
+                          offer: widget.offer,
+                          colors: cs,
+                          onChanged: () => setState(() {}))
+                    else ...[
+                      const SizedBox(height: 4),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                            backgroundColor: cs.first,
+                            padding: const EdgeInsets.symmetric(vertical: 16)),
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => CheckoutPage(
+                                    draft: d,
+                                    setup: snap.data!,
+                                    store: widget.store,
+                                    product: widget.product,
+                                    offer: widget.offer,
+                                    colors: cs))),
+                        icon: const Icon(Icons.payments_outlined),
+                        label: const Text('متابعة للدفع'),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ]),
+                ),
+              );
+            },
+          ),
+        ));
   }
 }
 
@@ -673,59 +687,63 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Widget build(BuildContext context) {
     final d = widget.draft;
     final cs = widget.colors;
-    return Scaffold(
-      appBar: const GradientAppBar(title: Text('الدفع وتأكيد الحجز')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: ListView(padding: const EdgeInsets.all(16), children: [
-            _ProductBanner(
-                store: widget.store,
-                product: widget.product,
-                colors: cs,
-                kind: d.kind,
-                unit: d.priceFor(widget.product),
-                unitName: d.unitNameFor(widget.product),
-                qty: d.qty),
-            const SizedBox(height: 12),
-            Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(children: [
-                  Expanded(
-                      child: _when(
-                          Icons.schedule,
-                          'الذبح',
-                          '${_weekdays[d.slaughterDay.weekday - 1]} ${d.slaughterDay.day}/${d.slaughterDay.month} · ${d.slaughterTime}',
-                          cs)),
-                  Container(width: 1, height: 40, color: Colors.black12),
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child: _when(
-                          Icons.local_shipping_outlined,
-                          'التوصيل',
-                          '${_weekdays[d.deliveryDay.weekday - 1]} ${d.deliveryDay.day}/${d.deliveryDay.month} · ${d.slot}',
-                          cs)),
-                  TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('تعديل')),
-                ]),
-              ),
+    return PresenceTag(
+        screen: 'الدفع وتأكيد الحجز',
+        storeId: '${widget.store['id']}',
+        product: '${widget.product['name']}',
+        child: Scaffold(
+          appBar: const GradientAppBar(title: Text('الدفع وتأكيد الحجز')),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: ListView(padding: const EdgeInsets.all(16), children: [
+                _ProductBanner(
+                    store: widget.store,
+                    product: widget.product,
+                    colors: cs,
+                    kind: d.kind,
+                    unit: d.priceFor(widget.product),
+                    unitName: d.unitNameFor(widget.product),
+                    qty: d.qty),
+                const SizedBox(height: 12),
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(children: [
+                      Expanded(
+                          child: _when(
+                              Icons.schedule,
+                              'الذبح',
+                              '${_weekdays[d.slaughterDay.weekday - 1]} ${d.slaughterDay.day}/${d.slaughterDay.month} · ${d.slaughterTime}',
+                              cs)),
+                      Container(width: 1, height: 40, color: Colors.black12),
+                      const SizedBox(width: 12),
+                      Expanded(
+                          child: _when(
+                              Icons.local_shipping_outlined,
+                              'التوصيل',
+                              '${_weekdays[d.deliveryDay.weekday - 1]} ${d.deliveryDay.day}/${d.deliveryDay.month} · ${d.slot}',
+                              cs)),
+                      TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('تعديل')),
+                    ]),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                CheckoutSections(
+                    draft: d,
+                    setup: widget.setup,
+                    store: widget.store,
+                    product: widget.product,
+                    offer: widget.offer,
+                    colors: cs,
+                    onChanged: () => setState(() {})),
+              ]),
             ),
-            const SizedBox(height: 12),
-            CheckoutSections(
-                draft: d,
-                setup: widget.setup,
-                store: widget.store,
-                product: widget.product,
-                offer: widget.offer,
-                colors: cs,
-                onChanged: () => setState(() {})),
-          ]),
-        ),
-      ),
-    );
+          ),
+        ));
   }
 
   Widget _when(IconData i, String k, String v, List<Color> cs) =>

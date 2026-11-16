@@ -10,6 +10,7 @@ import 'customer_profile.dart';
 import '../core/ttext.dart';
 import '../core/i18n.dart';
 import '../core/tap_pay.dart';
+import '../core/presence.dart';
 
 class CustomerShell extends StatefulWidget {
   const CustomerShell({super.key, required this.profile, this.switcher});
@@ -22,9 +23,19 @@ class CustomerShell extends StatefulWidget {
 class _CustomerShellState extends State<CustomerShell> {
   int tab = 0;
 
+  static const _places = ['الرئيسية · الملاحم', 'طلباتي', 'الإشعارات'];
+
+  @override
+  void dispose() {
+    Presence.stop();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    Presence.base(_places[0]);
+    Presence.start();
     // Back from the Tap payment page: confirm the payment and open the order.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final id = await checkTapReturn(context);
@@ -85,7 +96,10 @@ class _CustomerShellState extends State<CustomerShell> {
       ),
       bottomNavigationBar: _LuxNav(
         index: tab,
-        onTap: (i) => setState(() => tab = i),
+        onTap: (i) {
+          setState(() => tab = i);
+          Presence.base(_places[i]);
+        },
         items: [
           (Icons.storefront_outlined, Icons.storefront, tr('الملاحم')),
           (Icons.receipt_long_outlined, Icons.receipt_long, tr('طلباتي')),

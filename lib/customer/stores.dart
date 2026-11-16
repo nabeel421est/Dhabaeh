@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Text;
+import '../core/presence.dart';
 
 import '../core/brand.dart';
 import '../core/common.dart';
@@ -692,166 +693,177 @@ class _StorePageState extends State<StorePage> {
   Widget build(BuildContext context) {
     final store = widget.store;
     final colors = widget.colors;
-    return Scaffold(
-      appBar: GradientAppBar(title: Text(store['name'])),
-      body: Loader<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)>(
-        realtimeTables: const ['products', 'offers'],
-        load: () async {
-          final p = await sb
-              .from('products')
-              .select('*, product_units(id, name, price, sku, sort)')
-              .eq('merchant_id', store['id'])
-              .eq('available', true)
-              .order('price');
-          final o = await sb
-              .from('offers')
-              .select('*, products(name)')
-              .eq('merchant_id', store['id'])
-              .eq('active', true);
-          return (
-            List<Map<String, dynamic>>.from(p),
-            List<Map<String, dynamic>>.from(o)
-          );
-        },
-        builder: (context, data, _) {
-          final (products, offers) = data;
-          final cats = <String>{
-            for (final p in products) '${p['category'] ?? ''}'
-          }.toList();
-          final q = search.trim();
-          final shown = products.where((p) {
-            if (cat != null && p['category'] != cat) return false;
-            return q.isEmpty ||
-                '${p['name']}'.contains(q) ||
-                '${p['description'] ?? ''}'.contains(q);
-          }).toList();
-          return ListView(padding: const EdgeInsets.all(16), children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                gradient: LinearGradient(
-                    begin: AlignmentDirectional.topStart,
-                    end: AlignmentDirectional.bottomEnd,
-                    colors: [colors.first, colors.last, colors.first]),
-                boxShadow: [
-                  BoxShadow(
-                      color: colors.first.withValues(alpha: .3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6))
-                ],
-              ),
-              child: Row(children: [
+    return PresenceTag(
+        screen: 'صفحة الملحمة',
+        storeId: '${widget.store['id']}',
+        child: Scaffold(
+          appBar: GradientAppBar(title: Text(store['name'])),
+          body:
+              Loader<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)>(
+            realtimeTables: const ['products', 'offers'],
+            load: () async {
+              final p = await sb
+                  .from('products')
+                  .select('*, product_units(id, name, price, sku, sort)')
+                  .eq('merchant_id', store['id'])
+                  .eq('available', true)
+                  .order('price');
+              final o = await sb
+                  .from('offers')
+                  .select('*, products(name)')
+                  .eq('merchant_id', store['id'])
+                  .eq('active', true);
+              return (
+                List<Map<String, dynamic>>.from(p),
+                List<Map<String, dynamic>>.from(o)
+              );
+            },
+            builder: (context, data, _) {
+              final (products, offers) = data;
+              final cats = <String>{
+                for (final p in products) '${p['category'] ?? ''}'
+              }.toList();
+              final q = search.trim();
+              final shown = products.where((p) {
+                if (cat != null && p['category'] != cat) return false;
+                return q.isEmpty ||
+                    '${p['name']}'.contains(q) ||
+                    '${p['description'] ?? ''}'.contains(q);
+              }).toList();
+              return ListView(padding: const EdgeInsets.all(16), children: [
                 Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: const BoxDecoration(
-                      color: Colors.white, shape: BoxShape.circle),
-                  child:
-                      ClipOval(child: StoreLogo(store['logo_url'], size: 64)),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(store['name'],
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700)),
-                        Row(children: [
-                          const Icon(Icons.place_outlined,
-                              size: 15, color: Colors.white70),
-                          const SizedBox(width: 3),
-                          Text(store['area'] ?? '',
-                              style: const TextStyle(color: Colors.white70)),
-                          const SizedBox(width: 10),
-                          Text('${products.length} صنف',
-                              style: const TextStyle(color: Colors.white70)),
-                        ]),
-                        if ('${store['description'] ?? ''}'.isNotEmpty)
-                          Text('${store['description']}',
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 13)),
-                      ]),
-                ),
-              ]),
-            ),
-            if (offers.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 64,
-                child: ListView(scrollDirection: Axis.horizontal, children: [
-                  for (final o in offers)
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(22),
+                    gradient: LinearGradient(
+                        begin: AlignmentDirectional.topStart,
+                        end: AlignmentDirectional.bottomEnd,
+                        colors: [colors.first, colors.last, colors.first]),
+                    boxShadow: [
+                      BoxShadow(
+                          color: colors.first.withValues(alpha: .3),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6))
+                    ],
+                  ),
+                  child: Row(children: [
                     Container(
-                      margin: const EdgeInsetsDirectional.only(end: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: colors.first.withValues(alpha: .07),
-                        border: Border.all(
-                            color: colors.first.withValues(alpha: .35)),
-                      ),
-                      child: Row(children: [
-                        Icon(Icons.local_offer, color: colors.first),
-                        const SizedBox(width: 8),
-                        Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('${o['title']}',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: colors.first)),
-                              Text(o['products']?['name'] ?? 'كل الأصناف',
-                                  style: const TextStyle(
-                                      fontSize: 12, color: Colors.black54)),
-                            ]),
-                      ]),
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                          color: Colors.white, shape: BoxShape.circle),
+                      child: ClipOval(
+                          child: StoreLogo(store['logo_url'], size: 64)),
                     ),
-                ]),
-              ),
-            ],
-            const SizedBox(height: 14),
-            TextField(
-              decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  hintText: tr('ابحث في أصناف الملحمة')),
-              onChanged: (v) => setState(() => search = v),
-            ),
-            const SizedBox(height: 10),
-            if (cats.length > 1)
-              SizedBox(
-                height: 44,
-                child: ListView(scrollDirection: Axis.horizontal, children: [
-                  TonePill(
-                      label: 'الكل',
-                      count: products.length,
-                      colors: colors,
-                      selected: cat == null,
-                      onTap: () => setState(() => cat = null)),
-                  for (final c in cats)
-                    TonePill(
-                        label: c,
-                        count: products.where((p) => p['category'] == c).length,
-                        colors: colors,
-                        selected: cat == c,
-                        onTap: () => setState(() => cat = c)),
-                ]),
-              ),
-            const SizedBox(height: 10),
-            if (shown.isEmpty)
-              const Empty('لا توجد أصناف متاحة', icon: Icons.set_meal_outlined),
-            ProductGrid(
-              products: shown,
-              offers: offers,
-              toneOf: (_) => colors,
-              storeOf: (_) => store,
-            ),
-          ]);
-        },
-      ),
-    );
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(store['name'],
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700)),
+                            Row(children: [
+                              const Icon(Icons.place_outlined,
+                                  size: 15, color: Colors.white70),
+                              const SizedBox(width: 3),
+                              Text(store['area'] ?? '',
+                                  style:
+                                      const TextStyle(color: Colors.white70)),
+                              const SizedBox(width: 10),
+                              Text('${products.length} صنف',
+                                  style:
+                                      const TextStyle(color: Colors.white70)),
+                            ]),
+                            if ('${store['description'] ?? ''}'.isNotEmpty)
+                              Text('${store['description']}',
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 13)),
+                          ]),
+                    ),
+                  ]),
+                ),
+                if (offers.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 64,
+                    child:
+                        ListView(scrollDirection: Axis.horizontal, children: [
+                      for (final o in offers)
+                        Container(
+                          margin: const EdgeInsetsDirectional.only(end: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            color: colors.first.withValues(alpha: .07),
+                            border: Border.all(
+                                color: colors.first.withValues(alpha: .35)),
+                          ),
+                          child: Row(children: [
+                            Icon(Icons.local_offer, color: colors.first),
+                            const SizedBox(width: 8),
+                            Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('${o['title']}',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: colors.first)),
+                                  Text(o['products']?['name'] ?? 'كل الأصناف',
+                                      style: const TextStyle(
+                                          fontSize: 12, color: Colors.black54)),
+                                ]),
+                          ]),
+                        ),
+                    ]),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                TextField(
+                  decoration: InputDecoration(
+                      prefixIcon: Icon(Icons.search),
+                      hintText: tr('ابحث في أصناف الملحمة')),
+                  onChanged: (v) => setState(() => search = v),
+                ),
+                const SizedBox(height: 10),
+                if (cats.length > 1)
+                  SizedBox(
+                    height: 44,
+                    child:
+                        ListView(scrollDirection: Axis.horizontal, children: [
+                      TonePill(
+                          label: 'الكل',
+                          count: products.length,
+                          colors: colors,
+                          selected: cat == null,
+                          onTap: () => setState(() => cat = null)),
+                      for (final c in cats)
+                        TonePill(
+                            label: c,
+                            count: products
+                                .where((p) => p['category'] == c)
+                                .length,
+                            colors: colors,
+                            selected: cat == c,
+                            onTap: () => setState(() => cat = c)),
+                    ]),
+                  ),
+                const SizedBox(height: 10),
+                if (shown.isEmpty)
+                  const Empty('لا توجد أصناف متاحة',
+                      icon: Icons.set_meal_outlined),
+                ProductGrid(
+                  products: shown,
+                  offers: offers,
+                  toneOf: (_) => colors,
+                  storeOf: (_) => store,
+                ),
+              ]);
+            },
+          ),
+        ));
   }
 }
 
@@ -935,131 +947,141 @@ class ProductPage extends StatelessWidget {
             ]),
           ),
         );
-    return Scaffold(
-      appBar: GradientAppBar(title: Text('${p['name']}')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: ListView(padding: const EdgeInsets.all(16), children: [
-            Container(
-              height: 210,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                gradient: LinearGradient(
-                    begin: AlignmentDirectional.topStart,
-                    end: AlignmentDirectional.bottomEnd,
-                    colors: colors),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(fit: StackFit.expand, children: [
-                if (img is String && img.isNotEmpty)
-                  ProductPhoto(
-                      url: img, colors: colors, zoom: true, padding: 16)
-                else ...[
-                  PositionedDirectional(
-                      end: -40,
-                      top: -40,
+    return PresenceTag(
+        screen: 'صفحة الصنف',
+        storeId: '${store['id']}',
+        product: '${product['name']}',
+        child: Scaffold(
+          appBar: GradientAppBar(title: Text('${p['name']}')),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: ListView(padding: const EdgeInsets.all(16), children: [
+                Container(
+                  height: 210,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: LinearGradient(
+                        begin: AlignmentDirectional.topStart,
+                        end: AlignmentDirectional.bottomEnd,
+                        colors: colors),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Stack(fit: StackFit.expand, children: [
+                    if (img is String && img.isNotEmpty)
+                      ProductPhoto(
+                          url: img, colors: colors, zoom: true, padding: 16)
+                    else ...[
+                      PositionedDirectional(
+                          end: -40,
+                          top: -40,
+                          child: Container(
+                              width: 170,
+                              height: 170,
+                              decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: .1)))),
+                      Center(
+                          child: Icon(Icons.set_meal_outlined,
+                              size: 96,
+                              color: Colors.white.withValues(alpha: .92))),
+                    ],
+                    PositionedDirectional(
+                      bottom: 12,
+                      start: 12,
                       child: Container(
-                          width: 170,
-                          height: 170,
-                          decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withValues(alpha: .1)))),
-                  Center(
-                      child: Icon(Icons.set_meal_outlined,
-                          size: 96,
-                          color: Colors.white.withValues(alpha: .92))),
-                ],
-                PositionedDirectional(
-                  bottom: 12,
-                  start: 12,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: .25),
-                        borderRadius: BorderRadius.circular(999)),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      ClipOval(child: StoreLogo(store['logo_url'], size: 22)),
-                      const SizedBox(width: 6),
-                      Text('${store['name']}',
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: .25),
+                            borderRadius: BorderRadius.circular(999)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          ClipOval(
+                              child: StoreLogo(store['logo_url'], size: 22)),
+                          const SizedBox(width: 6),
+                          Text('${store['name']}',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600)),
+                        ]),
+                      ),
+                    ),
+                  ]),
+                ),
+                const SizedBox(height: 16),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${p['name']}',
+                              style: const TextStyle(
+                                  fontSize: 22, fontWeight: FontWeight.w800)),
+                          Text('${p['category'] ?? ''}',
+                              style: TextStyle(color: colors.first)),
+                        ]),
+                  ),
+                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    if (off > 0)
+                      Text(bhd(price),
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600)),
+                              color: Colors.black38,
+                              decoration: TextDecoration.lineThrough)),
+                    Text(bhd(price - off),
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: colors.first)),
+                  ]),
+                ]),
+                if ('${p['description'] ?? ''}'.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text('${p['description']}',
+                      style:
+                          const TextStyle(color: Colors.black54, height: 1.6)),
+                ],
+                if (offer != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                        color: colors.first.withValues(alpha: .07),
+                        borderRadius: BorderRadius.circular(14)),
+                    child: Row(children: [
+                      Icon(Icons.local_offer, color: colors.first),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          child: Text('${offer!['title']}',
+                              style: TextStyle(
+                                  color: colors.first,
+                                  fontWeight: FontWeight.w700))),
                     ]),
                   ),
-                ),
+                ],
+                const SizedBox(height: 22),
+                const Text('كيف تبي تطلب؟',
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 10),
+                choice(
+                    'purchase',
+                    Icons.shopping_bag_outlined,
+                    'شراء',
+                    'اختر طريقة التقطيع والتغليف وموعد الذبح والتسليم، وادفع في نفس الصفحة',
+                    colors),
+                const SizedBox(height: 12),
+                choice(
+                    'reservation',
+                    Icons.event_available_outlined,
+                    'حجز',
+                    'احجز الذبيحة بموعد الذبح والتوصيل، وبعدها تنتقل لصفحة الدفع',
+                    [
+                      Color.lerp(colors.first, Colors.black, .25)!,
+                      colors.first
+                    ]),
               ]),
             ),
-            const SizedBox(height: 16),
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${p['name']}',
-                          style: const TextStyle(
-                              fontSize: 22, fontWeight: FontWeight.w800)),
-                      Text('${p['category'] ?? ''}',
-                          style: TextStyle(color: colors.first)),
-                    ]),
-              ),
-              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                if (off > 0)
-                  Text(bhd(price),
-                      style: const TextStyle(
-                          color: Colors.black38,
-                          decoration: TextDecoration.lineThrough)),
-                Text(bhd(price - off),
-                    style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: colors.first)),
-              ]),
-            ]),
-            if ('${p['description'] ?? ''}'.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text('${p['description']}',
-                  style: const TextStyle(color: Colors.black54, height: 1.6)),
-            ],
-            if (offer != null) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                    color: colors.first.withValues(alpha: .07),
-                    borderRadius: BorderRadius.circular(14)),
-                child: Row(children: [
-                  Icon(Icons.local_offer, color: colors.first),
-                  const SizedBox(width: 8),
-                  Expanded(
-                      child: Text('${offer!['title']}',
-                          style: TextStyle(
-                              color: colors.first,
-                              fontWeight: FontWeight.w700))),
-                ]),
-              ),
-            ],
-            const SizedBox(height: 22),
-            const Text('كيف تبي تطلب؟',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
-            choice(
-                'purchase',
-                Icons.shopping_bag_outlined,
-                'شراء',
-                'اختر طريقة التقطيع والتغليف وموعد الذبح والتسليم، وادفع في نفس الصفحة',
-                colors),
-            const SizedBox(height: 12),
-            choice(
-                'reservation',
-                Icons.event_available_outlined,
-                'حجز',
-                'احجز الذبيحة بموعد الذبح والتوصيل، وبعدها تنتقل لصفحة الدفع',
-                [Color.lerp(colors.first, Colors.black, .25)!, colors.first]),
-          ]),
-        ),
-      ),
-    );
+          ),
+        ));
   }
 }
