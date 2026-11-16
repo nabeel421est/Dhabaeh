@@ -147,12 +147,13 @@ class _LuxNav extends StatelessWidget {
                               ? LinearGradient(
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
-                                  colors: b.gold)
+                                  colors: luxChips[i % luxChips.length])
                               : null,
                           boxShadow: i == index
                               ? [
                                   BoxShadow(
-                                      color: b.accent.withValues(alpha: .5),
+                                      color: luxChips[i % luxChips.length][0]
+                                          .withValues(alpha: .6),
                                       blurRadius: 14)
                                 ]
                               : null,
@@ -160,7 +161,7 @@ class _LuxNav extends StatelessWidget {
                         child: Icon(i == index ? it.$2 : it.$1,
                             size: 22,
                             color: i == index
-                                ? b.dark
+                                ? Colors.white
                                 : Colors.white.withValues(alpha: .72)),
                       ),
                       const SizedBox(height: 4),
@@ -171,7 +172,7 @@ class _LuxNav extends StatelessWidget {
                                   ? FontWeight.w800
                                   : FontWeight.w500,
                               color: i == index
-                                  ? b.gold[0]
+                                  ? luxChips[i % luxChips.length][1]
                                   : Colors.white.withValues(alpha: .72))),
                     ]),
                   ),

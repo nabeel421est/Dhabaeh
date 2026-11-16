@@ -492,9 +492,15 @@ class LuxBackdrop extends StatelessWidget {
       ),
       child: Stack(children: [
         PositionedDirectional(
-            top: 120, end: -140, child: _Light(b.accent, 360, .16)),
+            top: 120, end: -140, child: _Light(b.accent, 360, .22)),
         PositionedDirectional(
-            bottom: 40, start: -160, child: _Light(b.stops[2], 380, .10)),
+            top: 520,
+            start: -170,
+            child: _Light(const Color(0xFFE0457B), 380, .14)),
+        PositionedDirectional(
+            bottom: -60,
+            end: -120,
+            child: _Light(const Color(0xFF7B4FE0), 360, .12)),
         Positioned.fill(child: child),
       ]),
     );
@@ -639,7 +645,7 @@ class PageHero extends StatelessWidget {
               runSpacing: 10,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                for (final s in stats)
+                for (final (si, s) in stats.indexed)
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
@@ -647,12 +653,22 @@ class PageHero extends StatelessWidget {
                       color: b.lux ? null : Colors.white.withValues(alpha: .14),
                       gradient: b.lux
                           ? LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                               colors: [
-                                  Colors.white.withValues(alpha: .16),
-                                  Colors.white.withValues(alpha: .04),
+                                  for (final c
+                                      in luxChips[si % luxChips.length])
+                                    c.withValues(alpha: .85)
                                 ])
+                          : null,
+                      boxShadow: b.lux
+                          ? [
+                              BoxShadow(
+                                  color: luxChips[si % luxChips.length][0]
+                                      .withValues(alpha: .45),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 5))
+                            ]
                           : null,
                       borderRadius: BorderRadius.circular(b.lux ? 16 : 14),
                       border: Border.all(
@@ -669,7 +685,7 @@ class PageHero extends StatelessWidget {
                                   color: Colors.white70, fontSize: 12)),
                           Text(s.$2,
                               style: TextStyle(
-                                  color: b.accent,
+                                  color: b.lux ? Colors.white : b.accent,
                                   fontSize: 19,
                                   fontWeight: FontWeight.w700)),
                         ]),
@@ -681,6 +697,14 @@ class PageHero extends StatelessWidget {
     );
   }
 }
+
+/// Vivid gradients for the headline-number chips of the deluxe look.
+const luxChips = [
+  [Color(0xFFE0457B), Color(0xFFF59AB0)], // rose
+  [Color(0xFFE08A1E), Color(0xFFF7C562)], // amber
+  [Color(0xFF7B4FE0), Color(0xFFB69BFA)], // violet
+  [Color(0xFF13A08F), Color(0xFF6EE0C4)], // teal
+];
 
 /// A light button that sits on a gradient banner.
 class HeroButton extends StatelessWidget {

@@ -8,14 +8,15 @@ import '../core/ttext.dart';
 import '../core/i18n.dart';
 
 /// Store colours: each butcher shop keeps its own gradient everywhere in the customer app.
+/// Bold three-stop gradients (dark → vivid → light) that colour each store.
 const storeTones = [
-  G.wine,
-  G.bronze,
-  G.plum,
-  G.midnight,
-  G.forest,
-  G.rose,
-  G.gold
+  [Color(0xFF5A0F2A), Color(0xFFB3264F), Color(0xFFF06A7A)], // ruby
+  [Color(0xFF7A3410), Color(0xFFD9771F), Color(0xFFF7B955)], // amber
+  [Color(0xFF2E1A6B), Color(0xFF6D3FD0), Color(0xFFB48CF5)], // violet
+  [Color(0xFF05464A), Color(0xFF0F8C84), Color(0xFF4FD1B5)], // teal
+  [Color(0xFF0D2D6B), Color(0xFF2463C9), Color(0xFF63B3F5)], // sapphire
+  [Color(0xFF5C0F4E), Color(0xFFB02A8A), Color(0xFFF07BC6)], // magenta
+  [Color(0xFF6B4A0F), Color(0xFFC08A25), Color(0xFFF2CF6B)], // gold
 ];
 
 /// The offer that applies to a product (product-specific offers only, as the order is priced).
@@ -160,11 +161,11 @@ class _StoresPageState extends State<StoresPage> {
                   colors: b.stops.sublist(1),
                   selected: area == null,
                   onTap: () => setState(() => area = null)),
-              for (final a in areas)
+              for (final (ai, a) in areas.indexed)
                 TonePill(
                     label: a,
                     count: stores.where((m) => m['area'] == a).length,
-                    colors: b.stops.sublist(1),
+                    colors: storeTones[(ai + 1) % storeTones.length],
                     selected: area == a,
                     onTap: () => setState(() => area = a)),
             ]),
@@ -292,14 +293,17 @@ class _StoreCard extends StatelessWidget {
     final b = brandOf(context);
     return Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.white, Color.lerp(cs.last, Colors.white, .55)!]),
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: b.accent.withValues(alpha: .5)),
+          border: Border.all(color: Color.lerp(cs.last, b.accent, .4)!),
           boxShadow: [
             BoxShadow(
-                color: cs.first.withValues(alpha: .18),
-                blurRadius: 18,
-                offset: const Offset(0, 8)),
+                color: cs[cs.length > 2 ? 1 : 0].withValues(alpha: .30),
+                blurRadius: 20,
+                offset: const Offset(0, 9)),
           ],
         ),
         clipBehavior: Clip.antiAlias,
@@ -380,9 +384,9 @@ class _StoreCard extends StatelessWidget {
                       height: 2,
                       decoration: BoxDecoration(
                           gradient: LinearGradient(colors: [
-                        b.accent.withValues(alpha: .15),
+                        cs.first,
+                        cs.last,
                         b.gold[0],
-                        b.accent.withValues(alpha: .15),
                       ]))),
                   Expanded(
                     child: Padding(
@@ -421,10 +425,7 @@ class _StoreCard extends StatelessWidget {
                                     horizontal: 10, vertical: 3),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(999),
-                                  gradient: LinearGradient(colors: [
-                                    Color.lerp(cs.first, Colors.black, .2)!,
-                                    cs.last,
-                                  ]),
+                                  gradient: LinearGradient(colors: cs),
                                   border: Border.all(
                                       color: b.accent.withValues(alpha: .7)),
                                 ),
@@ -533,12 +534,15 @@ class ProductTile extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      elevation: lb.lux ? 6 : null,
-      shadowColor: lb.lux ? lb.dark.withValues(alpha: .25) : null,
+      elevation: lb.lux ? 8 : null,
+      shadowColor: lb.lux
+          ? colors[colors.length > 2 ? 1 : 0].withValues(alpha: .45)
+          : null,
+      color: lb.lux ? Color.lerp(colors.last, Colors.white, .74) : null,
       shape: lb.lux
           ? RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(22),
-              side: BorderSide(color: lb.accent.withValues(alpha: .5)))
+              side: BorderSide(color: Color.lerp(colors.last, lb.accent, .4)!))
           : null,
       child: InkWell(
         onTap: onTap,
@@ -613,8 +617,10 @@ class ProductTile extends StatelessWidget {
                     Text('${p['name']}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: lb.lux ? colors.first : null)),
                     if (storeName != null)
                       Text(storeName!,
                           maxLines: 1,
